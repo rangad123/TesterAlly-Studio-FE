@@ -109,11 +109,15 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
         '/member-test-requirement': 'Requirements',
         '/member-test-suite': 'Test Suites',
         '/member-project-details': 'Project Details',
-        '/member-test-data': 'Test Data'
+        '/member-test-data': 'Test Data',
+        '/member-requirement-types': 'Requirement Types',
+        '/member-test-types': 'Test Case Types',
+        '/member-prorities': 'Test Case Priorities'
+
       };
       setActiveMenuItem(pathToMenu[location.pathname] || '');
       
-      if (['/member-project-details', '/member-test-data'].includes(location.pathname)) {
+      if (['/member-project-details', '/member-test-data','/member-requirement-types','/member-test-types','/member-prorities'].includes(location.pathname)) {
         setIsProjectSettingsExpanded(true);
       }
     }, [location.pathname]);
@@ -155,9 +159,9 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
   const projectSettingsItems = [
     { icon: FaInfoCircle, label: "Project Details", path:'/member-project-details' },
     { icon: FaFileAlt, label: "Test Data", path:'/member-test-data' },
-    { icon: FaList, label: "Requirement Types" },
-    { icon: FaCog, label: "Test Case Types" },
-    { icon: FaFlag, label: "Test Case Priorities" },
+    { icon: FaList, label: "Requirement Types", path:'/member-requirement-types' },
+    { icon: FaCog, label: "Test Case Types", path:'/member-test-types' },
+    { icon: FaFlag, label: "Test Case Priorities", path:'/member-prorities' },
   ];
 
   const menuItems = [

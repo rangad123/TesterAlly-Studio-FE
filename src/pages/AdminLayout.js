@@ -109,7 +109,7 @@ const AdminLayout = ({ children }) => {
         }
       }
     },
-    { icon: FaCog, label: "Settings", path: "/org-settings" },
+    { icon: FaCog, label: "Settings", path: "/admin-org-settings" },
   ];
 
   return (

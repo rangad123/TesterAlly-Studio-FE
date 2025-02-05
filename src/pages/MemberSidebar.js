@@ -66,7 +66,6 @@ const MemberSidebar = () => {
 
   const toggleSettingsSidebar = () => {
     setIsSettingsVisible((prevState) => !prevState);
-
     setIsProjectSettingsVisible(false);
     setIsMTestCasesVisible(false);
   };
@@ -122,6 +121,9 @@ const MemberSidebar = () => {
       "/member-test-suite",
       "/member-test-requirement",
       "/member-test-data",
+      "/member-requirement-types",
+      "/member-test-types",
+      "/member-prorities",
     ];
   
     if (testCasePages.includes(location.pathname)) {
@@ -136,7 +138,8 @@ const MemberSidebar = () => {
 
   const isAnyOptionActive = currentPath === "/member-project-details" || currentPath === "/member-test-details"
   || currentPath === "/member-test-cases/:testCase.Id/steps"
-  || currentPath === "/member-test-suite" || currentPath === "/member-test-requirement" || currentPath === "/member-test-data"  ;
+  || currentPath === "/member-test-suite" || currentPath === "/member-test-requirement" || currentPath === "/member-test-data"  
+  || currentPath === "/member-requirement-types" || currentPath === "/member-test-types" || currentPath === "/member-prorities";
 
 
   return (
@@ -170,9 +173,7 @@ const MemberSidebar = () => {
       {/* Test Development Option */}
     <div
       className={`sidebar-option ${isAnyOptionActive ? "active" : ""}`}
-      onClick={() => {
-        if (!isAnyOptionActive) toggleMTestCasesSidebar(); // Toggle only if not already active
-      }}
+      onClick={toggleMTestCasesSidebar} 
     >
       <FaCode className={`icon project-icon ${isAnyOptionActive ? "active-icon" : ""}`} />
       <div className="option-name-container">
@@ -221,11 +222,11 @@ const MemberSidebar = () => {
           <div className="sub-sidebar-header">Settings</div>
           <div className="sub-sidebar-item" onClick={handleNavigateToUserRoles}>
             <FaUserShield className="icon" />
-            <span>User Roles</span>
+            <span>Profile Settings</span>
           </div>
           <div className="sub-sidebar-item" onClick={handleNavigateToUsers}>
             <FaUsers className="icon" />
-            <span>Users</span>
+            <span>Generic Settings</span>
           </div>
         </div>
       )}

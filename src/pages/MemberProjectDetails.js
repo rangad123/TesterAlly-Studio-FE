@@ -49,7 +49,7 @@ const MemberProjectDetails = () => {
   };
 
   const handleAddNew = (type) => {
-    navigate("/member-project-details");
+    navigate("/member-create-testcase");
   };
 
   return (

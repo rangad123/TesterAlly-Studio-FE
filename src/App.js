@@ -345,6 +345,9 @@ import MemberTestData from "./pages/MemberTestData";
 import TestEnvironmentConfig from "./pages/TestEnvironmentConfig";
 import MemberTestSuites from "./pages/MemberTestSuites";
 import MemberRequirement from "./pages/MemberRequirement";
+import MemberTestType from "./pages/MemberTestType";
+import MemberRequirementType from "./pages/MemberRequirementType";
+import MemberPriorities from "./pages/MemberPriorities";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -703,6 +706,33 @@ const App = () => {
                 element={ 
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <MemberRequirement />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-test-types"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberTestType />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-requirement-types"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberRequirementType />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-prorities"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberPriorities />
                   </PrivateRoute>
                 }
               />

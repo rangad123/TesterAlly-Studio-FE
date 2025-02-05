@@ -182,9 +182,29 @@ const AdminProjectDetails = () => {
                         <h4 className="font-medium text-gray-900">
                           {testCase.name}
                         </h4>
-                        <p className="text-gray-600 mt-1">
-                          {testCase.url || "N/A"}
+                        <p className="mt-1">
+                          <span className="text-gray-900 ">Test Case Type:</span>{" "}
+                          <span className="text-gray-600">{testCase.testcase_type || "N/A"}</span>
                         </p>
+
+                        <p className="mt-1">
+                          <span className="text-gray-900">Test Case Priority:</span>{" "}
+                          <span className="text-gray-600">{testCase.testcase_priority || "N/A"}</span>
+                        </p>
+
+                        {testCase.steps && testCase.steps.length > 0 && (
+                          <div className="mt-3">
+                            <h5 className="text-gray-900 font-semibold">Test Steps:</h5>
+                            <ul className="list-disc pl-5 text-gray-700 mt-1">
+                            {testCase.steps.map((step) => (
+                              <li key={step.id}>
+                                <span className="font-medium">Step {step.step_number}:</span> {step.step_description}
+                              </li>
+                            ))}
+                            </ul>
+                          </div>
+                        )}
+
                         <span className="inline-block mt-2 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                           {testCase.status || "Not Started"}
                         </span>
@@ -212,7 +232,12 @@ const AdminProjectDetails = () => {
                           {suite.title}
                         </h4>
                         <p className="text-gray-600 mt-1">
+                          <span className="text-gray-900">Description:</span>{" "}
                           {suite.description || "N/A"}
+                        </p>
+                        <p className="text-gray-600 mt-1">
+                          <span className="text-gray-900">Pre-Requisite:</span>{" "}
+                          {suite.pre_requisite || "N/A"}
                         </p>
                         <div className="mt-2 text-sm text-gray-500">
                           Test Cases: {suite.test_cases_count || 0}

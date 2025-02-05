@@ -144,7 +144,7 @@ const AdminOrganization = () => {
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
-          {selectedOrg?.name ? `${selectedOrg.name} Projects` : 'Organization Projects'}
+         {/* {selectedOrg?.name ? `${selectedOrg.name} Projects` : 'Organization Projects'}  */} Projects
         </h1>
         <div className="text-sm text-gray-500">
           {projects.length} {projects.length === 1 ? 'Project' : 'Projects'}
