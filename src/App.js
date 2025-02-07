@@ -505,35 +505,45 @@ const App = () => {
                 path="/admin-users"
                 exact
                 element={
-                  <AdminUsers isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                  <PrivateRoute  isLoggedIn={isLoggedIn}>
+                    <AdminUsers />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/admin-projects"
                 exact
                 element={
-                  <AdminProjects isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                  <PrivateRoute  isLoggedIn={isLoggedIn}>
+                    <AdminProjects />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/admin-testcases"
                 exact
                 element={
-                  <AdminTestCases isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                  <PrivateRoute  isLoggedIn={isLoggedIn}>
+                    <AdminTestCases />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/admin-requirements"
                 exact
                 element={
-                  <AdminRequirements isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                  <PrivateRoute  isLoggedIn={isLoggedIn}>
+                    <AdminRequirements />
+                  </PrivateRoute>
                 }
               />
               <Route
                 path="/admin-testsuites"
                 exact
                 element={
-                  <AdminTestSuite isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+                  <PrivateRoute  isLoggedIn={isLoggedIn}>
+                    <AdminTestSuite />
+                  </PrivateRoute>
                 }
               />
               <Route
