@@ -9,7 +9,7 @@ const InviteAccept = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const API_BASE_URL = "https://testerally-be-ylpr.onrender.com/api";
+  const API_BASE_URL = "https://api.testerally.ai/api";
 
   useEffect(() => {
     const fetchInvitationDetails = async () => {

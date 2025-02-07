@@ -19,7 +19,7 @@ const TestSteps = () => {
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  const apiBaseUrl = "https://testerally-be-ylpr.onrender.com/api";
+  const apiBaseUrl = "https://api.testerally.ai/api";
 
 
   const fetchTestCase = useCallback(async () => {

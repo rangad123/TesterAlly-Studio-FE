@@ -11,7 +11,7 @@ export default function AdminTestCases() {
   useEffect(() => {
     const fetchTestCases = async () => {
       try {
-        const response = await fetch("https://testerally-be-ylpr.onrender.com/api/admin/testcases/");
+        const response = await fetch("https://api.testerally.ai/api/admin/testcases/");
         if (!response.ok) {
           throw new Error("Failed to fetch test cases. Please try again later.");
         }

@@ -23,7 +23,7 @@ const AdminOrganization = () => {
     if (!orgId) return;
     setLoading(true);
     try {
-      const response = await axios.get(`https://testerally-be-ylpr.onrender.com/api/organization/${orgId}/projects/`);
+      const response = await axios.get(`https://api.testerally.ai/api/organization/${orgId}/projects/`);
       setProjects(response.data.projects || []);
     } catch (err) {
       console.error("Failed to fetch projects", err);

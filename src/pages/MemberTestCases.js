@@ -183,7 +183,7 @@ const MemberTestCases = () => {
   
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-priorities/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",

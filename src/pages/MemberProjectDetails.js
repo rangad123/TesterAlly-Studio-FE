@@ -18,7 +18,7 @@ const MemberProjectDetails = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`https://testerally-be-ylpr.onrender.com/api/user-projects/${userId}/`);
+        const response = await fetch(`https://api.testerally.ai/api/user-projects/${userId}/`);
         const result = await response.json();
         setData(result);
       } catch (err) {

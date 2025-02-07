@@ -21,7 +21,7 @@ const MemberRegister = (props) => {
   const { token } = useParams(); 
   console.log("Extracted Token:", token);
 
-  const URL = `https://testerally-be-ylpr.onrender.com/api/accept-invite/${token}/`;
+  const URL = `https://api.testerally.ai/api/accept-invite/${token}/`;
 
   const validateEmail = (email) => {
     const domainRegex = /@.+\..+/; 

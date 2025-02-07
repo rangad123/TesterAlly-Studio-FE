@@ -57,14 +57,14 @@ const TestCases = () => {
       try {
 
         const typesResponse = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-types/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const typesData = await typesResponse.json();
         setTestCaseTypes(typesData);
 
         const prioritiesResponse = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-priorities/?project_id=${selectedProject.id}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const prioritiesData = await prioritiesResponse.json();
@@ -91,7 +91,7 @@ const TestCases = () => {
 
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcases/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcases/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -125,7 +125,7 @@ const TestCases = () => {
   const fetchTestSteps = async (testCaseId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/teststeps/?testcase_id=${testCaseId}`
+        `https://api.testerally.ai/api/teststeps/?testcase_id=${testCaseId}`
       );
       if (!response.ok) {
         throw new Error('Failed to fetch test steps');
@@ -161,7 +161,7 @@ const TestCases = () => {
     }
 
     try {
-      const response = await fetch(`https://testerally-be-ylpr.onrender.com/api/teststeps/`, {
+      const response = await fetch(`https://api.testerally.ai/api/teststeps/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -191,7 +191,7 @@ const TestCases = () => {
 
     try {
       const step = testSteps.find(s => s.id === stepId);
-      const response = await fetch(`https://testerally-be-ylpr.onrender.com/api/teststeps/${stepId}/`, {
+      const response = await fetch(`https://api.testerally.ai/api/teststeps/${stepId}/`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -219,7 +219,7 @@ const TestCases = () => {
     if (!window.confirm("Are you sure you want to delete this step?")) return;
 
     try {
-      const response = await fetch(`https://testerally-be-ylpr.onrender.com/api/teststeps/${stepId}/?testcase_id=${editingTestCase.id}`, {
+      const response = await fetch(`https://api.testerally.ai/api/teststeps/${stepId}/?testcase_id=${editingTestCase.id}`, {
         method: "DELETE"
       });
 
@@ -243,7 +243,7 @@ const TestCases = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcases/${editingTestCase.id}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcases/${editingTestCase.id}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -305,7 +305,7 @@ const TestCases = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {

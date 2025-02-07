@@ -73,7 +73,7 @@ const ProjectDetails = () => {
   const fetchTestCases = async (projectId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcases/?project_id=${projectId}`
+        `https://api.testerally.ai/api/testcases/?project_id=${projectId}`
       );
       const data = await response.json();
       if (response.ok) {
@@ -89,7 +89,7 @@ const ProjectDetails = () => {
   const fetchTestSuites = async (projectId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testsuites/?project_id=${projectId}`
+        `https://api.testerally.ai/api/testsuites/?project_id=${projectId}`
       );
       const data = await response.json();
       if (response.ok) {
@@ -113,7 +113,7 @@ const ProjectDetails = () => {
       }
 
       const deleteResponse = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/projects/${projectId}/?user_id=${userId}`,
+        `https://api.testerally.ai/api/projects/${projectId}/?user_id=${userId}`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -162,7 +162,7 @@ const ProjectDetails = () => {
   const handleSave = async () => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/projects/${selectedProject.id}/?user_id=${userId}`,
+        `https://api.testerally.ai/api/projects/${selectedProject.id}/?user_id=${userId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

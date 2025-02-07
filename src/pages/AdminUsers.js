@@ -11,7 +11,7 @@ export default function AdminUsers() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch("https://testerally-be-ylpr.onrender.com/api/admin/users/");
+        const response = await fetch("https://api.testerally.ai/api/admin/users/");
         if (!response.ok) {
           throw new Error("Failed to fetch users. Please try again later.");
         }

@@ -148,7 +148,7 @@ const CreateTestCases = () => {
   
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-types/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -181,7 +181,7 @@ const CreateTestCases = () => {
   
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-priorities/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",

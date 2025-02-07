@@ -35,7 +35,7 @@ const ProjectListDetails = () => {
   
     try {
       const deleteResponse = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/projects/${projectId}/?user_id=${userId}`,
+        `https://api.testerally.ai/api/projects/${projectId}/?user_id=${userId}`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
@@ -77,7 +77,7 @@ const ProjectListDetails = () => {
   const handleSave = async () => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/projects/${selectedProject.id}/?user_id=${userId}`,
+        `https://api.testerally.ai/api/projects/${selectedProject.id}/?user_id=${userId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },

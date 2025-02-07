@@ -11,7 +11,7 @@ export default function AdminRequirements() {
   useEffect(() => {
     const fetchRequirements = async () => {
       try {
-        const response = await fetch("https://testerally-be-ylpr.onrender.com/api/admin/requirements/");
+        const response = await fetch("https://api.testerally.ai/api/admin/requirements/");
         if (!response.ok) {
           throw new Error("Failed to fetch requirements. Please try again later.");
         }

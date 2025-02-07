@@ -61,7 +61,7 @@ const MemberRequirementType = () => {
 
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/requirement-types/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/requirement-types/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -104,7 +104,7 @@ const MemberRequirementType = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/requirement-types/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/requirement-types/?project_id=${selectedProject.id}`,
         {
           method: "POST",
           headers: {
@@ -143,7 +143,7 @@ const MemberRequirementType = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -172,7 +172,7 @@ const MemberRequirementType = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {

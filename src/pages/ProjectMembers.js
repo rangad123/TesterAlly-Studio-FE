@@ -27,7 +27,7 @@ const ProjectMembers = () => {
     setError(null);
 
     try {
-      const response = await axios.get(`https://testerally-be-ylpr.onrender.com/api/projects/${selectedProject.id}/members/`, {
+      const response = await axios.get(`https://api.testerally.ai/api/projects/${selectedProject.id}/members/`, {
         params: { 
           project_id: selectedProject.id,
           user_id: userId
@@ -98,7 +98,7 @@ const ProjectMembers = () => {
 
     try {
       const response = await axios.post(
-        `https://testerally-be-ylpr.onrender.com/api/send-invite/`,
+        `https://api.testerally.ai/api/send-invite/`,
         payload,
         {
           headers: {

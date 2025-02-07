@@ -20,7 +20,7 @@ const TestData = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testdata/${projectId}/`
+        `https://api.testerally.ai/api/testdata/${projectId}/`
       );
       
       if (response.ok) {
@@ -123,7 +123,7 @@ const TestData = () => {
     setIsUploading(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testdata/${selectedProject.id}/`,
+        `https://api.testerally.ai/api/testdata/${selectedProject.id}/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -162,7 +162,7 @@ const TestData = () => {
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testdata/${selectedProject.id}/`,
+        `https://api.testerally.ai/api/testdata/${selectedProject.id}/`,
         {
           method: "DELETE",
         }

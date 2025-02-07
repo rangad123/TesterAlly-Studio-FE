@@ -59,7 +59,7 @@ const WriteTestManually = () => {
       if (!projectId) return;
     
       try {
-        const response = await fetch(`https://testerally-be-ylpr.onrender.com/api/testdata/${projectId}/`);
+        const response = await fetch(`https://api.testerally.ai/api/testdata/${projectId}/`);
         if (response.ok) {
           const data = await response.json();
           if (data.url) {
@@ -90,7 +90,7 @@ const WriteTestManually = () => {
 
     try {
 
-      const testCaseResponse = await fetch("https://testerally-be-ylpr.onrender.com/api/testcases/", {
+      const testCaseResponse = await fetch("https://api.testerally.ai/api/testcases/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -112,7 +112,7 @@ const WriteTestManually = () => {
       const stepPromises = testSteps
         .filter(step => step.isSelected && step.isSaved)
         .map(async (step, index) => {
-          const stepResponse = await fetch("https://testerally-be-ylpr.onrender.com/api/teststeps/", {
+          const stepResponse = await fetch("https://api.testerally.ai/api/teststeps/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -55,7 +55,7 @@ const TestSuites = () => {
 
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testsuites/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testsuites/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -90,7 +90,7 @@ const TestSuites = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {
@@ -138,7 +138,7 @@ const TestSuites = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {

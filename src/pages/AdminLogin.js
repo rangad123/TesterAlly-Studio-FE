@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 
-const URL = "https://testerally-be-ylpr.onrender.com/admin/login/"
+const URL = "https://api.testerally.ai/admin/login/"
 
 const AdminLogin = ({ isLoggedIn, setIsLoggedIn, setName, setEmail }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);

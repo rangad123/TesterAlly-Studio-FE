@@ -9,7 +9,7 @@ export default function AdminProjects() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch('https://testerally-be-ylpr.onrender.com/api/admin/projects/')
+    fetch('https://api.testerally.ai/api/admin/projects/')
       .then((response) => response.json())
       .then((data) => {
         setProjects(data);

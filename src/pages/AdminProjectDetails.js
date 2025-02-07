@@ -57,7 +57,7 @@ const AdminProjectDetails = () => {
   const fetchMembers = async (projectId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/projects/${projectId}/members/`
+        `https://api.testerally.ai/api/projects/${projectId}/members/`
       );
       const data = await response.json();
       if (response.ok) {
@@ -72,7 +72,7 @@ const AdminProjectDetails = () => {
   const fetchTestCases = async (projectId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcases/?project_id=${projectId}`
+        `https://api.testerally.ai/api/testcases/?project_id=${projectId}`
       );
       const data = await response.json();
       if (response.ok) {
@@ -87,7 +87,7 @@ const AdminProjectDetails = () => {
   const fetchTestSuites = async (projectId) => {
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testsuites/?project_id=${projectId}`
+        `https://api.testerally.ai/api/testsuites/?project_id=${projectId}`
       );
       const data = await response.json();
       if (response.ok) {

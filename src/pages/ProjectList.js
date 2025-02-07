@@ -14,7 +14,7 @@ const ProjectList = () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/projects/?user_id=${userId}`
+          `https://api.testerally.ai/api/projects/?user_id=${userId}`
         );
         const data = await response.json();
 

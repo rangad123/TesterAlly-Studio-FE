@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const URL = "https://testerally-be-ylpr.onrender.com/api/forgotPassword/";
+const URL = "https://api.testerally.ai/api/forgotPassword/";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");

@@ -57,7 +57,7 @@ const MemberPriorities = () => {
 
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-priorities/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -100,7 +100,7 @@ const MemberPriorities = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-priorities/?project_id=${selectedProject.id}`,
         {
           method: "POST",
           headers: {
@@ -139,7 +139,7 @@ const MemberPriorities = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -168,7 +168,7 @@ const MemberPriorities = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {

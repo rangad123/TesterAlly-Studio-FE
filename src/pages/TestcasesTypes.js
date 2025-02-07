@@ -56,7 +56,7 @@ const TestcasesTypes = () => {
 
       try {
         const response = await fetch(
-          `https://testerally-be-ylpr.onrender.com/api/testcase-types/?project_id=${selectedProject.id}`,
+          `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -99,7 +99,7 @@ const TestcasesTypes = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-types/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
         {
           method: "POST",
           headers: {
@@ -135,7 +135,7 @@ const TestcasesTypes = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -162,7 +162,7 @@ const TestcasesTypes = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        `https://api.testerally.ai/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {

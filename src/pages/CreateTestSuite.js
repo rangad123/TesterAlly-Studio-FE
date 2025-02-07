@@ -82,7 +82,7 @@ const CreateTestSuite = () => {
 
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/testcases/?project_id=${projectId}`
+        `https://api.testerally.ai/api/testcases/?project_id=${projectId}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -130,7 +130,7 @@ const CreateTestSuite = () => {
 
       console.log("Payload:", payload);
 
-      const response = await fetch("https://testerally-be-ylpr.onrender.com/api/testsuites/", {
+      const response = await fetch("https://api.testerally.ai/api/testsuites/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

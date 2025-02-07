@@ -60,7 +60,7 @@ const Requirement = () => {
     
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/requirement-types/?project_id=${projectId}`
+        `https://api.testerally.ai/api/requirement-types/?project_id=${projectId}`
       );
       if (!response.ok) throw new Error("Failed to fetch requirement types");
       const data = await response.json();
@@ -118,7 +118,7 @@ const Requirement = () => {
       console.log("Payload:", payload);
   
       const response = await fetch(
-        "https://testerally-be-ylpr.onrender.com/api/requirements/",
+        "https://api.testerally.ai/api/requirements/",
         {
           method: "POST",
           headers: {

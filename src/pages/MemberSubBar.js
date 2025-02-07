@@ -52,7 +52,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
   
     try {
       const response = await fetch(
-        `https://testerally-be-ylpr.onrender.com/api/user-projects/${userId}/`,
+        `https://api.testerally.ai/api/user-projects/${userId}/`,
         {
           headers: {
             "Content-Type": "application/json",
