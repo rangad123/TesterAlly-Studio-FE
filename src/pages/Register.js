@@ -6,7 +6,7 @@ import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
 import "./Login.css";
 
-const URL = "https://testerally-be-ylpr.onrender.com/api/register/";
+const URL = "https://api.testerally.ai/api/register/";
 
 const Register = (props) => {
   const { setName, setEmail } = props;

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Login.css";
 
-const URL = "https://testerally-be-ylpr.onrender.com/api/login/";
+const URL = "https://api.testerally.ai/api/login/";
 
 const Login = (props) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
