@@ -125,7 +125,7 @@ const CreateTestSuite = () => {
         pre_requisite: preRequisite,
         labels: labels.split(",").map((label) => label.trim()).filter(Boolean),
         project_id: selectedProject.id,
-        testcases: selectedTestCases.map(tc => tc.id),
+        testcase: selectedTestCases.map(tc => tc.id),
       };
 
       console.log("Payload:", payload);
