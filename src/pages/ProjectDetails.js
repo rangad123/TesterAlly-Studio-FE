@@ -445,7 +445,7 @@ const ProjectDetails = () => {
                           {suite.pre_requisite || "N/A"}
                         </p>
                         <div className="mt-2 text-sm text-gray-500">
-                          Test Cases: {suite.test_cases_count || 0}
+                          Test Cases: {suite.testcase.length || 0}
                         </div>
                       </div>
                     ))}

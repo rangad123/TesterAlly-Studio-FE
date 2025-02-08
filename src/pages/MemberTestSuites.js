@@ -17,6 +17,7 @@ const MemberTestSuites = () => {
   const [editedDescription, setEditedDescription] = useState("");
   const [editedLabels, setEditedLabels] = useState([]);
   const [editedPreRequisite, setEditedPreRequisite] = useState("");
+  const [testCaseNames, setTestCaseNames] = useState({});
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -80,6 +81,36 @@ const MemberTestSuites = () => {
 
     fetchTestSuites();
   }, [selectedProject]);
+
+  useEffect(() => {
+      const fetchTestCases = async () => {
+        if (!selectedProject?.id) return;
+    
+        try {
+          const testCaseMap = {}; 
+          await Promise.all(
+            testSuites.map(async (suite) => {
+              const names = await Promise.all(
+                suite.testcase.map(async (testCaseId) => {
+                  const res = await fetch(`https://api.testerally.ai/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`);
+                  if (!res.ok) throw new Error("Failed to fetch test case");
+                  const data = await res.json();
+                  return data.name; 
+                })
+              );
+              testCaseMap[suite.id] = names;
+            })
+          );
+    
+          setTestCaseNames(testCaseMap); 
+        } catch (error) {
+          console.error("Error fetching test cases:", error);
+        }
+      };
+    
+      fetchTestCases();
+    }, [selectedProject, testSuites]);
+    
 
   const filteredTestSuites = testSuites.filter((testSuite) =>
     testSuite.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -251,9 +282,9 @@ const MemberTestSuites = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Labels
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+{/*                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Project
-                      </th>
+                      </th>   */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Test Cases
                       </th>
@@ -277,11 +308,11 @@ const MemberTestSuites = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testSuite.labels.join(", ")}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+{/*                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {selectedProject?.name}
-                        </td>
+                        </td>  */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testSuite.id?.testcase}
+                          {testCaseNames[testSuite.id]?.join(", ") || "No Test Cases"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
