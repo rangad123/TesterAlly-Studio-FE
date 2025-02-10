@@ -66,7 +66,7 @@ const WriteTestManually = () => {
             setTestSteps([
               {
                 stepNumber: 1,
-                choice: `Navigate to URL: ${data.url}`,
+                choice: `${data.url}`,
                 isSaved: true,
                 isSelected: true
               }

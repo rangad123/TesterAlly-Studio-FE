@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft } from "lucide-react";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play  } from "lucide-react";
 
 const TestSteps = () => {
   const location = useLocation();
@@ -425,6 +425,18 @@ const TestSteps = () => {
     );
   }
 
+  const handleRunTest = () => {
+  
+    navigate("/environment-run", {
+      state: {
+        testCaseName,
+        testCaseId,
+        projectId: location.state.projectId,
+        steps: steps 
+      }
+    });
+  };
+
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
@@ -439,6 +451,14 @@ const TestSteps = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{testCaseName}</h1>
+
+            <button
+              onClick={handleRunTest}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Run Test
+            </button>
           </div>
 
           <div className="flex border-b mb-4">

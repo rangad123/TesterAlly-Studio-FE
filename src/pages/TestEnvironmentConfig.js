@@ -1,3 +1,4 @@
+/*
 import React, { useState } from 'react';
 import { ArrowLeft, Play } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -173,6 +174,129 @@ const TestEnvironmentConfig = () => {
         </div>
       </div>
     </div></div>
+  );
+};
+
+export default TestEnvironmentConfig;
+
+*/
+
+import React, { useState } from 'react';
+import { ArrowLeft, Play } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+const TestEnvironmentConfig = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { testCaseName, steps } = location.state || {};
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleExecuteTest = () => {
+    try {
+      setLoading(true);
+      setError(null);
+  
+      const firstStep = steps?.[0];
+      if (!firstStep?.step_description) {
+        throw new Error("No URL found in test steps");
+      }
+  
+      let url = firstStep.step_description.trim();
+  
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = "https://" + url;
+      }
+  
+      try {
+        new URL(url);
+        window.open(url, "_blank");
+      } catch (urlError) {
+        throw new Error("Invalid URL in test step");
+      }
+    } catch (err) {
+      console.error("Error executing test:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
+  return (
+    <div className="flex-1 p-6 min-h-screen">
+      <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
+        <div className="p-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 inline-flex items-center text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Test Steps
+          </button>
+
+          <div className="bg-white shadow-md rounded-lg">
+            <div className="p-6">
+              <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                Run Test: {testCaseName}
+              </h1>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md">
+                  {error}
+                </div>
+              )}
+
+              <div className="grid gap-6">
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Test Environment
+                  </h2>
+
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Browser
+                      </label>
+                      <input 
+                        type="text" 
+                        value="Chrome" 
+                        disabled 
+                        className="w-full p-2 bg-gray-50 border border-gray-300 rounded-md"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Operating System
+                      </label>
+                      <input 
+                        type="text" 
+                        value="Windows" 
+                        disabled 
+                        className="w-full p-2 bg-gray-50 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-6">
+                  <button
+                    onClick={handleExecuteTest}
+                    disabled={loading}
+                    className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    {loading ? 'Opening URL...' : 'Execute Test'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
