@@ -9,8 +9,10 @@ import {
   FaFileAlt,
   FaRegFileAlt,
   FaClipboardList,
-  FaPlusCircle
+  FaPlusCircle,
+  FaServer
 } from "react-icons/fa";
+import TestEnvironmentModal from "./TestEnvironmentModal";
 
 const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect }) => {
   const navigate = useNavigate();
@@ -20,6 +22,8 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
   const [selectedProject, setSelectedProject] = useState(null);
   const [activeMenuItem, setActiveMenuItem] = useState("");
   const [isProjectSettingsExpanded, setIsProjectSettingsExpanded] = useState(false);
+  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
+
 
 
     const fetchProjects = async () => {
@@ -159,6 +163,10 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     navigate("/create-project"); 
   };
 
+  const handleTestExecuted = () => {
+    setIsEnvironmentModalOpen(false);
+  };
+
   const projectSettingsItems = [
     { icon: FaInfoCircle, label: "Project Details", path: "/project-details" },
     { icon: FaUsers, label: "Project Members", path: "/project-members" },
@@ -166,6 +174,11 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     { icon: FaList, label: "Requirement Types", path: "/requirement-type" },
     { icon: FaCog, label: "Test Case Types", path: "/testcases-type" },
     { icon: FaFlag, label: "Test Case Priorities", path: "/testcase-Priorities" },
+    { 
+      icon: FaServer, 
+      label: "Test Environment", 
+      action: () => setIsEnvironmentModalOpen(true)
+    },
   ];
 
   const menuItems = [
@@ -180,18 +193,25 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     },
   ];
 
-  const handleMenuClick = (path) => {
+  const handleMenuClick = (path, action) => {
     if (!selectedProject) {
       alert("Please select a project first to access this feature.");
       return;
     }
-  
-    navigate(path);
+
+    console.log('Menu clicked:', path, action);
+
+    if (action) {
+      action();
+    } else {
+      navigate(path);
+    }
 
     if (isMobileView) {
-      onOptionSelect(); 
+      onOptionSelect();
     }
   };
+
   
 
   const filteredProjects = projects.filter((project) =>
@@ -315,9 +335,13 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
                       onClick={() => {
                         if (selectedProject) {
                           setActiveMenuItem(subItem.label);
-                          handleMenuClick(subItem.path);
+                          if (subItem.action) {
+                            subItem.action();
+                          } else {
+                            handleMenuClick(subItem.path);
+                          }
                         } else {
-                          handleMenuClick(subItem.path);
+                          handleMenuClick(subItem.path, subItem.action);
                         }
                       }}
                     >
@@ -350,6 +374,14 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
           </div>
         ))}
       </div>
+      {isEnvironmentModalOpen && (
+        <TestEnvironmentModal
+          isOpen={isEnvironmentModalOpen}
+          onClose={() => setIsEnvironmentModalOpen(false)}
+          onExecute={handleTestExecuted}
+          projectId={selectedProject?.id}
+        />
+      )}
     </div>
   );
 };

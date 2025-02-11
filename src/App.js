@@ -342,7 +342,7 @@ import MemberTestStep from "./pages/MemberTestStep";
 import AdminProjectDetails from "./pages/AdminProjectDetails";
 import AdminLayout from "./pages/AdminLayout";
 import MemberTestData from "./pages/MemberTestData";
-import TestEnvironmentConfig from "./pages/TestEnvironmentConfig";
+import TestEnvironmentConfig from "./pages/TestEnvironmentModal";
 import MemberTestSuites from "./pages/MemberTestSuites";
 import MemberRequirement from "./pages/MemberRequirement";
 import MemberTestType from "./pages/MemberTestType";

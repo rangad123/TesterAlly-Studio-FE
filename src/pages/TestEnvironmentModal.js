@@ -157,15 +157,20 @@ export default TestEnvironmentModal;
 
 */
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Play } from 'lucide-react';
 
-const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCaseId, steps, projectId }) => {
+const TestEnvironmentModal = ({ isOpen, onClose, onExecute, projectId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [os, setOs] = useState("windows");
-  const [browser, setBrowser] = useState("chrome");
+  const [os, setOs] = useState(() => {
+  
+    return localStorage.getItem('selectedOS') || "windows";
+  });
+  const [browser, setBrowser] = useState(() => {
+  
+    return localStorage.getItem('selectedBrowser') || "chrome";
+  });
   const [testUrl, setTestUrl] = useState(null);
 
   useEffect(() => {
@@ -204,6 +209,26 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
     linux: { name: "Linux", browsers: ["chrome", "firefox"] },
   }), []);
 
+  const handleOsChange = (e) => {
+    const newOs = e.target.value;
+    setOs(newOs);
+    localStorage.setItem('selectedOS', newOs);
+    
+    const availableBrowsers = osOptions[newOs].browsers;
+    if (!availableBrowsers.includes(browser)) {
+      const defaultBrowser = availableBrowsers[0];
+      setBrowser(defaultBrowser);
+      localStorage.setItem('selectedBrowser', defaultBrowser);
+    }
+  };
+
+
+  const handleBrowserChange = (e) => {
+    const newBrowser = e.target.value;
+    setBrowser(newBrowser);
+    localStorage.setItem('selectedBrowser', newBrowser);
+  };
+
   const executeTest = async () => {
     if (!testUrl) {
       setError('Test URL not available. Please try again.');
@@ -217,9 +242,7 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
       const requestBody = {
         os,
         browser,
-        testCaseId,
         projectId,
-        steps,
         url: testUrl 
       };
  
@@ -253,20 +276,27 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
     }
   };
 
+  
+  const handleClose = () => {
+    localStorage.setItem('selectedOS', os);
+    localStorage.setItem('selectedBrowser', browser);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div 
         className="fixed inset-0 bg-black bg-opacity-50" 
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       <div className="relative bg-white rounded-lg w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Execute Test: {testCaseName}</h2>
+          <h2 className="text-lg font-semibold">Test Environment Configuration</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 rounded-sm hover:bg-gray-100"
           >
             <X className="h-4 w-4" />
@@ -287,7 +317,7 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
               </label>
               <select
                 value={os}
-                onChange={(e) => setOs(e.target.value)}
+                onChange={handleOsChange}
                 className="mt-1 w-full p-2 bg-white border border-gray-300 rounded-md"
               >
                 {Object.entries(osOptions).map(([key, value]) => (
@@ -304,7 +334,7 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
               </label>
               <select
                 value={browser}
-                onChange={(e) => setBrowser(e.target.value)}
+                onChange={handleBrowserChange}
                 className="mt-1 w-full p-2 bg-white border border-gray-300 rounded-md"
               >
                 {osOptions[os].browsers.map((browserOption) => (
@@ -318,7 +348,7 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
 
           <div className="flex justify-end gap-3 mt-6">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Cancel
@@ -329,7 +359,7 @@ const TestEnvironmentModal = ({ isOpen, onClose, onExecute, testCaseName, testCa
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-400"
             >
               <Play className="w-4 h-4 mr-2" />
-              {loading ? "Executing..." : "Execute Test"}
+              Save Configuration
             </button>
           </div>
         </div>

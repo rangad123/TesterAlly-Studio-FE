@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play  } from "lucide-react";
-import TestEnvironmentModal from "./TestEnvironmentConfig";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft  } from "lucide-react";
+//import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const TestSteps = () => {
   const location = useLocation();
@@ -19,7 +19,7 @@ const TestSteps = () => {
   const [testCaseTypes, setTestCaseTypes] = useState([]);
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
+//  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
   const apiBaseUrl = "https://api.testerally.ai/api";
 
@@ -427,7 +427,7 @@ const TestSteps = () => {
     );
   }
 
-
+/*
  const handleTestExecuted = (result) => {
     console.log('Test execution completed:', result);
   };
@@ -437,7 +437,7 @@ const TestSteps = () => {
   };
 
 
-/* 
+ 
 const handleRunTest = () => {
   
   navigate("/environment-run", {
@@ -464,6 +464,7 @@ const handleRunTest = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{testCaseName}</h1>
+{/*
 
             <button
               onClick={handleRunTest}
@@ -471,9 +472,10 @@ const handleRunTest = () => {
             >
               <Play className="w-4 h-4 mr-2" />
               Run Test
-            </button>
+            </button> 
+*/}
           </div>
-
+{/*
           <TestEnvironmentModal
             isOpen={isEnvironmentModalOpen}
             onClose={() => setIsEnvironmentModalOpen(false)}
@@ -483,7 +485,7 @@ const handleRunTest = () => {
             steps={steps}
             projectId={location.state?.projectId}
           /> 
-
+*/}
 
           <div className="flex border-b mb-4">
             <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>
