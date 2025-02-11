@@ -427,15 +427,17 @@ const TestSteps = () => {
     );
   }
 
-/*  const handleTestExecuted = (result) => {
+
+ const handleTestExecuted = (result) => {
     console.log('Test execution completed:', result);
   };
 
   const handleRunTest = () => {
     setIsEnvironmentModalOpen(true);
   };
-*/
 
+
+/* 
 const handleRunTest = () => {
   
   navigate("/environment-run", {
@@ -447,7 +449,7 @@ const handleRunTest = () => {
     }
   });
 };
-
+*/
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
@@ -472,7 +474,7 @@ const handleRunTest = () => {
             </button>
           </div>
 
-{/*          <TestEnvironmentModal
+          <TestEnvironmentModal
             isOpen={isEnvironmentModalOpen}
             onClose={() => setIsEnvironmentModalOpen(false)}
             onExecute={handleTestExecuted}
@@ -481,7 +483,7 @@ const handleRunTest = () => {
             steps={steps}
             projectId={location.state?.projectId}
           /> 
-*/}
+
 
           <div className="flex border-b mb-4">
             <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>
