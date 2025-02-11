@@ -348,6 +348,7 @@ import MemberRequirement from "./pages/MemberRequirement";
 import MemberTestType from "./pages/MemberTestType";
 import MemberRequirementType from "./pages/MemberRequirementType";
 import MemberPriorities from "./pages/MemberPriorities";
+import TestAutomationControl from "./pages/TestExecution";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -925,6 +926,13 @@ const App = () => {
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <TestEnvironmentConfig />
                   </PrivateRoute>
+                }
+              />
+              <Route
+                path="/run"
+                exact
+                element={ 
+                  <TestAutomationControl />
                 }
               />
             </Routes>

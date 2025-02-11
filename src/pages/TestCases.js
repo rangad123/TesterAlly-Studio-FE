@@ -581,9 +581,9 @@ const TestCases = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Priority
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+{/*                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Project
-                      </th>
+                      </th> */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -591,9 +591,9 @@ const TestCases = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTestCases.map((testCase) => (
-                      <tr key={testCase.id} onClick={() => handleRowClick(testCase)} className="cursor-pointer hover:bg-gray-50">
+                      <tr key={testCase.id} className="hover:bg-gray-50">
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer hover:text-purple-600" onClick={() => handleRowClick(testCase)} >
                           {testCase.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -602,9 +602,9 @@ const TestCases = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testCase.testcase_priority}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+{/*                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testCase.project_name}
-                        </td>
+                        </td> */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={(e) => {

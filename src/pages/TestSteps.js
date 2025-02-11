@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play  } from "lucide-react";
+import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const TestSteps = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const TestSteps = () => {
   const [testCaseTypes, setTestCaseTypes] = useState([]);
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
   const apiBaseUrl = "https://api.testerally.ai/api";
 
@@ -425,16 +427,12 @@ const TestSteps = () => {
     );
   }
 
+  const handleTestExecuted = (result) => {
+    console.log('Test execution completed:', result);
+  };
+
   const handleRunTest = () => {
-  
-    navigate("/environment-run", {
-      state: {
-        testCaseName,
-        testCaseId,
-        projectId: location.state.projectId,
-        steps: steps 
-      }
-    });
+    setIsEnvironmentModalOpen(true);
   };
 
   return (
@@ -460,6 +458,16 @@ const TestSteps = () => {
               Run Test
             </button>
           </div>
+
+          <TestEnvironmentModal
+            isOpen={isEnvironmentModalOpen}
+            onClose={() => setIsEnvironmentModalOpen(false)}
+            onExecute={handleTestExecuted}
+            testCaseName={testCaseName}
+            testCaseId={testCaseId}
+            steps={steps}
+            projectId={location.state?.projectId}
+          />
 
           <div className="flex border-b mb-4">
             <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>
