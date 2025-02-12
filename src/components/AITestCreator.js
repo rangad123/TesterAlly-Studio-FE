@@ -4,46 +4,81 @@ import { CheckCircle, XCircle, Plus, Clock } from 'lucide-react';
 const AITestAutomation = () => {
   const [testSteps, setTestSteps] = useState([]);
   const [newStep, setNewStep] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
 
-  const generateScreenshotUrl = (description) => {
-    if (description.toLowerCase().includes('google.com')) {
-      return '/api/placeholder/800/300?text=Google_Homepage';
-    } else if (description.toLowerCase().includes('login')) {
-      return '/api/placeholder/800/300?text=Login_Page';
-    }
-    return `/api/placeholder/800/300?text=Step_${testSteps.length + 1}_Screenshot`;
-  };
+  const executeStep = async (stepDescription) => {
+    setIsProcessing(true);
+    try {
 
-  const executeStep = async (stepObj) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      ...stepObj,
-      status: 'complete',
-      duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0')
-    };
+      const openBrowserResponse = await fetch('http://127.0.0.1:8000/api/open_browser/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          command: "open url",
+          url: stepDescription
+        })
+      });
+
+      if (!openBrowserResponse.ok) {
+        throw new Error('Failed to open browser');
+      }
+
+      const responseData = await fetch('http://127.0.0.1:8000/response');
+      
+      if (!responseData.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const result = await responseData.json();
+      
+      return {
+        status: 'complete',
+        duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+        screenshot: result.screenshot || `/api/placeholder/800/300?text=Step_Screenshot`
+      };
+
+    } catch (error) {
+      console.error('Step execution error:', error);
+      return {
+        status: 'error',
+        duration: '00:00',
+        screenshot: `/api/placeholder/800/300?text=Error_Screenshot`,
+        error: error.message
+      };
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const addTestStep = async () => {
-    if (!newStep.trim()) return;
+    if (!newStep.trim() || isProcessing) return;
     
+
     const newStepObj = {
       id: Date.now(),
       description: newStep,
       status: 'pending',
       duration: '00:00',
-      screenshot: generateScreenshotUrl(newStep)
+      screenshot: null
     };
+
 
     setTestSteps(prev => [...prev, newStepObj]);
     setNewStep('');
 
-    const executedStep = await executeStep(newStepObj);
-    setTestSteps(prev => prev.map(step => 
-      step.id === executedStep.id ? executedStep : step
-    ));
 
+    const executionResult = await executeStep(newStep);
+
+    setTestSteps(prev => prev.map(step => 
+      step.id === newStepObj.id ? {
+        ...step,
+        ...executionResult
+      } : step
+    ));
 
     setTimeout(() => {
       if (previewRef.current) {
@@ -70,7 +105,7 @@ const AITestAutomation = () => {
     <div className="flex h-screen bg-gray-50">
       {/* Left Panel with Fixed Header and Footer */}
       <div className="w-1/2 flex flex-col border-r border-gray-200">
-        {/* Fixed Header */}
+        
         <div className="p-6 border-b border-gray-200 bg-white">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-800">TesterAlly</h1>
@@ -79,13 +114,12 @@ const AITestAutomation = () => {
               disabled={testSteps.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
             >
-                <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5" />
               Create
             </button>
           </div>
         </div>
 
-        {/* Scrollable Steps Area */}
         <div 
           ref={stepsRef}
           className="flex-1 overflow-y-auto p-6"
@@ -109,7 +143,10 @@ const AITestAutomation = () => {
                     {step.status === 'error' && <XCircle className="w-5 h-5 text-red-500" />}
                   </div>
                 </div>
-                <p className="text-gray-600 text-left break-words whitespace-normal">{step.description}</p>
+                <p className="text-gray-600">{step.description}</p>
+                {step.error && (
+                  <p className="text-red-500 text-sm mt-2">{step.error}</p>
+                )}
               </div>
             ))}
           </div>
@@ -123,12 +160,14 @@ const AITestAutomation = () => {
               value={newStep}
               onChange={(e) => setNewStep(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTestStep()}
-              placeholder="Add new test step..."
-              className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="Enter URL to test..."
+              disabled={isProcessing}
+              className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50"
             />
             <button
               onClick={addTestStep}
-              className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+              disabled={isProcessing}
+              className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -148,7 +187,7 @@ const AITestAutomation = () => {
           <div className="space-y-6">
             {testSteps.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
-                No steps added yet. Add steps to begin testing.
+                Enter a URL to begin testing.
               </div>
             ) : (
               testSteps.map((step, index) => (
@@ -162,17 +201,22 @@ const AITestAutomation = () => {
                       {step.status === 'error' && <XCircle className="w-5 h-5 text-red-500" />}
                     </div>
                   </div>
-                  <p className="text-gray-600 text-left break-words whitespace-normal">{step.description}</p>
-                  <div className="relative">
-                    <img
-                      src={step.screenshot}
-                      alt={`Step ${index + 1}`}
-                      className="w-full rounded-lg border border-gray-200"
-                    />
-                    <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-sm">
-                      Screenshot {index + 1}
+                  <p className="text-gray-600 mb-3">{step.description}</p>
+                  {step.screenshot && (
+                    <div className="relative">
+                      <img
+                        src={step.screenshot}
+                        alt={`Step ${index + 1}`}
+                        className="w-full rounded-lg border border-gray-200"
+                      />
+                      <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+                        Screenshot {index + 1}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {step.error && (
+                    <p className="text-red-500 text-sm mt-2">{step.error}</p>
+                  )}
                 </div>
               ))
             )}
