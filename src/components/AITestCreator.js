@@ -18,8 +18,7 @@ const AITestAutomation = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          command: "open url",
-          url: stepDescription
+          command: stepDescription,
         })
       });
 
@@ -27,18 +26,19 @@ const AITestAutomation = () => {
         throw new Error('Failed to open browser');
       }
 
-      const responseData = await fetch('http://127.0.0.1:8000/response');
-      
+      const responseData = await fetch('http://127.0.0.1:8000/media/screenshot.png');
+
       if (!responseData.ok) {
         throw new Error('Failed to get response');
       }
 
-      const result = await responseData.json();
-      
+      const imageBlob = await responseData.blob();
+      const imageUrl = URL.createObjectURL(imageBlob);
+
       return {
         status: 'complete',
         duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-        screenshot: result.screenshot || `/api/placeholder/800/300?text=Step_Screenshot`
+        screenshot: imageUrl 
       };
 
     } catch (error) {
