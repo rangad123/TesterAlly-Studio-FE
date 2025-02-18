@@ -10,37 +10,51 @@ const AITestAutomation = () => {
 
   const executeStep = async (stepDescription) => {
     setIsProcessing(true);
+  
     try {
-
-      const openBrowserResponse = await fetch('http://127.0.0.1:8000/api/open_browser/', {
+      // Step 1: Call the browser API to get screenshot
+      const openBrowserResponse = await fetch('https://api.testerally.ai/api/open_browser/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          command: stepDescription,
-        })
+        body: JSON.stringify({ command: stepDescription }),
       });
-
+  
       if (!openBrowserResponse.ok) {
         throw new Error('Failed to open browser');
       }
-
-      const responseData = await fetch('http://127.0.0.1:8000/media/screenshot.png');
-
-      if (!responseData.ok) {
-        throw new Error('Failed to get response');
+  
+      const browserData = await openBrowserResponse.json();
+      const screenshotUrl = `https://api.testerally.ai${browserData.screenshot_url}`;
+  
+      // Step 2: Get the screenshot image
+      const imageResponse = await fetch(screenshotUrl);
+      const imageBlob = await imageResponse.blob();
+  
+      // Step 3: Create FormData and send to Django backend
+      const formData = new FormData();
+      formData.append('image', imageBlob, 'screenshot.png');
+      
+      const processResponse = await fetch('http://127.0.0.1:8000/api/process-image/', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      if (!processResponse.ok) {
+        throw new Error('Failed to process image');
       }
-
-      const imageBlob = await responseData.blob();
-      const imageUrl = URL.createObjectURL(imageBlob);
-
+  
+      const processData = await processResponse.json();
+  
       return {
         status: 'complete',
         duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-        screenshot: imageUrl 
+        screenshot: screenshotUrl,
+        coordinates: processData.parsed_content,
+        processedImage: processData.processed_image
       };
-
+  
     } catch (error) {
       console.error('Step execution error:', error);
       return {
@@ -53,7 +67,7 @@ const AITestAutomation = () => {
       setIsProcessing(false);
     }
   };
-
+  
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;
     
@@ -212,6 +226,14 @@ const AITestAutomation = () => {
                       <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-sm">
                         Screenshot {index + 1}
                       </div>
+                    </div>
+                  )}
+                  {step.coordinates && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <h4 className="font-medium mb-2">Detected Elements:</h4>
+                      <pre className="text-sm text-gray-600 whitespace-pre-wrap">
+                      {step.coordinates}
+                      </pre>
                     </div>
                   )}
                   {step.error && (
