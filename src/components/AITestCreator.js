@@ -13,7 +13,7 @@ const AITestAutomation = () => {
   
     try {
       // Step 1: Call the browser API to get screenshot
-      const openBrowserResponse = await fetch('https://api.testerally.ai/api/open_browser/', {
+      const openBrowserResponse = await fetch('http://127.0.0.1:8000/api/execute_command/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,33 +26,17 @@ const AITestAutomation = () => {
       }
   
       const browserData = await openBrowserResponse.json();
-      const screenshotUrl = `https://api.testerally.ai${browserData.screenshot_url}`;
-  
-      // Step 2: Get the screenshot image
-      const imageResponse = await fetch(screenshotUrl);
-      const imageBlob = await imageResponse.blob();
-  
-      // Step 3: Create FormData and send to Django backend
-      const formData = new FormData();
-      formData.append('image', imageBlob, 'screenshot.png');
       
-      const processResponse = await fetch('http://127.0.0.1:8000/api/process-image/', {
-        method: 'POST',
-        body: formData,
-      });
-  
-      if (!processResponse.ok) {
-        throw new Error('Failed to process image');
-      }
-  
-      const processData = await processResponse.json();
-  
+      const screenshotUrl = `http://127.0.0.1:8000/${browserData.screenshot_url}`;
+
+      const message = browserData.message;
+
       return {
         status: 'complete',
         duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+        message,
         screenshot: screenshotUrl,
-        coordinates: processData.parsed_content,
-        processedImage: processData.processed_image
+        coordinates: browserData.parsed_content,
       };
   
     } catch (error) {
@@ -157,7 +141,7 @@ const AITestAutomation = () => {
                     {step.status === 'error' && <XCircle className="w-5 h-5 text-red-500" />}
                   </div>
                 </div>
-                <p className="text-gray-600">{step.description}</p>
+                <p className="text-gray-600">{step.message}</p>
                 {step.error && (
                   <p className="text-red-500 text-sm mt-2">{step.error}</p>
                 )}
@@ -235,7 +219,7 @@ const AITestAutomation = () => {
                       {step.coordinates}
                       </pre>
                     </div>
-                  )}
+                   )}
                   {step.error && (
                     <p className="text-red-500 text-sm mt-2">{step.error}</p>
                   )}
