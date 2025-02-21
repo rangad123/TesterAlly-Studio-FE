@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { CheckCircle, XCircle, Plus, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, MousePointer, Check, X } from 'lucide-react';
 
 const AITestAutomation = () => {
   const [testSteps, setTestSteps] = useState([]);
@@ -12,7 +12,6 @@ const AITestAutomation = () => {
     setIsProcessing(true);
   
     try {
-      // Step 1: Call the browser API to get screenshot
       const openBrowserResponse = await fetch('http://127.0.0.1:8000/api/execute_command/', {
         method: 'POST',
         headers: {
@@ -28,7 +27,6 @@ const AITestAutomation = () => {
       const browserData = await openBrowserResponse.json();
       
       const screenshotUrl = `http://127.0.0.1:8000/${browserData.screenshot_url}`;
-
       const message = browserData.message;
 
       return {
@@ -36,7 +34,7 @@ const AITestAutomation = () => {
         duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
         message,
         screenshot: screenshotUrl,
-        coordinates: browserData.parsed_content,
+        coordinates: browserData.response,
       };
   
     } catch (error) {
@@ -51,11 +49,15 @@ const AITestAutomation = () => {
       setIsProcessing(false);
     }
   };
+
+  const handleElementHighlight = (x, y, stepId) => {
+    // You can implement highlighting logic here
+    console.log(`Highlighting element at coordinates: ${x}, ${y} for step ${stepId}`);
+  };
   
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;
     
-
     const newStepObj = {
       id: Date.now(),
       description: newStep,
@@ -64,10 +66,8 @@ const AITestAutomation = () => {
       screenshot: null
     };
 
-
     setTestSteps(prev => [...prev, newStepObj]);
     setNewStep('');
-
 
     const executionResult = await executeStep(newStep);
 
@@ -99,11 +99,69 @@ const AITestAutomation = () => {
     alert('Test case created successfully!');
   };
 
+  const CoordinatesTable = ({ response, stepId }) => {
+    if (!response?.elements || response.elements.length === 0) return null;
+
+    return (
+      <div className="mt-4 bg-white rounded-lg border border-gray-200">
+        <div className="p-4 border-b border-gray-200">
+          <h4 className="font-medium text-gray-900">Detected Elements</h4>
+          <p className="text-sm text-gray-500 mt-1">Elements found on the page</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Element Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Click Point</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Element Box</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {response.elements.map((element) => (
+                <tr key={element.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {element.id}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900">
+                    {element.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    x: {element.click_point[0]}, y: {element.click_point[1]}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    [left: {element.coordinates[0]}, top: {element.coordinates[1]}, right: {element.coordinates[2]}, bottom: {element.coordinates[3]}]
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <button
+                      className="flex items-center px-3 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                      onClick={() => {
+                        // Handle click action
+                        console.log(`Clicked element ${element.id} at ${element.click_point}`);
+                      }}
+                    >
+                      <MousePointer className="w-4 h-4 mr-1" />
+                      Click
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+
+
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Left Panel with Fixed Header and Footer */}
       <div className="w-1/2 flex flex-col border-r border-gray-200">
-        
         <div className="p-6 border-b border-gray-200 bg-white">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-800">TesterAlly</h1>
@@ -118,10 +176,7 @@ const AITestAutomation = () => {
           </div>
         </div>
 
-        <div 
-          ref={stepsRef}
-          className="flex-1 overflow-y-auto p-6"
-        >
+        <div ref={stepsRef} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
             {testSteps.map((step, index) => (
               <div
@@ -150,7 +205,6 @@ const AITestAutomation = () => {
           </div>
         </div>
 
-        {/* Fixed Input Area */}
         <div className="p-6 border-t border-gray-200 bg-white">
           <div className="flex gap-2">
             <input
@@ -178,10 +232,7 @@ const AITestAutomation = () => {
         <div className="p-6 border-b border-gray-200 bg-white">
           <h2 className="text-xl font-semibold">Test Execution Timeline</h2>
         </div>
-        <div 
-          ref={previewRef} 
-          className="flex-1 p-6 overflow-y-auto"
-        >
+        <div ref={previewRef} className="flex-1 p-6 overflow-y-auto">
           <div className="space-y-6">
             {testSteps.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
@@ -213,13 +264,8 @@ const AITestAutomation = () => {
                     </div>
                   )}
                   {step.coordinates && (
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <h4 className="font-medium mb-2">Detected Elements:</h4>
-                      <pre className="text-sm text-gray-600 whitespace-pre-wrap">
-                      {step.coordinates}
-                      </pre>
-                    </div>
-                   )}
+                    <CoordinatesTable response={step.response} stepId={step.id} />
+                  )}
                   {step.error && (
                     <p className="text-red-500 text-sm mt-2">{step.error}</p>
                   )}
