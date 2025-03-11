@@ -960,61 +960,81 @@ const WriteTestManually = () => {
   };
 
   const CoordinatesTable = ({ response, stepId }) => {
+    const [selectedElement, setSelectedElement] = useState(null);
+    
     if (!response?.elements || response.elements.length === 0) return null;
-
+  
     return (
       <div className="mt-4 bg-white rounded-lg border border-gray-200">
         <div className="p-4 border-b border-gray-200">
           <h4 className="font-medium text-gray-900">Detected Elements</h4>
-          <p className="text-sm text-gray-500 mt-1">Elements found on the page</p>
+          <p className="text-sm text-gray-500 mt-1">Select an element to view details</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Element Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Click Point</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Element Box</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {response.elements.map((element) => (
-                <tr key={element.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {element.id}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {element.name}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    x: {element.click_point[0]}, y: {element.click_point[1]}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    [left: {element.coordinates[0]}, top: {element.coordinates[1]}, right: {element.coordinates[2]}, bottom: {element.coordinates[3]}]
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <button
-                      className="flex items-center px-3 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
-                      onClick={() => {
-                        // Add a new step for clicking this specific element
-                        setNewStep(`Click ${element.name}`);
-                      }}
-                    >
-                      <MousePointer className="w-4 h-4 mr-1" />
-                      Click
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        
+        <div className="p-4">
+          {/* Element Dropdown */}
+          <select 
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            value={selectedElement ? selectedElement.id : ""}
+            onChange={(e) => {
+              const selected = response.elements.find(el => el.id.toString() === e.target.value);
+              setSelectedElement(selected || null);
+            }}
+          >
+            <option value="">-- Select an element --</option>
+            {response.elements.map((element) => (
+              <option key={element.id} value={element.id}>
+                {element.name || `Element ${element.id}`}
+              </option>
+            ))}
+          </select>
+          
+          {/* Selected Element Details */}
+          {selectedElement && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm">
+                  <span className="font-medium text-gray-600">Element ID:</span>
+                  <span className="ml-2 text-gray-800">{selectedElement.id}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium text-gray-600">Element Type:</span>
+                  <span className="ml-2 text-gray-800">{selectedElement.type || "N/A"}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium text-gray-600">Click Point:</span>
+                  <span className="ml-2 text-gray-800">
+                    x: {selectedElement.click_point[0]}, y: {selectedElement.click_point[1]}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium text-gray-600">Coordinates:</span>
+                  <span className="ml-2 text-gray-800">
+                    [{selectedElement.coordinates[0]}, {selectedElement.coordinates[1]}, 
+                    {selectedElement.coordinates[2]}, {selectedElement.coordinates[3]}]
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-3 flex justify-end">
+                <button
+                  className="flex items-center px-3 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                  onClick={() => {
+                    setNewStep(`Click ${selectedElement.name}`);
+                  }}
+                >
+                  <MousePointer className="w-4 h-4 mr-1" />
+                  Click Element
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
+  
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
