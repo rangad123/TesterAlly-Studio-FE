@@ -9,6 +9,8 @@ TesterAlly is an AI-powered automation testing tool designed to perform UI inter
 ```
 TesterAlly/
 │-- TesterAlly-BE/             # Django Backend repo
+│   │-- api/                   # API app
+│   │-- automation/            # Automation app
 │-- TesterAlly-FE/             # React for UI repo
 
 ```
@@ -70,8 +72,9 @@ npm start
 ---
 
 ## **5. Configuring Gunicorn & Nginx on EC2**
-### **Step 1: Install Dependencies on EC2**
+### **Step 1: Connect to EC2 and Install Dependencies on EC2**
 ```bash
+ssh -i your-key.pem ubuntu@yourIPaddress
 sudo apt update && sudo apt install -y python3-pip python3-venv nginx
 ```
 
@@ -130,16 +133,6 @@ source ~/.bashrc
 ```bash
 nano ~/.vnc/xstartup
 ```
-Paste the following content:
-```bash
-#!/bin/bash
-xrdb $HOME/.Xresources
-export DISPLAY=:1
-export XKL_XMODMAP_DISABLE=1
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-startxfce4 &
-```
 
 ### **Step 5: Set Permissions & Restart Services**
 ```bash
@@ -155,29 +148,10 @@ ps aux | grep vnc
 echo $DISPLAY
 ```
 
-### **Step 7: Create a Systemd Service for VNC**
+### **Step 7: Check a Systemd Service for VNC**
 ```bash
 sudo nano /etc/systemd/system/vncserver.service
 ```
-Add the following content:
-```ini
-[Unit]
-Description=Start TightVNC server at startup
-After=syslog.target network.target
-
-[Service]
-Type=forking
-User=ubuntu
-Group=ubuntu
-WorkingDirectory=/home/ubuntu
-ExecStart=/usr/bin/tightvncserver :1
-ExecStop=/usr/bin/tightvncserver -kill :1
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-Save and exit, then run:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable vncserver.service
@@ -201,7 +175,7 @@ google-chrome --version
 
 ## **8. Configuring Cloudflare for Domain `testerally.ai`**
 1. Go to **Cloudflare Dashboard**.
-2. Add your **AWS Elastic IP (13.48.64.40)** to an **A Record** pointing to `testerally.ai`.
+2. Add your **AWS Elastic IP ** to an **A Record** pointing to `testerally.ai`.
 3. Set up **HTTPS SSL/TLS** mode to "Full".
 4. Enable **Caching and Firewall** for security.
 
