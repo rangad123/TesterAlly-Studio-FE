@@ -1174,6 +1174,11 @@ const WriteTestManually = () => {
                             </div>
                           </div>
                         )}
+                        {step.message && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            <span className="font-medium">Status:</span> {step.message}
+                          </p>
+                        )}
                         {step.coordinates && (
                           <CoordinatesTable response={step.coordinates} stepId={step.id} />
                         )}
