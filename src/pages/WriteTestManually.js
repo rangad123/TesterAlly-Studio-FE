@@ -550,7 +550,6 @@ export default WriteTestManually;
 
 
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Clock, MousePointer, X } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
@@ -569,9 +568,14 @@ const WriteTestManually = () => {
     testcase_priority: '',
     projectId: ''
   });
+  // New state for suggestions
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [commandType, setCommandType] = useState('');
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -609,7 +613,6 @@ const WriteTestManually = () => {
         fetchTestData(info.projectId);
       }
     } else {
-
       setTestCaseInfo({
         name: 'New Test Case',
         testcase_type: 'Functional',
@@ -636,6 +639,55 @@ const WriteTestManually = () => {
     }
   }, []);
 
+  // New effect to handle input changes and show suggestions
+  useEffect(() => {
+    if (!newStep) {
+      setShowSuggestions(false);
+      return;
+    }
+
+    const words = newStep.trim().toLowerCase().split(' ');
+    const firstWord = words[0];
+    
+    if (['click', 'type'].includes(firstWord)) {
+      setCommandType(firstWord);
+      
+      if (elementData && elementData.elements && elementData.elements.length > 0) {
+        // For click commands, show suggestions after the first word
+        if (firstWord === 'click' && words.length > 1) {
+          const searchTerm = words.slice(1).join(' ').toLowerCase();
+          const matchedElements = elementData.elements
+            .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
+            .slice(0, 5); // Limit to 5 suggestions
+          
+          setSuggestions(matchedElements);
+          setShowSuggestions(matchedElements.length > 0);
+        } 
+        // For type commands, show suggestions after "in" keyword
+        else if (firstWord === 'type') {
+          const inIndex = words.findIndex(word => word === 'in');
+          if (inIndex !== -1 && words.length > inIndex + 1) {
+            const searchTerm = words.slice(inIndex + 1).join(' ').toLowerCase();
+            const matchedElements = elementData.elements
+              .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
+              .slice(0, 5); // Limit to 5 suggestions
+            
+            setSuggestions(matchedElements);
+            setShowSuggestions(matchedElements.length > 0);
+          } else {
+            setShowSuggestions(false);
+          }
+        }
+      }
+    } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
+      setCommandType('open');
+      setShowSuggestions(false);
+    } else {
+      setCommandType('');
+      setShowSuggestions(false);
+    }
+  }, [newStep, elementData]);
+
   const fetchTestData = async (projectId) => {
     if (!projectId) return;
   
@@ -652,7 +704,6 @@ const WriteTestManually = () => {
     }
   };
 
-
   const findBestMatchingElement = (text) => {
     if (!elementData || !elementData.elements || elementData.elements.length === 0) {
       return null;
@@ -668,7 +719,6 @@ const WriteTestManually = () => {
       const matches = elementData.elements
         .filter(element => element.name && element.name.toLowerCase().includes(normalizedText))
         .sort((a, b) => {
-        
           const aScore = a.name.toLowerCase().indexOf(normalizedText);
           const bScore = b.name.toLowerCase().indexOf(normalizedText);
           return aScore - bScore;
@@ -684,18 +734,21 @@ const WriteTestManually = () => {
     setIsProcessing(true);
   
     try {
+      
+      const lowerCaseStep = stepDescription.toLowerCase();
 
-      if (stepDescription.toLowerCase().startsWith('open ') || stepDescription.toLowerCase().includes('go to ')) {
-    
+      console.log("lowsercase:",lowerCaseStep)
+
+      if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
         const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: stepDescription }),
+          body: JSON.stringify({ command: lowerCaseStep }),
         });
 
-        console.log("open url:", stepDescription);
+        console.log("open url:", lowerCaseStep);
   
         if (!response.ok) {
           throw new Error('Failed to execute navigation command');
@@ -707,7 +760,6 @@ const WriteTestManually = () => {
 
         if (data.omniparser_data && data.omniparser_data.elements) {
           setElementData(data.omniparser_data);
-     
           sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
         }
         
@@ -723,43 +775,29 @@ const WriteTestManually = () => {
           coordinates: data.omniparser_data,
         };
       } 
-
-      else if (stepDescription.toLowerCase().includes('click') || stepDescription.toLowerCase().includes('type')) {
-
-        /*const commandWords = stepDescription.toLowerCase().split(' ');
-        const actionType = commandWords[0]; 
-        const userText = commandWords.slice(1).join(' '); 
-      
-        const element = findBestMatchingElement(userText);*/
-
+      else if (lowerCaseStep.includes('click') || lowerCaseStep.includes('type')) {
         const words = stepDescription.trim().split(' ');
         const actionType = words[0].toLowerCase(); 
         
         let elementName = '';
-        //let inputText = '';
-        if (actionType === 'type') {
-
-        const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
         
-        if (inIndex > 1 && inIndex < words.length - 1) {
+        if (actionType === 'type') {
+          const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
           
-          //inputText = words.slice(1, inIndex).join(' ');
-          
-          elementName = words.slice(inIndex + 1).join(' ');
-        } else {
-          
-          throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
+          if (inIndex > 1 && inIndex < words.length - 1) {
+            elementName = words.slice(inIndex + 1).join(' ');
+          } else {
+            throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
+          }
+        } else if (actionType === 'click') {
+          elementName = words.slice(1).join(' ');
         }
-      } else if (actionType === 'click') {
-       
-        elementName = words.slice(1).join(' ');
-      }
       
-      const element = findBestMatchingElement(elementName);
+        const element = findBestMatchingElement(elementName);
       
         if (element) {
           const requestBody = {
-            command: stepDescription,
+            command: lowerCaseStep,
             click_x: element.click_point[0],
             click_y: element.click_point[1],
           };
@@ -810,15 +848,13 @@ const WriteTestManually = () => {
           throw new Error(`Could not find matching element for "${elementName}"`);
         }
       }
-      
-    
       else {
         const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: stepDescription }),
+          body: JSON.stringify({ command: lowerCaseStep }),
         });
   
         if (!response.ok) {
@@ -827,7 +863,6 @@ const WriteTestManually = () => {
   
         const data = await response.json();
         
-       
         if (data.omniparser_data && data.omniparser_data.elements) {
           setElementData(data.omniparser_data);
           sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
@@ -861,6 +896,8 @@ const WriteTestManually = () => {
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;
     
+    setShowSuggestions(false);
+    
     const newStepObj = {
       id: Date.now(),
       description: newStep,
@@ -881,7 +918,6 @@ const WriteTestManually = () => {
       } : step
     ));
 
-
     setTimeout(() => {
       if (previewRef.current) {
         previewRef.current.scrollTo({
@@ -896,6 +932,32 @@ const WriteTestManually = () => {
         });
       }
     }, 100);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    let updatedStep = '';
+    if (commandType === 'click') {
+      updatedStep = `click ${suggestion.name}`;
+    } else if (commandType === 'type') {
+      // Extract the text to type (before "in")
+      const inIndex = newStep.toLowerCase().indexOf(' in ');
+      if (inIndex !== -1) {
+        const textToType = newStep.substring(5, inIndex);
+        updatedStep = `type ${textToType} in ${suggestion.name}`;
+      } else {
+        updatedStep = `type  in ${suggestion.name}`;
+      }
+    }
+    
+    setNewStep(updatedStep);
+    setShowSuggestions(false);
+    
+    // Focus back on the input and put cursor at the end
+    if (inputRef.current) {
+      inputRef.current.focus();
+      const length = updatedStep.length;
+      inputRef.current.setSelectionRange(length, length);
+    }
   };
 
   const createTestCase = async () => {
@@ -1034,7 +1096,6 @@ const WriteTestManually = () => {
     );
   };
 
-  
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1116,23 +1177,85 @@ const WriteTestManually = () => {
               </div>
 
               <div className="p-4 border-t border-gray-200">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newStep}
-                    onChange={(e) => setNewStep(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addTestStep()}
-                    placeholder="Enter URL or command (e.g., 'Open https://example.com' or 'Click login')"
-                    disabled={isProcessing}
-                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm"
-                  />
-                  <button
-                    onClick={addTestStep}
-                    disabled={isProcessing || !newStep.trim()}
-                    className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
-                  >
-                    <Plus className="w-5 h-5" />
-                  </button>
+                <div className="flex flex-col gap-2 relative">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      ref={inputRef}
+                      value={newStep}
+                      onChange={(e) => setNewStep(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addTestStep();
+                        } else if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
+                          e.preventDefault();
+                          document.querySelector('.suggestion-item').focus();
+                        }
+                      }}
+                      placeholder="Enter command (e.g., 'open https://example.com' or 'Click login')"
+                      disabled={isProcessing}
+                      className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm"
+                    />
+                    <button
+                      onClick={addTestStep}
+                      disabled={isProcessing || !newStep.trim()}
+                      className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {/* Suggestions dropdown */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <ul className="absolute z-10 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-12 max-h-60 overflow-y-auto">
+                      {suggestions.map((suggestion, index) => (
+                        <li 
+                          key={suggestion.id}
+                          className="suggestion-item p-2 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:bg-purple-100 focus:outline-none"
+                          tabIndex={0}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSuggestionClick(suggestion);
+                            } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                              e.preventDefault();
+                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              if (index > 0) {
+                                document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                              } else {
+                                inputRef.current.focus();
+                              }
+                            } else if (e.key === 'Escape') {
+                              setShowSuggestions(false);
+                              inputRef.current.focus();
+                            }
+                          }}
+                        >
+                          <div className="flex justify-between">
+                            <span className="font-medium">{suggestion.name}</span>
+                            <span className="text-xs text-gray-500">{suggestion.type || "Element"}</span>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            Position: x:{suggestion.click_point[0]}, y:{suggestion.click_point[1]}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  
+                  {/* Command type indicator */}
+                  {commandType && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {commandType === 'click' && "Click command - type element name or select from suggestions"}
+                      {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
+                      {commandType === 'open' && "Navigation command - enter a URL"}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
