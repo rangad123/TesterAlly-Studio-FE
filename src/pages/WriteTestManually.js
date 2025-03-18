@@ -577,6 +577,8 @@ const WriteTestManually = () => {
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
 
+  const userId = localStorage.getItem("userId");
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -745,10 +747,11 @@ const WriteTestManually = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: lowerCaseStep }),
+          body: JSON.stringify({ command: lowerCaseStep, user_id: userId }),
         });
 
         console.log("open url:", lowerCaseStep);
+        console.log("User_Id:", userId);
   
         if (!response.ok) {
           throw new Error('Failed to execute navigation command');
@@ -798,6 +801,7 @@ const WriteTestManually = () => {
         if (element) {
           const requestBody = {
             command: lowerCaseStep,
+            user_id: userId,
             click_x: element.click_point[0],
             click_y: element.click_point[1],
           };
