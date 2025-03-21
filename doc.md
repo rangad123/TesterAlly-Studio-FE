@@ -65,6 +65,9 @@ cd ../TesterAlly-FE
 # Install Dependencies
 npm install
 
+npm run build 
+sudo cp -R build/ /var/www/vhosts/frontend/
+
 # Start React Development Server
 npm start
 ```
@@ -107,7 +110,9 @@ sudo systemctl restart gunicorn
 ### **Step 1: Install VNC Server and XFCE4**
 ```bash
 sudo apt update
-sudo apt install tightvncserver xfce4 xfce4-goodies dbus-x11 -y
+sudo apt install xfce4 xfce4-goodies dbus-x11 -y
+sudo apt install -y tigervnc-standalone-server tigervnc-tools
+
 ```
 
 ### **Step 2: Configure VNC Server**
@@ -138,12 +143,13 @@ nano ~/.vnc/xstartup
 ```bash
 chmod +x ~/.vnc/xstartup
 rm -rf ~/.vnc/*.log ~/.vnc/*.pid
-vncserver :1
+vncserver :1 -localhost=0
 ```
 
 ### **Step 6: Verify VNC Process**
 ```bash
-ps aux | grep Xtightvnc
+ps aux | grep Xtigervnc
+netstat -tlnp | grep 5901
 ps aux | grep vnc
 echo $DISPLAY
 ```
@@ -153,6 +159,8 @@ echo $DISPLAY
 sudo nano /etc/systemd/system/vncserver.service
 ```
 ```bash
+sudo systemctl stop vncserver
+sudo systemctl disable vncserver
 sudo systemctl daemon-reload
 sudo systemctl enable vncserver.service
 sudo systemctl start vncserver.service

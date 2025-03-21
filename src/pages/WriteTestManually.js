@@ -549,9 +549,8 @@ export default WriteTestManually;
 
 
 
-
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle, XCircle, Plus, Clock, MousePointer, X } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, MousePointer, X, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 
 const WriteTestManually = () => {
@@ -568,10 +567,13 @@ const WriteTestManually = () => {
     testcase_priority: '',
     projectId: ''
   });
-  // New state for suggestions
+
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [commandType, setCommandType] = useState('');
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -641,7 +643,7 @@ const WriteTestManually = () => {
     }
   }, []);
 
-  // New effect to handle input changes and show suggestions
+
   useEffect(() => {
     if (!newStep) {
       setShowSuggestions(false);
@@ -655,7 +657,7 @@ const WriteTestManually = () => {
       setCommandType(firstWord);
       
       if (elementData && elementData.elements && elementData.elements.length > 0) {
-        // For click commands, show suggestions after the first word
+
         if (firstWord === 'click' && words.length > 1) {
           const searchTerm = words.slice(1).join(' ').toLowerCase();
           const matchedElements = elementData.elements
@@ -694,6 +696,7 @@ const WriteTestManually = () => {
     if (!projectId) return;
   
     try {
+      setLoadingMessage('Fetching test data...');
       const response = await fetch(`https://api.testerally.ai/api/testdata/${projectId}/`);
       if (response.ok) {
         const data = await response.json();
@@ -703,6 +706,8 @@ const WriteTestManually = () => {
       }
     } catch (error) {
       console.error("Error fetching test data:", error);
+    } finally {
+      setLoadingMessage('');
     }
   };
 
@@ -736,10 +741,17 @@ const WriteTestManually = () => {
     setIsProcessing(true);
   
     try {
-      
       const lowerCaseStep = stepDescription.toLowerCase();
-
-      console.log("lowsercase:",lowerCaseStep)
+      
+      if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
+        setLoadingMessage('Opening page, please wait...');
+      } else if (lowerCaseStep.includes('click')) {
+        setLoadingMessage('Executing click, please wait...');
+      } else if (lowerCaseStep.includes('type')) {
+        setLoadingMessage('Typing text, please wait...');
+      } else {
+        setLoadingMessage('Executing command, please wait...');
+      }
 
       if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
         const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
@@ -889,11 +901,11 @@ const WriteTestManually = () => {
       return {
         status: 'error',
         duration: '00:00',
-        screenshot: `/api/placeholder/800/300?text=Error_Screenshot`,
         error: error.message
       };
     } finally {
       setIsProcessing(false);
+      setLoadingMessage('');
     }
   };
 
@@ -921,6 +933,8 @@ const WriteTestManually = () => {
         ...executionResult
       } : step
     ));
+
+    setNewStep('');
 
     setTimeout(() => {
       if (previewRef.current) {
@@ -971,6 +985,7 @@ const WriteTestManually = () => {
     }
 
     try {
+      setCreateTestCaseLoading(true);
       const testCaseResponse = await fetch("https://api.testerally.ai/api/testcases/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -988,7 +1003,6 @@ const WriteTestManually = () => {
 
       const testCaseData = await testCaseResponse.json();
       const testCaseId = testCaseData.id;
-
 
       const stepPromises = testSteps.map(async (step, index) => {
         const stepResponse = await fetch("https://api.testerally.ai/api/teststeps/", {
@@ -1015,6 +1029,8 @@ const WriteTestManually = () => {
     } catch (error) {
       console.error('Error creating test case:', error);
       alert(`Error creating test case: ${error.message}`);
+    } finally {
+      setCreateTestCaseLoading(false);
     }
   };
 
@@ -1100,6 +1116,44 @@ const WriteTestManually = () => {
     );
   };
 
+const LoadingIndicator = ({ message }) => (
+  <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow-md border-l-4 border-purple-500 mb-4 transition-all duration-300">
+    <div className="mr-3 relative">
+      <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+      </div>
+    </div>
+    <span className="text-gray-700 font-medium">{message}</span>
+  </div>
+);
+
+const ImageModal = () => {
+  if (!fullScreenImage) return null;
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      onClick={() => setFullScreenImage(null)}
+    >
+      <div className="relative max-w-4xl max-h-[90vh] w-full">
+        <button 
+          className="absolute top-2 right-2 bg-white rounded-full p-1"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <X className="w-6 h-6" />
+        </button>
+        <img 
+          src={fullScreenImage} 
+          alt="Full screen preview" 
+          className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
+        />
+      </div>
+    </div>
+  );
+};
+
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1121,6 +1175,8 @@ const WriteTestManually = () => {
             </div>
           </div>
           
+          {loadingMessage && <LoadingIndicator message={loadingMessage} />}
+          
           {/* Main Content */}
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Left Panel - Test Steps */}
@@ -1130,18 +1186,22 @@ const WriteTestManually = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={clearSession}
-                    className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+                    className="flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm transition-colors duration-200"
                   >
                     <X className="w-4 h-4" />
                     Clear
                   </button>
                   <button
                     onClick={createTestCase}
-                    disabled={testSteps.length === 0}
-                    className="flex items-center gap-1 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 text-sm"
+                    disabled={testSteps.length === 0 || createTestCaseLoading}
+                    className="flex items-center gap-1 px-3 py-1 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 text-sm transition-colors duration-200"
                   >
-                    <Plus className="w-4 h-4" />
-                    Create
+                    {createTestCaseLoading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                    {createTestCaseLoading ? 'Creating...' : 'Create'}
                   </button>
                 </div>
               </div>
@@ -1151,7 +1211,7 @@ const WriteTestManually = () => {
                   {testSteps.map((step, index) => (
                     <div
                       key={step.id}
-                      className={`p-3 bg-white rounded-lg shadow-sm border-l-4 ${
+                      className={`p-3 bg-white rounded-lg shadow-sm border-l-4 transition-all duration-300 ${
                         step.status === 'complete' ? 'border-green-500' :
                         step.status === 'error' ? 'border-red-500' :
                         'border-blue-500'
@@ -1173,10 +1233,19 @@ const WriteTestManually = () => {
                         </div>
                       )}
                       {step.error && (
-                        <p className="text-red-500 text-xs mt-1">{step.error}</p>
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs animate-appear">
+                          <div className="font-medium">Error:</div>
+                          <div>{step.error}</div>
+                        </div>
                       )}
                     </div>
                   ))}
+                  
+                  {testSteps.length === 0 && !isProcessing && (
+                    <div className="text-center p-8 text-gray-400">
+                      No steps added yet. Enter a command below to begin.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1201,24 +1270,28 @@ const WriteTestManually = () => {
                       }}
                       placeholder="Enter command (e.g., 'open https://example.com' or 'Click login')"
                       disabled={isProcessing}
-                      className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm"
+                      className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm transition-all duration-200"
                     />
                     <button
                       onClick={addTestStep}
                       disabled={isProcessing || !newStep.trim()}
-                      className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                      className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors duration-200"
                     >
-                      <Plus className="w-5 h-5" />
+                      {isProcessing ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Plus className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
                   
-                  {/* Suggestions dropdown */}
+                  {/* Suggestions dropdown with animation */}
                   {showSuggestions && suggestions.length > 0 && (
-                    <ul className="absolute z-10 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-12 max-h-60 overflow-y-auto">
+                    <ul className="absolute z-10 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-12 max-h-60 overflow-y-auto animate-fadeIn">
                       {suggestions.map((suggestion, index) => (
                         <li 
                           key={suggestion.id}
-                          className="suggestion-item p-2 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:bg-purple-100 focus:outline-none"
+                          className="suggestion-item p-2 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:bg-purple-100 focus:outline-none transition-colors duration-150"
                           tabIndex={0}
                           onClick={() => handleSuggestionClick(suggestion)}
                           onKeyDown={(e) => {
@@ -1289,12 +1362,13 @@ const WriteTestManually = () => {
                           </div>
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
-                        {step.screenshot && (
+                        {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
                             <img
                               src={step.screenshot}
                               alt={`Step ${index + 1}`}
-                              className="w-full rounded-lg border border-gray-200"
+                              className="w-full rounded-lg border border-gray-200 cursor-pointer"
+                              onClick={() => setFullScreenImage(step.screenshot)}
                             />
                             <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-xs">
                               Screenshot {index + 1}
@@ -1309,13 +1383,30 @@ const WriteTestManually = () => {
                         {step.coordinates && (
                           <CoordinatesTable response={step.coordinates} stepId={step.id} />
                         )}
-                        {step.error && (
-                          <p className="text-red-500 text-xs mt-2">{step.error}</p>
+                        {step.status === 'error' && (
+                          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div className="flex items-center text-red-600 mb-2">
+                              <XCircle className="w-5 h-5 mr-2" />
+                              <span className="font-medium">Error occurred</span>
+                            </div>
+                            <p className="text-sm text-gray-700 mb-3">{step.error || "Failed to execute command. Please try again."}</p>
+                            
+                            <div className="mt-3 text-xs text-gray-500">
+                              <p className="font-medium">Troubleshooting tips:</p>
+                              <ul className="list-disc pl-4 mt-1 space-y-1">
+                                <li>Check your internet connection</li>
+                                <li>Verify the URL is correct and accessible</li>
+                                <li>Try using a different command</li>
+                              </ul>
+                            </div>
+                          </div>
                         )}
+
                       </div>
                     ))
                   )}
                 </div>
+                <ImageModal />
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft  } from "lucide-react";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare } from "lucide-react";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const TestSteps = () => {
@@ -19,6 +19,10 @@ const TestSteps = () => {
   const [testCaseTypes, setTestCaseTypes] = useState([]);
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedSteps, setSelectedSteps] = useState([]);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResults, setExecutionResults] = useState({});
+  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
   const apiBaseUrl = "https://api.testerally.ai/api";
@@ -304,6 +308,317 @@ const TestSteps = () => {
     setError(null);
   };
 
+
+useEffect(() => {
+    if (elementData) {
+      sessionStorage.setItem('latestElementData', JSON.stringify(elementData));
+    }
+  }, [elementData]);
+
+  useEffect(() => {
+    const storedData = sessionStorage.getItem('latestElementData');
+    if (storedData) {
+      try {
+        setElementData(JSON.parse(storedData));
+      } catch (error) {
+        console.error('Error parsing stored element data:', error);
+      }
+    }
+  }, []);
+  
+
+  const handleRunSteps = async () => {
+    // If no steps are selected, select all steps
+    if (selectedSteps.length === 0) {
+      const allStepIds = steps.map(step => step.id);
+      setSelectedSteps(allStepIds);
+      await executeTestSteps(allStepIds);
+    } else {
+      await executeTestSteps(selectedSteps);
+    }
+  };
+
+
+  const executeTestSteps = async (stepIds) => {
+    setIsExecuting(true);
+    setExecutionResults({});
+    
+    const userId = localStorage.getItem("userId");
+    
+    // Execute steps one by one
+    for (const stepId of stepIds) {
+      const step = steps.find(s => s.id === stepId);
+      
+      try {
+        // Find the step by ID
+        if (!step) continue;
+  
+        // Get the current elementData from state or session storage
+        const currentElementData = elementData || 
+          JSON.parse(sessionStorage.getItem('latestElementData') || '{}');
+        
+        // Execute the step command with element data
+        const result = await executeStep(step.step_description, userId, currentElementData);
+
+        setExecutionResults(prev => ({
+          ...prev,
+          [stepId]: result
+        }));
+        
+        // If step failed, stop execution
+        if (result.status === 'error') {
+          break;
+        }
+      } catch (error) {
+        console.error(`Error executing step ${stepId}:`, error);
+        setExecutionResults(prev => ({
+          ...prev,
+          [stepId]: {
+            status: 'error',
+            error: error.message || 'Execution failed'
+          }
+        }));
+        break;
+      }
+    }
+    
+    setIsExecuting(false);
+  };
+
+
+  const findBestMatchingElement = (text) => {
+    if (!elementData || !elementData.elements || elementData.elements.length === 0) {
+      return null;
+    }
+
+    const normalizedText = text.toLowerCase().trim();
+
+    let bestMatch = elementData.elements.find(element => 
+      element.name && element.name.toLowerCase() === normalizedText
+    );
+
+    if (!bestMatch) {
+      const matches = elementData.elements
+        .filter(element => element.name && element.name.toLowerCase().includes(normalizedText))
+        .sort((a, b) => {
+          const aScore = a.name.toLowerCase().indexOf(normalizedText);
+          const bScore = b.name.toLowerCase().indexOf(normalizedText);
+          return aScore - bScore;
+        });
+      
+      bestMatch = matches.length > 0 ? matches[0] : null;
+    }
+
+    return bestMatch;
+  };
+  
+  const executeStep = async (stepDescription, userId, currentElementData) => {
+
+    try {
+      const lowerCaseStep = stepDescription.toLowerCase();
+
+      if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
+        const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ command: lowerCaseStep, user_id: userId }),
+        });
+
+        console.log("open url:", lowerCaseStep);
+        console.log("User_Id:", userId);
+  
+        if (!response.ok) {
+          throw new Error('Failed to execute navigation command');
+        }
+  
+        const data = await response.json();
+        
+        console.log("Response:", data);
+
+        if (data.omniparser_data && data.omniparser_data.elements) {
+          setElementData(data.omniparser_data);
+          sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+        }
+        
+        const screenshotUrl = data.screenshot ? 
+          `https://api.testerally.ai${data.screenshot}` : 
+          `/api/placeholder/800/300?text=No_Screenshot`;
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.status || "Page loaded successfully",
+          screenshot: screenshotUrl,
+          coordinates: data.omniparser_data,
+        };
+      } 
+      else if (lowerCaseStep.includes('click') || lowerCaseStep.includes('type')) {
+        const words = stepDescription.trim().split(' ');
+        const actionType = words[0].toLowerCase(); 
+        
+        let elementName = '';
+        
+        if (actionType === 'type') {
+          const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
+          
+          if (inIndex > 1 && inIndex < words.length - 1) {
+            elementName = words.slice(inIndex + 1).join(' ');
+          } else {
+            throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
+          }
+        } else if (actionType === 'click') {
+          elementName = words.slice(1).join(' ');
+        }
+
+        const element = findBestMatchingElement(elementName, currentElementData);
+      
+        if (element) {
+          const requestBody = {
+            command: lowerCaseStep,
+            user_id: userId,
+            click_x: element.click_point[0],
+            click_y: element.click_point[1],
+          };
+      
+          if (actionType === 'type') {
+            requestBody.input_text = elementName;
+          }
+      
+          const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+      
+          console.log(actionType, stepDescription, element.click_point);
+      
+          if (!response.ok) {
+            throw new Error(`Failed to execute ${actionType} command`);
+          }
+      
+          const data = await response.json();
+      
+          console.log(`${actionType} response:`, data);
+      
+          if (data.coordinates && data.coordinates.elements) {
+            console.log("Received coordinates data:", data.coordinates);
+            console.log("Current elementData before update:", elementData);
+            setElementData(data.coordinates);
+            console.log("Updated elementData after setElementData:", data.coordinates);
+            sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
+          }
+      
+          const screenshotUrl = data.screenshot
+            ? `https://api.testerally.ai${data.screenshot}`
+            : `/api/placeholder/800/300?text=No_Screenshot`;
+      
+          return {
+            status: 'complete',
+            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+            message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
+            screenshot: screenshotUrl,
+            coordinates: data.coordinates || elementData,
+            elementAction: element,
+          };
+        } else {
+          throw new Error(`Could not find matching element for "${elementName}"`);
+        }
+      }
+      else {
+        const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ command: lowerCaseStep }),
+        });
+  
+        if (!response.ok) {
+          throw new Error('Failed to execute command');
+        }
+  
+        const data = await response.json();
+        
+        if (data.omniparser_data && data.omniparser_data.elements) {
+          setElementData(data.omniparser_data);
+          sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+        }
+        
+        const screenshotUrl = data.screenshot ? 
+          `https://api.testerally.ai${data.screenshot}` : 
+          `/api/placeholder/800/300?text=No_Screenshot`;
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.status || "Command executed successfully",
+          screenshot: screenshotUrl,
+          coordinates: data.coordinates,
+        };
+      }
+    } catch (error) {
+      console.error('Step execution error:', error);
+      return {
+        status: 'error',
+        duration: '00:00',
+        error: error.message
+      };
+    } 
+  };
+
+  
+
+const handleStepSelection = (stepId) => {
+  setSelectedSteps(prev => 
+    prev.includes(stepId) 
+      ? prev.filter(id => id !== stepId)
+      : [...prev, stepId]
+  );
+};
+
+
+const selectAllSteps = () => {
+  if (selectedSteps.length === steps.length) {
+    setSelectedSteps([]);
+  } else {
+    setSelectedSteps(steps.map(step => step.id));
+  }
+};
+
+const [expandedScreenshot, setExpandedScreenshot] = useState(null);
+const handleExpandScreenshot = (screenshot) => {
+  setExpandedScreenshot(screenshot);
+};
+
+const ScreenshotModal = () => {
+  if (!expandedScreenshot) return null;
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      onClick={() => setExpandedScreenshot(null)}
+    >
+      <div className="relative max-w-4xl max-h-[90vh] w-full">
+        <button 
+          className="absolute top-2 right-2 bg-white rounded-full p-1"
+          onClick={() => setExpandedScreenshot(null)}
+        >
+          <X className="w-6 h-6" />
+        </button>
+        <img 
+          src={expandedScreenshot} 
+          alt="Full screen preview" 
+          className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
+        />
+      </div>
+    </div>
+  );
+};
+
   const renderTestCaseInfo = () => {
     if (!testCase) return <div>Loading test case details...</div>;
 
@@ -464,17 +779,21 @@ const handleRunTest = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{testCaseName}</h1>
-{/*
 
             <button
-              onClick={handleRunTest}
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              onClick={handleRunSteps}
+              disabled={isExecuting || steps.length === 0}
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
             >
-              <Play className="w-4 h-4 mr-2" />
+              {isExecuting ? (
+                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
               Run Test
             </button> 
-*/}
           </div>
+
 {/*
           <TestEnvironmentModal
             isOpen={isEnvironmentModalOpen}
@@ -510,10 +829,21 @@ const handleRunTest = () => {
             />
             <button
               onClick={handleAddStep}
-              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              className="inline-flex items-center px-4 py-2 bg-purple-400 text-white rounded-md hover:bg-purple-500"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Step
+            </button>
+          </div>
+
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={selectAllSteps}
+              className="inline-flex items-center text-sm text-gray-600 hover:text-purple-600"
+              disabled={isExecuting || steps.length === 0}
+            >
+              <CheckSquare className="w-4 h-4 mr-1" />
+              {selectedSteps.length === steps.length && steps.length > 0 ? 'Unselect All' : 'Select All'}
             </button>
           </div>
 
@@ -523,6 +853,16 @@ const handleRunTest = () => {
                 key={step.id}
                 className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4"
               >
+                
+                {activeTab === "testSteps" && (
+                  <input
+                    type="checkbox"
+                    checked={selectedSteps.includes(step.id)}
+                    onChange={() => handleStepSelection(step.id)}
+                    className="w-4 h-4 text-purple-600 rounded"
+                    disabled={isExecuting}
+                  />
+                )}
                 <span className="min-w-[60px] font-medium">#{step.step_number}</span>
                 
                 {editingStep === step.id ? (
@@ -556,8 +896,27 @@ const handleRunTest = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden" >{step.step_description}</div>
-                    <div className="flex gap-2">
+                      <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
+                        {step.step_description}
+                        {executionResults[step.id] && (
+                          <div className={`mt-2 text-sm p-2 rounded ${
+                            executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          }`}>
+                            {executionResults[step.id].status === 'complete' ? '✓ Executed successfully' : '✗ Failed: ' + executionResults[step.id].error}
+                          </div>
+                        )}
+                        {executionResults[step.id]?.screenshot && (
+                          <div className="mt-2">
+                            <img 
+                              src={executionResults[step.id].screenshot} 
+                              alt="Execution screenshot" 
+                              className="w-full max-h-60 object-contain border border-gray-200 rounded-md cursor-pointer"
+                              onClick={() => handleExpandScreenshot(executionResults[step.id].screenshot)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
                       <button
                         onClick={() => startEditing(step)}
                         className="p-2 text-blue-600 hover:text-blue-700"
@@ -580,6 +939,8 @@ const handleRunTest = () => {
           ) : (
             renderTestCaseInfo()
           )}
+
+          <ScreenshotModal />
 
         </div>
       </div>
