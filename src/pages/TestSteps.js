@@ -348,7 +348,7 @@ useEffect(() => {
     setIsExecuting(true);
     setExecutionResults({});
     
-    const userId = localStorage.getItem("userId");
+    const user_id = localStorage.getItem("user_id");
     let currentElementData = elementData || 
     JSON.parse(sessionStorage.getItem('latestElementData') || '{}');
     
@@ -366,7 +366,7 @@ useEffect(() => {
         }));
 
         // Execute the step command with element data
-        const result = await executeStep(step.step_description, userId, currentElementData);
+        const result = await executeStep(step.step_description, user_id, currentElementData);
 
         console.log("result:", result)
 
@@ -427,7 +427,7 @@ useEffect(() => {
     return bestMatch;
   };
   
-  const executeStep = async (stepDescription, userId, currentElementData) => {
+  const executeStep = async (stepDescription, user_id, currentElementData) => {
 
     try {
       const lowerCaseStep = stepDescription.toLowerCase();
@@ -438,11 +438,11 @@ useEffect(() => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: lowerCaseStep, user_id: userId }),
+          body: JSON.stringify({ command: lowerCaseStep, user_id: user_id }),
         });
 
         console.log("open url:", lowerCaseStep);
-        console.log("User_Id:", userId);
+        console.log("User_Id:", user_id);
   
         if (!response.ok) {
           throw new Error('Failed to execute navigation command');
@@ -492,7 +492,7 @@ useEffect(() => {
         if (element) {
           const requestBody = {
             command: lowerCaseStep,
-            user_id: userId,
+            user_id: user_id,
             click_x: element.click_point[0],
             click_y: element.click_point[1],
           };

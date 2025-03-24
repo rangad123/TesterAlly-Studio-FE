@@ -83,6 +83,7 @@ const Login = (props) => {
         localStorage.setItem("userEmail", email);
         localStorage.setItem("userName", data.user.name);
         localStorage.setItem("userId", data.user.id);
+        localStorage.setItem("user_id", data.user.user_id);
 
         setIsLoggedIn(true);
         setEmail(email);
