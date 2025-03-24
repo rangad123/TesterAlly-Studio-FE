@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare } from "lucide-react";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw } from "lucide-react";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const TestSteps = () => {
@@ -338,12 +338,19 @@ useEffect(() => {
     }
   };
 
+  const handleResetExecution = () => {
+    setExecutionResults({});
+  };
+    
+
 
   const executeTestSteps = async (stepIds) => {
     setIsExecuting(true);
     setExecutionResults({});
     
     const userId = localStorage.getItem("userId");
+    let currentElementData = elementData || 
+    JSON.parse(sessionStorage.getItem('latestElementData') || '{}');
     
     // Execute steps one by one
     for (const stepId of stepIds) {
@@ -353,12 +360,20 @@ useEffect(() => {
         // Find the step by ID
         if (!step) continue;
   
-        // Get the current elementData from state or session storage
-        const currentElementData = elementData || 
-          JSON.parse(sessionStorage.getItem('latestElementData') || '{}');
-        
+        setExecutionResults(prev => ({
+          ...prev,
+          [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
+        }));
+
         // Execute the step command with element data
         const result = await executeStep(step.step_description, userId, currentElementData);
+
+        console.log("result:", result)
+
+      if (result.coordinates) {
+        currentElementData = result.coordinates;
+        sessionStorage.setItem('latestElementData', JSON.stringify(currentElementData));
+      }
 
         setExecutionResults(prev => ({
           ...prev,
@@ -386,19 +401,19 @@ useEffect(() => {
   };
 
 
-  const findBestMatchingElement = (text) => {
-    if (!elementData || !elementData.elements || elementData.elements.length === 0) {
+  const findBestMatchingElement = (text, currentElementData) => {
+    if (!currentElementData || !currentElementData.elements || currentElementData.elements.length === 0) {
       return null;
     }
-
+  
     const normalizedText = text.toLowerCase().trim();
-
-    let bestMatch = elementData.elements.find(element => 
+  
+    let bestMatch = currentElementData.elements.find(element => 
       element.name && element.name.toLowerCase() === normalizedText
     );
-
+  
     if (!bestMatch) {
-      const matches = elementData.elements
+      const matches = currentElementData.elements
         .filter(element => element.name && element.name.toLowerCase().includes(normalizedText))
         .sort((a, b) => {
           const aScore = a.name.toLowerCase().indexOf(normalizedText);
@@ -408,7 +423,7 @@ useEffect(() => {
       
       bestMatch = matches.length > 0 ? matches[0] : null;
     }
-
+  
     return bestMatch;
   };
   
@@ -596,7 +611,8 @@ const handleExpandScreenshot = (screenshot) => {
 
 const ScreenshotModal = () => {
   if (!expandedScreenshot) return null;
-  
+
+
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
@@ -742,29 +758,6 @@ const ScreenshotModal = () => {
     );
   }
 
-/*
- const handleTestExecuted = (result) => {
-    console.log('Test execution completed:', result);
-  };
-
-  const handleRunTest = () => {
-    setIsEnvironmentModalOpen(true);
-  };
-
-
- 
-const handleRunTest = () => {
-  
-  navigate("/environment-run", {
-    state: {
-      testCaseName,
-      testCaseId,
-      projectId: location.state.projectId,
-      steps: steps 
-    }
-  });
-};
-*/
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
@@ -777,9 +770,19 @@ const handleRunTest = () => {
         </button>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">{testCaseName}</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">{testCaseName}</h1>
 
+          <div className="flex space-x-2">
+            {Object.keys(executionResults).length > 0 && (
+              <button
+                onClick={handleResetExecution}
+                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset
+              </button>
+            )}
             <button
               onClick={handleRunSteps}
               disabled={isExecuting || steps.length === 0}
@@ -791,25 +794,14 @@ const handleRunTest = () => {
                 <Play className="w-4 h-4 mr-2" />
               )}
               Run Test
-            </button> 
-          </div>
+            </button>
+          </div> 
+        </div>
 
-{/*
-          <TestEnvironmentModal
-            isOpen={isEnvironmentModalOpen}
-            onClose={() => setIsEnvironmentModalOpen(false)}
-            onExecute={handleTestExecuted}
-            testCaseName={testCaseName}
-            testCaseId={testCaseId}
-            steps={steps}
-            projectId={location.state?.projectId}
-          /> 
-*/}
-
-          <div className="flex border-b mb-4">
-            <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>
-            <button onClick={() => setActiveTab("testCaseInfo")} className={`px-4 py-2 ${activeTab === "testCaseInfo" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Case Info</button>
-          </div>
+        <div className="flex border-b mb-4">
+          <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>
+          <button onClick={() => setActiveTab("testCaseInfo")} className={`px-4 py-2 ${activeTab === "testCaseInfo" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Case Info</button>
+        </div>
 
         {activeTab === "testSteps" ? (
           <>
@@ -896,40 +888,58 @@ const handleRunTest = () => {
                   </div>
                 ) : (
                   <>
-                      <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
-                        {step.step_description}
-                        {executionResults[step.id] && (
-                          <div className={`mt-2 text-sm p-2 rounded ${
-                            executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                          }`}>
-                            {executionResults[step.id].status === 'complete' ? '✓ Executed successfully' : '✗ Failed: ' + executionResults[step.id].error}
-                          </div>
-                        )}
-                        {executionResults[step.id]?.screenshot && (
-                          <div className="mt-2">
-                            <img 
-                              src={executionResults[step.id].screenshot} 
-                              alt="Execution screenshot" 
-                              className="w-full max-h-60 object-contain border border-gray-200 rounded-md cursor-pointer"
-                              onClick={() => handleExpandScreenshot(executionResults[step.id].screenshot)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                      <button
-                        onClick={() => startEditing(step)}
-                        className="p-2 text-blue-600 hover:text-blue-700"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteStep(step.id)}
-                        className="p-2 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
+                      {step.step_description}
+                      {executionResults[step.id] && (
+                        <div className={`mt-2 text-sm p-2 rounded ${
+                          executionResults[step.id].status === 'running' ? 'bg-yellow-50 text-yellow-700' : 
+                          executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {executionResults[step.id].status === 'running' ? (
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 mr-2 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
+                              Running: {executionResults[step.id].message || 'Executing step...'}
+                            </div>
+                          ) : executionResults[step.id].status === 'complete' ? (
+                            <div className="flex items-center">
+                              <span className="mr-2">✓</span> 
+                              Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <span className="mr-2">✗</span> 
+                              Failed: {executionResults[step.id].error || 'Unknown error'}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {executionResults[step.id]?.screenshot && (
+                        <div className="mt-2">
+                          <img 
+                            src={executionResults[step.id].screenshot} 
+                            alt="Execution screenshot" 
+                            className="w-full max-h-60 object-contain border border-gray-200 rounded-md cursor-pointer"
+                            onClick={() => handleExpandScreenshot(executionResults[step.id].screenshot)}
+                          />
+                        </div>
+                      )}
                     </div>
+                    {!isExecuting && !executionResults[step.id] && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEditing(step)}
+                          className="p-2 text-blue-600 hover:text-blue-700"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStep(step.id)}
+                          className="p-2 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
