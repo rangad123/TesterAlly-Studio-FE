@@ -24,7 +24,7 @@ const MemberTestData = () => {
 
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testdata/${projectId}/`
+        `http://127.0.0.1:8000/api/testdata/${projectId}/`
       );
       
       if (response.ok) {
@@ -127,7 +127,7 @@ const MemberTestData = () => {
     setIsUploading(true);
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testdata/${selectedProject.id}/`,
+        `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -166,7 +166,7 @@ const MemberTestData = () => {
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testdata/${selectedProject.id}/`,
+        `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
         {
           method: "DELETE",
         }

@@ -11,7 +11,7 @@ export default function AdminTestSuite() {
   useEffect(() => {
     const fetchTestSuites = async () => {
       try {
-        const response = await fetch("https://api.testerally.ai/api/admin/testsuites/");
+        const response = await fetch("http://127.0.0.1:8000/api/admin/testsuites/");
         if (!response.ok) {
           throw new Error("Failed to fetch test suites. Please try again later.");
         }

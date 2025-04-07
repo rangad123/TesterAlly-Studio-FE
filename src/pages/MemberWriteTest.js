@@ -61,7 +61,7 @@ const MemberWriteTest = () => {
       if (!projectId) return;
     
       try {
-        const response = await fetch(`https://api.testerally.ai/api/testdata/${projectId}/`);
+        const response = await fetch(`http://127.0.0.1:8000/api/testdata/${projectId}/`);
         if (response.ok) {
           const data = await response.json();
           if (data.url) {
@@ -92,7 +92,7 @@ const MemberWriteTest = () => {
 
     try {
 
-      const testCaseResponse = await fetch("https://api.testerally.ai/api/testcases/", {
+      const testCaseResponse = await fetch("http://127.0.0.1:8000/api/testcases/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -114,7 +114,7 @@ const MemberWriteTest = () => {
       const stepPromises = testSteps
         .filter(step => step.isSelected && step.isSaved)
         .map(async (step, index) => {
-          const stepResponse = await fetch("https://api.testerally.ai/api/teststeps/", {
+          const stepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -30,7 +30,7 @@ const AdminLayout = ({ children }) => {
 
   const fetchOrganizations = async () => {
     try {
-      const response = await axios.get("https://api.testerally.ai/api/organizations/");
+      const response = await axios.get("http://127.0.0.1:8000/api/organizations/");
       setOrganizations(response.data);
       
       if (response.data.length > 0) {
@@ -61,7 +61,7 @@ const AdminLayout = ({ children }) => {
   const fetchProjects = async (orgId) => {
     setLoadingProjects(true);
     try {
-      const response = await axios.get(`https://api.testerally.ai/api/organization/${orgId}/projects/`);
+      const response = await axios.get(`http://127.0.0.1:8000/api/organization/${orgId}/projects/`);
       setProjects(response.data.projects);
     } catch (err) {
       console.error("Failed to fetch projects");

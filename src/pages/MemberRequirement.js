@@ -26,7 +26,7 @@ const MemberRequirement = () => {
     const fetchRequirementTypes = async () => {
       try {
         const response = await fetch(
-          "https://api.testerally.ai/api/requirement-types/",
+          "http://127.0.0.1:8000/api/requirement-types/",
           {
             headers: {
               "Content-Type": "application/json",
@@ -88,7 +88,7 @@ const MemberRequirement = () => {
 
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/requirements/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/requirements/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -141,7 +141,7 @@ const MemberRequirement = () => {
   
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/requirements/${id}/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/requirements/${id}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -196,7 +196,7 @@ const MemberRequirement = () => {
     if (window.confirm("Are you sure you want to delete this requirement?")) {
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/requirements/${id}/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/requirements/${id}/?project_id=${selectedProject.id}`,
           {
             method: "DELETE",
           }

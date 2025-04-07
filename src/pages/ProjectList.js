@@ -14,7 +14,7 @@ const ProjectList = () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/projects/?user_id=${userId}`
+          `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
         );
         const data = await response.json();
 

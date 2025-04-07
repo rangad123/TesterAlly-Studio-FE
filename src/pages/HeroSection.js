@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { motion } from 'framer-motion';
-import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
   const containerRef = useRef(null);
@@ -10,7 +9,6 @@ const HeroSection = () => {
   const cameraRef = useRef(null);
   const particlesRef = useRef(null);
 
-   const navigate = useNavigate();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -97,9 +95,9 @@ const HeroSection = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-[rgb(126,58,242)] mb-[40px]">
-              Deliver Reliable Automation for Enterprise-Grade Software
+              Scalable & Intelligent Automation for Enterprise Needs
               <div className="text-sm font-semibold mt-2 text-[rgb(126,58,242)]">
-                TesterAlly QA Platform
+                Powered by TesterAlly QA Suite
               </div>
             </h1>
             
@@ -110,20 +108,10 @@ const HeroSection = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
               style={{textAlign:"justify"}}
             >
-              Tester Ally ensures robust test automation designed to meet the demands of enterprise software.
-              With comprehensive test coverage powered by AI, the platform minimizes risks while accelerating time-to-market.
-              Our functional UI testing tools provide seamless automation, enabling teams to deploy high-quality applications confidently.
+              Tester Ally delivers cutting-edge test automation designed to enhance efficiency and reliability in enterprise software development. 
+              Leverage AI-driven test coverage to reduce risks and accelerate deployment cycles. Our comprehensive UI testing tools ensure 
+              seamless automation, allowing teams to maintain high-quality application standards effortlessly.
             </motion.p>
-
-            <motion.button 
-              className="w-full md:w-auto px-8 py-4 bg-[#4f46e5] rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              onClick={() => navigate("/dashboard/register")}
-            >
-              Start Free Trial
-            </motion.button>
           </motion.div>
 
           <motion.div 
@@ -132,7 +120,7 @@ const HeroSection = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <img src='/hero.svg' className='lg:mt-[30px] sm:mt-[50px]' alt='TeaterAlly' />
+            <img src={`${process.env.PUBLIC_URL}/hero.svg`} className='lg:mt-[30px] sm:mt-[50px]' alt='TesterAlly' />
           </motion.div>
         </div>
       </div>

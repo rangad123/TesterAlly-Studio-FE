@@ -9,7 +9,7 @@ export default function AdminProjects() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch('https://api.testerally.ai/api/admin/projects/')
+    fetch('http://127.0.0.1:8000/api/admin/projects/')
       .then((response) => response.json())
       .then((data) => {
         setProjects(data);

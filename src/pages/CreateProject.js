@@ -37,7 +37,7 @@ const CreateProject = ({ onProjectCreated }) => {
 
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/projects/?user_id=${userId}`
+          `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch user projects");
@@ -84,7 +84,7 @@ const CreateProject = ({ onProjectCreated }) => {
   
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/projects/?user_id=${userId}`
+        `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch user projects");
@@ -123,7 +123,7 @@ const CreateProject = ({ onProjectCreated }) => {
   
     try {
       const response = await fetch(
-        "https://api.testerally.ai/api/projects/",
+        "http://127.0.0.1:8000/api/projects/",
         {
           method: "POST",
           headers: {

@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
-const URL = "https://api.testerally.ai/api/resetPassword/";
+const URL = "http://127.0.0.1:8000/api/resetPassword/";
 
 const ResetPassword = () => {
   const { token } = useParams();
