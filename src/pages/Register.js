@@ -6,7 +6,7 @@ import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
 import "./Login.css";
 
-const URL = "https://api.testerally.ai/api/register/";
+const URL = "http://127.0.0.1:8000/api/register/";
 
 const Register = (props) => {
   const { setName, setEmail } = props;
@@ -162,7 +162,7 @@ const Register = (props) => {
     <div className="w-full flex flex-col lg:flex-row justify-center items-center min-h-screen -mt-10 px-6 py-8 gap-8">
       <div className="hidden lg:block w-2/5  p-6 rounded-lg"  style={{ marginTop: "50px" }}>
         <img
-          src="/ai-image-1.jpg"
+          src={`${process.env.PUBLIC_URL}/ai-image-1.jpg`} 
           alt="TesterAlly Login"
           className="w-full max-w-md mx-auto mb-6 rounded-3xl shadow-md transform hover:scale-105 transition-transform duration-300"
         />

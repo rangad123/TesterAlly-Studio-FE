@@ -25,7 +25,7 @@ const TestSteps = () => {
   const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
-  const apiBaseUrl = "https://api.testerally.ai/api";
+  const apiBaseUrl = "http://127.0.0.1:8000/api";
 
 
   const fetchTestCase = useCallback(async () => {
@@ -364,17 +364,17 @@ useEffect(() => {
           ...prev,
           [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
         }));
-
+  
         // Execute the step command with element data
         const result = await executeStep(step.step_description, user_id, currentElementData);
-
+  
         console.log("result:", result)
-
-      if (result.coordinates) {
-        currentElementData = result.coordinates;
-        sessionStorage.setItem('latestElementData', JSON.stringify(currentElementData));
-      }
-
+  
+        if (result.coordinates) {
+          currentElementData = result.coordinates;
+          sessionStorage.setItem('latestElementData', JSON.stringify(currentElementData));
+        }
+  
         setExecutionResults(prev => ({
           ...prev,
           [stepId]: result
@@ -383,6 +383,30 @@ useEffect(() => {
         // If step failed, stop execution
         if (result.status === 'error') {
           break;
+        }
+  
+        // Add delay and countdown between steps
+        if (stepId !== stepIds[stepIds.length - 1]) {  // Skip delay for the last step
+          await new Promise(resolve => {
+            let countdown = 5;
+            
+            const countdownInterval = setInterval(() => {
+              setExecutionResults(prev => ({
+                ...prev,
+                [stepId]: {
+                  ...prev[stepId],
+                  countdown: countdown
+                }
+              }));
+              
+              countdown--;
+              
+              if (countdown < 0) {
+                clearInterval(countdownInterval);
+                resolve();
+              }
+            }, 1000);
+          });
         }
       } catch (error) {
         console.error(`Error executing step ${stepId}:`, error);
@@ -399,7 +423,6 @@ useEffect(() => {
     
     setIsExecuting(false);
   };
-
 
   const findBestMatchingElement = (text, currentElementData) => {
     if (!currentElementData || !currentElementData.elements || currentElementData.elements.length === 0) {
@@ -433,7 +456,7 @@ useEffect(() => {
       const lowerCaseStep = stepDescription.toLowerCase();
 
       if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
-        const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -458,7 +481,7 @@ useEffect(() => {
         }
         
         const screenshotUrl = data.screenshot ? 
-          `https://api.testerally.ai${data.screenshot}` : 
+          `http://127.0.0.1:8000${data.screenshot}` : 
           `/api/placeholder/800/300?text=No_Screenshot`;
         
         return {
@@ -501,7 +524,7 @@ useEffect(() => {
             requestBody.input_text = elementName;
           }
       
-          const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -528,7 +551,7 @@ useEffect(() => {
           }
       
           const screenshotUrl = data.screenshot
-            ? `https://api.testerally.ai${data.screenshot}`
+            ? `http://127.0.0.1:8000${data.screenshot}`
             : `/api/placeholder/800/300?text=No_Screenshot`;
       
           return {
@@ -544,7 +567,7 @@ useEffect(() => {
         }
       }
       else {
-        const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -564,7 +587,7 @@ useEffect(() => {
         }
         
         const screenshotUrl = data.screenshot ? 
-          `https://api.testerally.ai${data.screenshot}` : 
+          `http://127.0.0.1:8000${data.screenshot}` : 
           `/api/placeholder/800/300?text=No_Screenshot`;
         
         return {
@@ -893,7 +916,8 @@ const ScreenshotModal = () => {
                       {executionResults[step.id] && (
                         <div className={`mt-2 text-sm p-2 rounded ${
                           executionResults[step.id].status === 'running' ? 'bg-yellow-50 text-yellow-700' : 
-                          executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 
+                          executionResults[step.id].status === 'error' ? 'bg-red-50 text-red-700' : ''
                         }`}>
                           {executionResults[step.id].status === 'running' ? (
                             <div className="flex items-center">
@@ -901,9 +925,17 @@ const ScreenshotModal = () => {
                               Running: {executionResults[step.id].message || 'Executing step...'}
                             </div>
                           ) : executionResults[step.id].status === 'complete' ? (
-                            <div className="flex items-center">
-                              <span className="mr-2">✓</span> 
-                              Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}
+                            <div>
+                              <div className="flex items-center">
+                                <span className="mr-2">✓</span> 
+                                Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}
+                              </div>
+                              {/* Countdown display */}
+                              {executionResults[step.id].countdown !== undefined && (
+                                <div className="mt-2 text-yellow-700 bg-yellow-50 p-2 rounded">
+                                  Waiting for next step: {executionResults[step.id].countdown} seconds
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="flex items-center">

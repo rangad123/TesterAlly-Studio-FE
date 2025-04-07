@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const URL = "https://api.testerally.ai/api/forgotPassword/";
+const URL = "http://127.0.0.1:8000/api/forgotPassword/";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");

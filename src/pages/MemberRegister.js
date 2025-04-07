@@ -21,7 +21,7 @@ const MemberRegister = (props) => {
   const { token } = useParams(); 
   console.log("Extracted Token:", token);
 
-  const URL = `https://api.testerally.ai/api/accept-invite/${token}/`;
+  const URL = `http://127.0.0.1:8000/api/accept-invite/${token}/`;
 
   const validateEmail = (email) => {
     const domainRegex = /@.+\..+/; 

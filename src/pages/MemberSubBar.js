@@ -52,7 +52,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
   
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/user-projects/${userId}/`,
+        `http://127.0.0.1:8000/api/user-projects/${userId}/`,
         {
           headers: {
             "Content-Type": "application/json",

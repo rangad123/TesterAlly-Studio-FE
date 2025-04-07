@@ -59,7 +59,7 @@ const MemberTestType = () => {
 
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -102,7 +102,7 @@ const MemberTestType = () => {
 
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testcase-types/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
         {
           method: "POST",
           headers: {
@@ -138,7 +138,7 @@ const MemberTestType = () => {
 
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
@@ -165,7 +165,7 @@ const MemberTestType = () => {
 
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {

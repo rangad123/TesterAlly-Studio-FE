@@ -21,7 +21,7 @@ const OrganizationSidebar = ({ isVisible, isMobileView, onOptionSelect }) => {
     const fetchOrganizations = async () => {
       try {
         const response = await fetch(
-          "https://api.testerally.ai/api/organizations/"
+          "http://127.0.0.1:8000/api/organizations/"
         );
         const data = await response.json();
         setOrganizations(data);
@@ -29,7 +29,7 @@ const OrganizationSidebar = ({ isVisible, isMobileView, onOptionSelect }) => {
         if (data.length > 0) {
           const firstOrg = data[0];
           const projectsResponse = await fetch(
-            `https://api.testerally.ai/api/organizations/${firstOrg.id}/projects/`
+            `http://127.0.0.1:8000/api/organizations/${firstOrg.id}/projects/`
           );
           const projects = await projectsResponse.json();
           firstOrg.projects = projects;
@@ -48,7 +48,7 @@ const OrganizationSidebar = ({ isVisible, isMobileView, onOptionSelect }) => {
     try {
       if (!organization.projects) {
         const response = await fetch(
-          `https://api.testerally.ai/api/organizations/${organization.id}/projects/`
+          `http://127.0.0.1:8000/api/organizations/${organization.id}/projects/`
         );
         const projects = await response.json();
         organization.projects = projects;
@@ -73,7 +73,7 @@ const OrganizationSidebar = ({ isVisible, isMobileView, onOptionSelect }) => {
   const handleProjectClick = async (project) => {
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/projects/${project.id}/members/`
+        `http://127.0.0.1:8000/api/projects/${project.id}/members/`
       );
       const members = await response.json();
       setProjectMembers(members);

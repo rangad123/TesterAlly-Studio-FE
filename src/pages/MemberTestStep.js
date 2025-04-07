@@ -21,7 +21,7 @@ const MemberTestStep = () => {
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  const apiBaseUrl = "https://api.testerally.ai/api";
+  const apiBaseUrl = "http://127.0.0.1:8000/api";
 
 
   const fetchTestCase = useCallback(async () => {

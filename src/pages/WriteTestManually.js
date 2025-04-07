@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Clock, MousePointer, X, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
@@ -24,6 +23,7 @@ const WriteTestManually = () => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
+  const [selectedElement, setSelectedElement] = useState(null);
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -96,58 +96,99 @@ const WriteTestManually = () => {
 
   useEffect(() => {
     if (!newStep) {
-      setShowSuggestions(false);
-      return;
+        setShowSuggestions(false);
+        return;
     }
 
     const words = newStep.trim().toLowerCase().split(' ');
     const firstWord = words[0];
     
     if (['click', 'type'].includes(firstWord)) {
-      setCommandType(firstWord);
-      
-      if (elementData && elementData.elements && elementData.elements.length > 0) {
-
-        if (firstWord === 'click' && words.length > 1) {
-          const searchTerm = words.slice(1).join(' ').toLowerCase();
-          const matchedElements = elementData.elements
-            .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
-            .slice(0, 5); // Limit to 5 suggestions
-          
-          setSuggestions(matchedElements);
-          setShowSuggestions(matchedElements.length > 0);
-        } 
-        // For type commands, show suggestions after "in" keyword
-        else if (firstWord === 'type') {
-          const inIndex = words.findIndex(word => word === 'in');
-          if (inIndex !== -1 && words.length > inIndex + 1) {
-            const searchTerm = words.slice(inIndex + 1).join(' ').toLowerCase();
-            const matchedElements = elementData.elements
-              .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
-              .slice(0, 5); // Limit to 5 suggestions
-            
-            setSuggestions(matchedElements);
-            setShowSuggestions(matchedElements.length > 0);
-          } else {
-            setShowSuggestions(false);
-          }
+        setCommandType(firstWord);
+        
+        if (elementData && elementData.elements && elementData.elements.length > 0) {
+            if (firstWord === 'click' && words.length > 1) {
+                const searchTerm = words.slice(1).join(' ').toLowerCase();
+                
+                // Find all matching elements
+                const matchedElements = elementData.elements
+                    .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
+                    .slice(0, 10); // Show up to 10 suggestions
+                
+                // Add a display name to each element that includes its index if there are duplicates
+                const nameCount = {};
+                matchedElements.forEach(el => {
+                    const lowerName = el.name.toLowerCase();
+                    nameCount[lowerName] = (nameCount[lowerName] || 0) + 1;
+                });
+                
+                const enhancedElements = matchedElements.map((el, index) => {
+                    const lowerName = el.name.toLowerCase();
+                    const displayName = nameCount[lowerName] > 1 
+                        ? `${el.name} (${index + 1})`
+                        : el.name;
+                    
+                    return {
+                        ...el,
+                        displayName
+                    };
+                });
+                
+                setSuggestions(enhancedElements);
+                setShowSuggestions(enhancedElements.length > 0);
+            } 
+            // For type commands, show suggestions after "in" keyword
+            else if (firstWord === 'type') {
+                const inIndex = words.findIndex(word => word === 'in');
+                if (inIndex !== -1 && words.length > inIndex + 1) {
+                    const searchTerm = words.slice(inIndex + 1).join(' ').toLowerCase();
+                    
+                    // Find all matching elements
+                    const matchedElements = elementData.elements
+                        .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
+                        .slice(0, 5); // Show up to 10 suggestions
+                    
+                    const nameCount = {};
+                    matchedElements.forEach(el => {
+                        const lowerName = el.name.toLowerCase();
+                        nameCount[lowerName] = (nameCount[lowerName] || 0) + 1;
+                    });
+                    
+                    const enhancedElements = matchedElements.map((el, index) => {
+                        const lowerName = el.name.toLowerCase();
+                        const displayName = nameCount[lowerName] > 1 
+                            ? `${el.name} (${index + 1})`
+                            : el.name;
+                        
+                        return {
+                            ...el,
+                            displayName
+                        };
+                    });
+                    
+                    setSuggestions(enhancedElements);
+                    setShowSuggestions(enhancedElements.length > 0);
+                } else {
+                    setShowSuggestions(false);
+                }
+            }
         }
-      }
     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
-      setCommandType('open');
-      setShowSuggestions(false);
+        setCommandType('open');
+        setShowSuggestions(false);
     } else {
-      setCommandType('');
-      setShowSuggestions(false);
+        setCommandType('');
+        setShowSuggestions(false);
     }
-  }, [newStep, elementData]);
+}, [newStep, elementData]);
+
 
   const fetchTestData = async (projectId) => {
     if (!projectId) return;
   
     try {
       setLoadingMessage('Fetching test data...');
-      const response = await fetch(`https://api.testerally.ai/api/testdata/${projectId}/`);
+      const response = await fetch(`http://127.0.0.1:8000/api/testdata/${projectId}/`);
       if (response.ok) {
         const data = await response.json();
         if (data.url) {
@@ -161,314 +202,316 @@ const WriteTestManually = () => {
     }
   };
 
-  const findBestMatchingElement = (text) => {
-    if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-      return null;
-    }
+const executeStep = async (stepObj) => {
+  setIsProcessing(true);
 
-    const normalizedText = text.toLowerCase().trim();
+  try {
+      const stepDescription = stepObj.description;
+      const words = stepDescription.trim().split(' ');
+      const actionType = words[0].toLowerCase(); 
 
-    let bestMatch = elementData.elements.find(element => 
-      element.name && element.name.toLowerCase() === normalizedText
-    );
+      const stepIndex = testSteps.length;
+      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
+      } else if (actionType === 'click') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Executing click, please wait...`);
+      } else if (actionType === 'type') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Typing text, please wait...`);
+      } else {
+          setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
+      }
 
-    if (!bestMatch) {
-      const matches = elementData.elements
-        .filter(element => element.name && element.name.toLowerCase().includes(normalizedText))
-        .sort((a, b) => {
-          const aScore = a.name.toLowerCase().indexOf(normalizedText);
-          const bScore = b.name.toLowerCase().indexOf(normalizedText);
-          return aScore - bScore;
-        });
-      
-      bestMatch = matches.length > 0 ? matches[0] : null;
-    }
+      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ command: stepDescription, user_id: user_id }), 
+          });
 
-    return bestMatch;
-  };
+          console.log("Open URL:", stepDescription);
+          console.log("User_Id:", user_id);
 
-  const executeStep = async (stepDescription) => {
-    setIsProcessing(true);
+          if (!response.ok) {
+              throw new Error('Failed to execute navigation command');
+          }
 
-    try {
-        
-        const words = stepDescription.trim().split(' ');
-        const actionType = words[0].toLowerCase(); 
+          const data = await response.json();
+          console.log("Response:", data);
 
-        const stepIndex = testSteps.length;
-        if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-            setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
-        } else if (actionType === 'click') {
-            setLoadingMessage(`Step ${stepIndex + 1}: Executing click, please wait...`);
-        } else if (actionType === 'type') {
-            setLoadingMessage(`Step ${stepIndex + 1}: Typing text, please wait...`);
-        } else {
-            setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
-        }
+          if (data.omniparser_data && data.omniparser_data.elements) {
+              setElementData(data.omniparser_data);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+          }
 
-        if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-            const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: stepDescription, user_id: user_id }), 
-            });
+          const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
 
-            console.log("Open URL:", stepDescription);
-            console.log("User_Id:", user_id);
+          console.log("Screenshot URL:", screenshotUrl);
 
-            if (!response.ok) {
-                throw new Error('Failed to execute navigation command');
-            }
+          return {
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.status || "Page loaded successfully",
+              screenshot: screenshotUrl,
+              coordinates: data.omniparser_data,
+          };
+      } else if (actionType === 'click' || actionType === 'type') {
+          
+          const selectedElement = stepObj.selectedElement;
+          
+          if (!selectedElement) {
+              throw new Error(`No element selected for this action. Please select an element from the suggestions.`);
+          }
 
-            const data = await response.json();
-            console.log("Response:", data);
+          let requestBody = {
+              command: stepDescription, 
+              user_id: user_id,
+              click_x: selectedElement.click_point[0],
+              click_y: selectedElement.click_point[1],
+          };
 
-            if (data.omniparser_data && data.omniparser_data.elements) {
-                setElementData(data.omniparser_data);
-                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-            }
+          if (actionType === 'type') {
+              const inIndex = stepDescription.toLowerCase().indexOf(' in ');
+              if (inIndex !== -1) {
+                  const textToType = stepDescription.substring(5, inIndex);
+                  requestBody.input_text = textToType;
+              }
+          }
 
-            const screenshotUrl = data.screenshot
-                ? `https://api.testerally.ai${data.screenshot}`
-                : `/api/placeholder/800/300?text=No_Screenshot`;
+          console.log(`Sending coordinates for ${actionType} step:`, {
+              click_x: selectedElement.click_point[0],
+              click_y: selectedElement.click_point[1],
+              requestBody
+          });
 
-            return {
-                status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-                message: data.status || "Page loaded successfully",
-                screenshot: screenshotUrl,
-                coordinates: data.omniparser_data,
-            };
-        } else if (actionType === 'click' || actionType === 'type') {
-            let elementName = '';
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+          });
 
-            if (actionType === 'type') {
-                const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
-                if (inIndex > 1 && inIndex < words.length - 1) {
-                    elementName = words.slice(inIndex + 1).join(' '); 
-                } else {
-                    throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
-                }
-            } else if (actionType === 'click') {
-                elementName = words.slice(1).join(' ');
-            }
+          console.log(actionType, stepDescription, selectedElement.click_point);
 
-            const element = findBestMatchingElement(elementName);
-            if (element) {
-                const requestBody = {
-                    command: stepDescription, 
-                    user_id: user_id,
-                    click_x: element.click_point[0],
-                    click_y: element.click_point[1],
-                };
+          if (!response.ok) {
+              throw new Error(`Failed to execute ${actionType} command`);
+          }
 
-                if (actionType === 'type') {
-                    requestBody.input_text = elementName; 
-                }
+          const data = await response.json();
+          console.log(`${actionType} response:`, data);
 
-                const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody),
-                });
+          if (data.coordinates && data.coordinates.elements) {
+              setElementData(data.coordinates);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
+          }
 
-                console.log(actionType, stepDescription, element.click_point);
+          const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
 
-                if (!response.ok) {
-                    throw new Error(`Failed to execute ${actionType} command`);
-                }
+          return {
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
+              screenshot: screenshotUrl,
+              coordinates: data.coordinates || elementData,
+              elementAction: selectedElement,
+              requestBody,
+          };
+      } else {
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ command: stepDescription }), 
+          });
 
-                const data = await response.json();
-                console.log(`${actionType} response:`, data);
+          if (!response.ok) {
+              throw new Error('Failed to execute command');
+          }
 
-                if (data.coordinates && data.coordinates.elements) {
-                    setElementData(data.coordinates);
-                    sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
-                }
+          const data = await response.json();
 
-                const screenshotUrl = data.screenshot
-                    ? `https://api.testerally.ai${data.screenshot}`
-                    : `/api/placeholder/800/300?text=No_Screenshot`;
+          if (data.omniparser_data && data.omniparser_data.elements) {
+              setElementData(data.omniparser_data);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+          }
 
-                return {
-                    status: 'complete',
-                    duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-                    message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
-                    screenshot: screenshotUrl,
-                    coordinates: data.coordinates || elementData,
-                    elementAction: element,
-                };
-            } else {
-                throw new Error(`Could not find matching element for "${elementName}"`);
-            }
-        } else {
-            const response = await fetch('https://api.testerally.ai/automation/handle_command/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: stepDescription }), 
-            });
+          const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
 
-            if (!response.ok) {
-                throw new Error('Failed to execute command');
-            }
-
-            const data = await response.json();
-
-            if (data.omniparser_data && data.omniparser_data.elements) {
-                setElementData(data.omniparser_data);
-                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-            }
-
-            const screenshotUrl = data.screenshot
-                ? `https://api.testerally.ai${data.screenshot}`
-                : `/api/placeholder/800/300?text=No_Screenshot`;
-
-            return {
-                status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-                message: data.status || "Command executed successfully",
-                screenshot: screenshotUrl,
-                coordinates: data.coordinates,
-            };
-        }
-    } catch (error) {
-        console.error('Step execution error:', error);
-        return {
-            status: 'error',
-            duration: '00:00',
-            error: error.message
-        };
-    } finally {
-        setIsProcessing(false);
-        setLoadingMessage('');
-    }
+          return {
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.status || "Command executed successfully",
+              screenshot: screenshotUrl,
+              coordinates: data.coordinates,
+          };
+      }
+  } catch (error) {
+      console.error('Step execution error:', error);
+      return {
+          status: 'error',
+          duration: '00:00',
+          error: error.message
+      };
+  } finally {
+      setIsProcessing(false);
+      setLoadingMessage('');
+  }
 };
 
 
-  const addTestStep = async () => {
-    if (!newStep.trim() || isProcessing) return;
-    
-    setShowSuggestions(false);
-    
-    const newStepObj = {
+const addTestStep = async () => {
+  if (!newStep.trim() || isProcessing) return;
+  
+  setShowSuggestions(false);
+  
+  const words = newStep.trim().split(' ');
+  const actionType = words[0].toLowerCase();
+  
+  if ((actionType === 'click' || actionType === 'type') && !selectedElement) {
+      alert("Please select an element from the suggestions before adding this step.");
+      return;
+  }
+  
+  const newStepObj = {
       id: Date.now(),
       description: newStep,
       status: 'pending',
       duration: '00:00',
-      screenshot: null
-    };
-
-    setTestSteps(prev => [...prev, newStepObj]);
-    setNewStep('');
-
-    const executionResult = await executeStep(newStep);
-
-    setTestSteps(prev => prev.map(step => 
+      screenshot: null,
+      selectedElement: selectedElement 
+  };
+  
+  setSelectedElement(null);
+  
+  setTestSteps(prev => [...prev, newStepObj]);
+  setNewStep('');
+  
+  const executionResult = await executeStep(newStepObj);
+  
+  setTestSteps(prev => prev.map(step => 
       step.id === newStepObj.id ? {
-        ...step,
-        ...executionResult
+          ...step,
+          ...executionResult
       } : step
-    ));
-
-    setNewStep('');
-
-    setTimeout(() => {
+  ));
+  
+  setNewStep('');
+  
+  setTimeout(() => {
       if (previewRef.current) {
-        previewRef.current.scrollTo({
-          top: previewRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
+          previewRef.current.scrollTo({
+              top: previewRef.current.scrollHeight,
+              behavior: 'smooth'
+          });
       }
       if (stepsRef.current) {
-        stepsRef.current.scrollTo({
-          top: stepsRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
+          stepsRef.current.scrollTo({
+              top: stepsRef.current.scrollHeight,
+              behavior: 'smooth'
+          });
       }
-    }, 100);
-  };
+  }, 100);
+};
 
-  const handleSuggestionClick = (suggestion) => {
-    let updatedStep = '';
-    if (commandType === 'click') {
-      updatedStep = `click ${suggestion.name}`;
-    } else if (commandType === 'type') {
+const handleSuggestionClick = (suggestion) => {
+  let updatedStep = '';
+  if (commandType === 'click') {
+      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+  } else if (commandType === 'type') {
       // Extract the text to type (before "in")
       const inIndex = newStep.toLowerCase().indexOf(' in ');
       if (inIndex !== -1) {
-        const textToType = newStep.substring(5, inIndex);
-        updatedStep = `type ${textToType} in ${suggestion.name}`;
+          const textToType = newStep.substring(5, inIndex);
+          updatedStep = `type ${textToType} in ${suggestion.displayName || suggestion.name}`;
       } else {
-        updatedStep = `type  in ${suggestion.name}`;
+          updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
       }
-    }
-    
-    setNewStep(updatedStep);
-    setShowSuggestions(false);
-    
-    // Focus back on the input and put cursor at the end
-    if (inputRef.current) {
+  }
+  
+  setNewStep(updatedStep);
+  setSelectedElement(suggestion); // Store the selected element
+  setShowSuggestions(false);
+  
+  // Focus back on the input and put cursor at the end
+  if (inputRef.current) {
       inputRef.current.focus();
       const length = updatedStep.length;
       inputRef.current.setSelectionRange(length, length);
-    }
-  };
+  }
+};
 
-  const createTestCase = async () => {
-    if (testSteps.length === 0) {
-      alert('Please add at least one test step before creating a test case.');
-      return;
+
+
+const createTestCase = async () => {
+  if (testSteps.length === 0) {
+    alert('Please add at least one test step before creating a test case.');
+    return;
+  }
+
+  try {
+    setCreateTestCaseLoading(true);
+    const testCaseResponse = await fetch("http://127.0.0.1:8000/api/testcases/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: testCaseInfo.projectId,
+        name: testCaseInfo.name,
+        testcase_type: testCaseInfo.testcase_type,
+        testcase_priority: testCaseInfo.testcase_priority
+      })
+    });
+
+    if (!testCaseResponse.ok) {
+      throw new Error("Failed to create test case");
     }
 
-    try {
-      setCreateTestCaseLoading(true);
-      const testCaseResponse = await fetch("https://api.testerally.ai/api/testcases/", {
+    const testCaseData = await testCaseResponse.json();
+    const testCaseId = testCaseData.id;
+
+    const stepPromises = testSteps.map(async (step, index) => {
+      const requestBody = step.requestBody || {};
+
+      console.log(`Sending test step ${index + 1} to backend:`, {
+        testcase: testCaseId,
+        step_number: index + 1,
+        step_description: step.description,
+        step_coordinates: requestBody
+      });
+
+      const stepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          project_id: testCaseInfo.projectId,
-          name: testCaseInfo.name,
-          testcase_type: testCaseInfo.testcase_type,
-          testcase_priority: testCaseInfo.testcase_priority
+          testcase: testCaseId,
+          step_number: index + 1,
+          step_description: step.description,
+          step_coordinates: requestBody,
         })
       });
 
-      if (!testCaseResponse.ok) {
-        throw new Error("Failed to create test case");
+      if (!stepResponse.ok) {
+        throw new Error(`Failed to create step ${index + 1}`);
       }
+      console.log("Sending test steps", stepResponse)
 
-      const testCaseData = await testCaseResponse.json();
-      const testCaseId = testCaseData.id;
+      return stepResponse.json();
+    });
 
-      const stepPromises = testSteps.map(async (step, index) => {
-        const stepResponse = await fetch("https://api.testerally.ai/api/teststeps/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            testcase: testCaseId,
-            step_number: index + 1,
-            step_description: step.description
-          })
-        });
+    console.log("Sending stepPromises", stepPromises)
+    await Promise.all(stepPromises);
 
-        if (!stepResponse.ok) {
-          throw new Error(`Failed to create step ${index + 1}`);
-        }
-
-        return stepResponse.json();
-      });
-
-      await Promise.all(stepPromises);
-      
-      alert('Test case created successfully!');
-      navigate("/test-cases");
-    } catch (error) {
-      console.error('Error creating test case:', error);
-      alert(`Error creating test case: ${error.message}`);
-    } finally {
-      setCreateTestCaseLoading(false);
-    }
-  };
+    alert('Test case created successfully!');
+    navigate("/test-cases");
+  } catch (error) {
+    console.error('Error creating test case:', error);
+    alert(`Error creating test case: ${error.message}`);
+  } finally {
+    setCreateTestCaseLoading(false);
+  }
+};
 
   const clearSession = () => {
     sessionStorage.removeItem('latestElementData');
@@ -724,42 +767,48 @@ const ImageModal = () => {
                   {/* Suggestions dropdown with animation */}
                   {showSuggestions && suggestions.length > 0 && (
                     <ul className="absolute z-10 w-full bg-white shadow-lg rounded-md border border-gray-200 mt-12 max-h-60 overflow-y-auto animate-fadeIn">
-                      {suggestions.map((suggestion, index) => (
-                        <li 
-                          key={suggestion.id}
-                          className="suggestion-item p-2 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:bg-purple-100 focus:outline-none transition-colors duration-150"
-                          tabIndex={0}
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSuggestionClick(suggestion);
-                            } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                              e.preventDefault();
-                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
-                            } else if (e.key === 'ArrowUp') {
-                              e.preventDefault();
-                              if (index > 0) {
-                                document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                              } else {
-                                inputRef.current.focus();
-                              }
-                            } else if (e.key === 'Escape') {
-                              setShowSuggestions(false);
-                              inputRef.current.focus();
-                            }
-                          }}
-                        >
-                          <div className="flex justify-between">
-                            <span className="font-medium">{suggestion.name}</span>
-                            <span className="text-xs text-gray-500">{suggestion.type || "Element"}</span>
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            Position: x:{suggestion.click_point[0]}, y:{suggestion.click_point[1]}
-                          </div>
-                        </li>
-                      ))}
+                        {suggestions.map((suggestion, index) => (
+                            <li 
+                                key={`${suggestion.id}-${index}`}
+                                className="suggestion-item p-2 hover:bg-purple-50 cursor-pointer border-b border-gray-100 last:border-b-0 focus:bg-purple-100 focus:outline-none transition-colors duration-150"
+                                tabIndex={0}
+                                onClick={() => handleSuggestionClick(suggestion)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSuggestionClick(suggestion);
+                                    } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                                        e.preventDefault();
+                                        document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        if (index > 0) {
+                                            document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                                        } else {
+                                            inputRef.current.focus();
+                                        }
+                                    } else if (e.key === 'Escape') {
+                                        setShowSuggestions(false);
+                                        inputRef.current.focus();
+                                    }
+                                }}
+                            >
+                                <div className="flex justify-between">
+                                    <span className="font-medium">{suggestion.displayName || suggestion.name}</span>
+                                    <span className="text-xs text-gray-500">{suggestion.type || "Element"}</span>
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                    Position: x:{suggestion.click_point[0]}, y:{suggestion.click_point[1]}
+                                </div>
+                                {/* Add a visual indicator for duplicate names */}
+                                {suggestion.displayName && suggestion.displayName !== suggestion.name && (
+                                    <div className="text-xs text-purple-600 mt-1 font-medium">
+                                        Multiple elements with this name found
+                                    </div>
+                                )}
+                            </li>
+                        ))}
                     </ul>
-                  )}
+                )}
                   
                   {/* Command type indicator */}
                   {commandType && (

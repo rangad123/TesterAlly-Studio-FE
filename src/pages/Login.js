@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Login.css";
 
-const URL = "https://api.testerally.ai/api/login/";
+const URL = "http://127.0.0.1:8000/api/login/";
 
 const Login = (props) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -120,7 +120,7 @@ const Login = (props) => {
     <div className="w-full flex flex-col lg:flex-row justify-center items-center min-h-screen -mt-10 px-6 py-8 gap-8">
       <div className="hidden lg:block w-2/5 p-6 rounded-lg mt-[50px]">
         <img
-          src="/logo1.jpg"
+          src={`${process.env.PUBLIC_URL}/logo1.jpg`} 
           alt="TesterAlly Login"
           className="w-full max-w-md mx-auto mb-6 rounded-3xl shadow-md transform hover:scale-105 transition-transform duration-300"
         />
@@ -247,14 +247,16 @@ const Login = (props) => {
             {loading ? "Logging in..." : "Login"}
           </button>
           <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-            Not yet registered?{" "}
+            Don't have an account? Please contact{" "}
             <a
-              href="/dashboard/register"
+              href="https://testerally.ai"
               className="font-semibold text-purple-700 hover:text-purple-800 dark:text-purple-500 dark:hover:text-purple-400"
             >
-              Register Here
-            </a>
+              TesterAlly.ai
+            </a>{" "}
+            or visit our website.
           </p>
+
         </form>
       </div>
     </div>

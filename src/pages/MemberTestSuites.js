@@ -58,7 +58,7 @@ const MemberTestSuites = () => {
 
       try {
         const response = await fetch(
-          `https://api.testerally.ai/api/testsuites/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testsuites/?project_id=${selectedProject.id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -92,7 +92,7 @@ const MemberTestSuites = () => {
             testSuites.map(async (suite) => {
               const names = await Promise.all(
                 suite.testcase.map(async (testCaseId) => {
-                  const res = await fetch(`https://api.testerally.ai/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`);
+                  const res = await fetch(`http://127.0.0.1:8000/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`);
                   if (!res.ok) throw new Error("Failed to fetch test case");
                   const data = await res.json();
                   return data.name; 
@@ -123,7 +123,7 @@ const MemberTestSuites = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
         {
           method: "DELETE",
           headers: {
@@ -171,7 +171,7 @@ const MemberTestSuites = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://api.testerally.ai/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/api/testsuites/${testSuiteId}/?project_id=${selectedProject.id}`,
         {
           method: "PUT",
           headers: {
