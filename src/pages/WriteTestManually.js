@@ -471,37 +471,43 @@ const createTestCase = async () => {
     const testCaseData = await testCaseResponse.json();
     const testCaseId = testCaseData.id;
 
-    const stepPromises = testSteps.map(async (step, index) => {
-      const requestBody = step.requestBody || {};
-
-      console.log(`Sending test step ${index + 1} to backend:`, {
+    const stepsData = testSteps.map((step, index) => {
+      
+      let teststep_result = "not_executed";
+      if (step.status === "complete") {
+        teststep_result = "passed";
+      } else if (step.status === "error") {
+        teststep_result = "failed";
+      }
+      
+      const stepCoordinates = step.requestBody || {};
+      
+      return {
         testcase: testCaseId,
         step_number: index + 1,
         step_description: step.description,
-        step_coordinates: requestBody
-      });
-
-      const stepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testcase: testCaseId,
-          step_number: index + 1,
-          step_description: step.description,
-          step_coordinates: requestBody,
-        })
-      });
-
-      if (!stepResponse.ok) {
-        throw new Error(`Failed to create step ${index + 1}`);
-      }
-      console.log("Sending test steps", stepResponse)
-
-      return stepResponse.json();
+        teststep_result: teststep_result,
+        step_coordinates: stepCoordinates
+      };
     });
 
-    console.log("Sending stepPromises", stepPromises)
-    await Promise.all(stepPromises);
+    console.log("Sending bulk test steps:", { steps: stepsData });
+
+    const requestPayload = { steps: stepsData };
+    console.log("Request payload for bulk create:", JSON.stringify(requestPayload));
+
+    const bulkStepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/bulk-create/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestPayload)
+    });
+
+    if (!bulkStepResponse.ok) {
+
+      const errorText = await bulkStepResponse.text();
+      console.error("API Error Response:", errorText);
+      throw new Error(`Failed to create test steps: ${bulkStepResponse.status} ${errorText}`);
+    }
 
     alert('Test case created successfully!');
     navigate("/test-cases");
@@ -512,6 +518,7 @@ const createTestCase = async () => {
     setCreateTestCaseLoading(false);
   }
 };
+
 
   const clearSession = () => {
     sessionStorage.removeItem('latestElementData');
