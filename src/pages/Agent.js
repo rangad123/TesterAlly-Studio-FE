@@ -1,8 +1,4 @@
 import React, { Component } from 'react';
-<<<<<<< HEAD
-import axios from 'axios';
-=======
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
 
 export class Agent extends Component {
   constructor(props) {
