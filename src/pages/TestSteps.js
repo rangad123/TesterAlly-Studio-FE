@@ -365,22 +365,11 @@ useEffect(() => {
     setExecutionResults({});
     
     const user_id = localStorage.getItem("user_id");
-<<<<<<< HEAD
-    let currentElementData = elementData || 
-    JSON.parse(sessionStorage.getItem('latestElementData') || '{}');
     
-    // Execute steps one by one
-=======
-    
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
     for (const stepId of stepIds) {
       const step = steps.find(s => s.id === stepId);
       
       try {
-<<<<<<< HEAD
-        // Find the step by ID
-=======
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         if (!step) continue;
   
         setExecutionResults(prev => ({
@@ -388,42 +377,20 @@ useEffect(() => {
           [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
         }));
   
-<<<<<<< HEAD
-        // Execute the step command with element data
-        const result = await executeStep(step.step_description, user_id, currentElementData);
-  
-        console.log("result:", result)
-  
-        if (result.coordinates) {
-          currentElementData = result.coordinates;
-          sessionStorage.setItem('latestElementData', JSON.stringify(currentElementData));
-        }
-  
-=======
         const result = await executeStep(step.step_description, user_id);
   
         console.log("result:", result)
   
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         setExecutionResults(prev => ({
           ...prev,
           [stepId]: result
         }));
         
-<<<<<<< HEAD
-        // If step failed, stop execution
-=======
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         if (result.status === 'error') {
           break;
         }
   
-<<<<<<< HEAD
-        // Add delay and countdown between steps
-        if (stepId !== stepIds[stepIds.length - 1]) {  // Skip delay for the last step
-=======
         if (stepId !== stepIds[stepIds.length - 1]) {  
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
           await new Promise(resolve => {
             let countdown = 5;
             
@@ -461,41 +428,6 @@ useEffect(() => {
     setIsExecuting(false);
   };
 
-<<<<<<< HEAD
-  const findBestMatchingElement = (text, currentElementData) => {
-    if (!currentElementData || !currentElementData.elements || currentElementData.elements.length === 0) {
-      return null;
-    }
-  
-    const normalizedText = text.toLowerCase().trim();
-  
-    let bestMatch = currentElementData.elements.find(element => 
-      element.name && element.name.toLowerCase() === normalizedText
-    );
-  
-    if (!bestMatch) {
-      const matches = currentElementData.elements
-        .filter(element => element.name && element.name.toLowerCase().includes(normalizedText))
-        .sort((a, b) => {
-          const aScore = a.name.toLowerCase().indexOf(normalizedText);
-          const bScore = b.name.toLowerCase().indexOf(normalizedText);
-          return aScore - bScore;
-        });
-      
-      bestMatch = matches.length > 0 ? matches[0] : null;
-    }
-  
-    return bestMatch;
-  };
-  
-  const executeStep = async (stepDescription, user_id, currentElementData) => {
-
-    try {
-      const lowerCaseStep = stepDescription.toLowerCase();
-
-      if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
-        const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-=======
 
   const executeStep = async (stepDescription, user_id) => {
     try {
@@ -510,18 +442,13 @@ useEffect(() => {
       
       if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
         const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ command: lowerCaseStep, user_id: user_id }),
         });
-<<<<<<< HEAD
-
-=======
   
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         console.log("open url:", lowerCaseStep);
         console.log("User_Id:", user_id);
   
@@ -530,17 +457,7 @@ useEffect(() => {
         }
   
         const data = await response.json();
-<<<<<<< HEAD
-        
         console.log("Response:", data);
-
-        if (data.omniparser_data && data.omniparser_data.elements) {
-          setElementData(data.omniparser_data);
-          sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-        }
-=======
-        console.log("Response:", data);
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         
         const screenshotUrl = data.screenshot ? 
           `http://127.0.0.1:8000${data.screenshot}` : 
@@ -551,87 +468,6 @@ useEffect(() => {
           duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
           message: data.status || "Page loaded successfully",
           screenshot: screenshotUrl,
-<<<<<<< HEAD
-          coordinates: data.omniparser_data,
-        };
-      } 
-      else if (lowerCaseStep.includes('click') || lowerCaseStep.includes('type')) {
-        const words = stepDescription.trim().split(' ');
-        const actionType = words[0].toLowerCase(); 
-        
-        let elementName = '';
-        
-        if (actionType === 'type') {
-          const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
-          
-          if (inIndex > 1 && inIndex < words.length - 1) {
-            elementName = words.slice(inIndex + 1).join(' ');
-          } else {
-            throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
-          }
-        } else if (actionType === 'click') {
-          elementName = words.slice(1).join(' ');
-        }
-
-        const element = findBestMatchingElement(elementName, currentElementData);
-      
-        if (element) {
-          const requestBody = {
-            command: lowerCaseStep,
-            user_id: user_id,
-            click_x: element.click_point[0],
-            click_y: element.click_point[1],
-          };
-      
-          if (actionType === 'type') {
-            requestBody.input_text = elementName;
-          }
-      
-          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
-      
-          console.log(actionType, stepDescription, element.click_point);
-      
-          if (!response.ok) {
-            throw new Error(`Failed to execute ${actionType} command`);
-          }
-      
-          const data = await response.json();
-      
-          console.log(`${actionType} response:`, data);
-      
-          if (data.coordinates && data.coordinates.elements) {
-            console.log("Received coordinates data:", data.coordinates);
-            console.log("Current elementData before update:", elementData);
-            setElementData(data.coordinates);
-            console.log("Updated elementData after setElementData:", data.coordinates);
-            sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
-          }
-      
-          const screenshotUrl = data.screenshot
-            ? `http://127.0.0.1:8000${data.screenshot}`
-            : `/api/placeholder/800/300?text=No_Screenshot`;
-      
-          return {
-            status: 'complete',
-            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-            message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
-            screenshot: screenshotUrl,
-            coordinates: data.coordinates || elementData,
-            elementAction: element,
-          };
-        } else {
-          throw new Error(`Could not find matching element for "${elementName}"`);
-        }
-      }
-      else {
-        const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-=======
           coordinates: stepCoordinates,
         };
       } 
@@ -644,14 +480,10 @@ useEffect(() => {
         }
         
         const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-<<<<<<< HEAD
-          body: JSON.stringify({ command: lowerCaseStep }),
-=======
           body: JSON.stringify({
             command: lowerCaseStep,
             user_id: user_id,
@@ -745,7 +577,6 @@ useEffect(() => {
             command: lowerCaseStep,
             user_id: user_id
           }),
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         });
   
         if (!response.ok) {
@@ -754,14 +585,6 @@ useEffect(() => {
   
         const data = await response.json();
         
-<<<<<<< HEAD
-        if (data.omniparser_data && data.omniparser_data.elements) {
-          setElementData(data.omniparser_data);
-          sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-        }
-        
-=======
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         const screenshotUrl = data.screenshot ? 
           `http://127.0.0.1:8000${data.screenshot}` : 
           `/api/placeholder/800/300?text=No_Screenshot`;
@@ -771,11 +594,7 @@ useEffect(() => {
           duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
           message: data.status || "Command executed successfully",
           screenshot: screenshotUrl,
-<<<<<<< HEAD
-          coordinates: data.coordinates,
-=======
           coordinates: stepCoordinates,
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
         };
       }
     } catch (error) {
@@ -787,10 +606,6 @@ useEffect(() => {
       };
     } 
   };
-<<<<<<< HEAD
-
-=======
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
   
 
 const handleStepSelection = (stepId) => {
