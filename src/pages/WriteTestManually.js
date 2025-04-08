@@ -208,10 +208,6 @@ const executeStep = async (stepObj) => {
   try {
       const stepDescription = stepObj.description;
       const words = stepDescription.trim().split(' ');
-<<<<<<< HEAD
-      const actionType = words[0].toLowerCase(); 
-
-=======
       
       const actionType = words[0].toLowerCase();
       words[0] = actionType;
@@ -221,7 +217,6 @@ const executeStep = async (stepObj) => {
       console.log("Updated Step Description:", updatedStepDescription); 
   
     
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
       const stepIndex = testSteps.length;
       if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
@@ -237,17 +232,10 @@ const executeStep = async (stepObj) => {
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-<<<<<<< HEAD
-              body: JSON.stringify({ command: stepDescription, user_id: user_id }), 
-          });
-
-          console.log("Open URL:", stepDescription);
-=======
               body: JSON.stringify({ command: updatedStepDescription, user_id: user_id }), 
           });
 
           console.log("Open URL:", updatedStepDescription);
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
           console.log("User_Id:", user_id);
 
           if (!response.ok) {
@@ -607,11 +595,7 @@ const createTestCase = async () => {
                 <button
                   className="flex items-center px-3 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
                   onClick={() => {
-<<<<<<< HEAD
-                    setNewStep(`Click ${selectedElement.name}`);
-=======
                     setNewStep(`click ${selectedElement.name}`);
->>>>>>> c55087d2a9381183cad10d7dc08707f5f2e1736a
                   }}
                 >
                   <MousePointer className="w-4 h-4 mr-1" />
