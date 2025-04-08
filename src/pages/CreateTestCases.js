@@ -259,61 +259,61 @@ const CreateTestCases = () => {
                 </div>
   
                 <div className="create-test-cases-input-container">
-  <label className="block text-sm font-medium mb-2">
-    Test Case Type<span className="text-red-500">*</span>
-  </label>
-  <select
-    value={testCaseType}
-    
-    onChange={(e) => {
-      console.log("User Selected Test Case Type:", e.target.value);
-      setTestCaseType(e.target.value);
-      setErrors((prev) => ({ ...prev, type: "" }));
-    }}
-    className={`create-project-input ${
-      errors.type ? "border-red-500" : "border-gray-300"
-    } focus:outline-none focus:ring-2 focus:ring-purple-500`}
-    disabled={!selectedProject}
-  >
-    <option value="">Select Type</option>
-    {testCaseTypes.map((type) => (
-      <option key={type.id} value={type.name}>
-        {type.name}
-      </option>
-    ))}
-  </select>
-  {errors.type && (
-    <span className="text-red-500 text-sm mt-1">{errors.type}</span>
-  )}
-</div>
+                    <label className="block text-sm font-medium mb-2">
+                      Test Case Type<span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={testCaseType}
+                      
+                      onChange={(e) => {
+                        console.log("User Selected Test Case Type:", e.target.value);
+                        setTestCaseType(e.target.value);
+                        setErrors((prev) => ({ ...prev, type: "" }));
+                      }}
+                      className={`create-project-input ${
+                        errors.type ? "border-red-500" : "border-gray-300"
+                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      disabled={!selectedProject}
+                    >
+                      <option value="">Select Type</option>
+                      {testCaseTypes.map((type) => (
+                        <option key={type.id} value={type.name}>
+                          {type.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.type && (
+                      <span className="text-red-500 text-sm mt-1">{errors.type}</span>
+                    )}
+                  </div>
 
-<div className="create-test-cases-input-container">
-  <label className="block text-sm font-medium mb-2">
-    Test Case Priority<span className="text-red-500">*</span>
-  </label>
-  <select
-    value={testCasePriority}
-    onChange={(e) => {
-      console.log("User Selected Test Case Priority:", e.target.value); 
-      setTestCasePriority(e.target.value);
-      setErrors((prev) => ({ ...prev, priority: "" }));
-    }}
-    className={`create-project-input ${
-      errors.priority ? "border-red-500" : "border-gray-300"
-    } focus:outline-none focus:ring-2 focus:ring-purple-500`}
-    disabled={!selectedProject}
-  >
-    <option value="">Select Priority</option>
-    {priorities.map((priority) => (
-      <option key={priority.id} value={priority.priority_level}>
-        {priority.priority_level}
-      </option>
-    ))}
-  </select>
-  {errors.priority && (
-    <span className="text-red-500 text-sm mt-1">{errors.priority}</span>
-  )}
-</div>
+                  <div className="create-test-cases-input-container">
+                    <label className="block text-sm font-medium mb-2">
+                      Test Case Priority<span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={testCasePriority}
+                      onChange={(e) => {
+                        console.log("User Selected Test Case Priority:", e.target.value); 
+                        setTestCasePriority(e.target.value);
+                        setErrors((prev) => ({ ...prev, priority: "" }));
+                      }}
+                      className={`create-project-input ${
+                        errors.priority ? "border-red-500" : "border-gray-300"
+                      } focus:outline-none focus:ring-2 focus:ring-purple-500`}
+                      disabled={!selectedProject}
+                    >
+                      <option value="">Select Priority</option>
+                      {priorities.map((priority) => (
+                        <option key={priority.id} value={priority.priority_level}>
+                          {priority.priority_level}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.priority && (
+                      <span className="text-red-500 text-sm mt-1">{errors.priority}</span>
+                    )}
+                  </div>
 
   
                   <div className="create-test-cases-button-group">
