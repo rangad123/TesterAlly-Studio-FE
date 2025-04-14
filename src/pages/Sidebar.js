@@ -10,7 +10,7 @@ import {
 } from "react-icons/fa";
 import { FiSettings } from "react-icons/fi";
 import { MdDashboard, MdAccountCircle } from "react-icons/md";
-import { RiRobot2Fill } from "react-icons/ri";
+//import { RiRobot2Fill } from "react-icons/ri";
 import { BiAddToQueue } from "react-icons/bi";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Sidebar.css";
@@ -113,6 +113,7 @@ const Sidebar = () => {
     setIsSettingsVisible(false);
   };
 
+/*
   const handleNavigateToAgent = () => {
     navigate("/agent");
     setIsSubSidebarVisible(false);
@@ -120,7 +121,7 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
   };
-
+*/
   const handleNavigateToDashboard = () => {
     navigate("/dashboard-user");
     setIsSubSidebarVisible(false);
@@ -250,8 +251,7 @@ const Sidebar = () => {
         <span className="option-name">Profile</span>
       </div>
     </div>
-
-    {/* Agent Option */}
+{/*
     <div
       className={`sidebar-option ${currentPath === "/agent" ? "active" : ""}`}
       onClick={handleNavigateToAgent}
@@ -261,6 +261,7 @@ const Sidebar = () => {
         <span className="option-name">Agent</span>
       </div>
     </div>
+*/}
   </div>
 
       {/* Sub-sidebar: Create Project */}

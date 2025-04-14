@@ -159,8 +159,8 @@ const AppNavBar = (props) => {
             alt="Flowbite React Logo"
             onClick={handleLogoClick}
           />
-          <span className="self-center whitespace-nowrap text-3xl font-bold brand-text">
-            TesterAlly
+          <span className="self-center whitespace-nowrap text-2xl font-bold brand-text">
+            TesterAlly Agent
           </span>
         </Navbar.Brand>
 

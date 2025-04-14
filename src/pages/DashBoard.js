@@ -2,7 +2,7 @@ import React from "react";
 import "./Style2.css";
 import { FaGithub, FaLinkedin, FaEnvelope } from "react-icons/fa";
 import CookieConsent from "./CookieConsent";
-import HeroSection from "./HeroSection";
+import AgentHeroSection from "./HeroSection";
 
 export default function Dashboard() {
   const FeatureCard = ({ title, description, icon }) => (
@@ -20,151 +20,170 @@ export default function Dashboard() {
     </div>
   );
 
- 
-
   return (
     <div className="">
       <CookieConsent />
+      
       {/* Hero Section */}
       <section className="hero">
-        <HeroSection />
+        <AgentHeroSection />
       </section>
 
-{/* Marquee Section */}
+      {/* Marquee Section - Slightly modified for Agent */}
       <div className="bg-gradient-to-r from-blue-100 to-blue-200 p-4 my-8 mx-4 md:mx-8 lg:mx-auto lg:max-w-7xl rounded-lg">
         <p className="text-blue-800 text-sm md:text-base lg:text-lg font-semibold text-center animate-pulse">
-          🚀 Unlock the power of AI in testing | 🌟 Seamless automate web, mobile, and API testing | 📈 Scale your testing with TesterAlly today!
+          🖥️ Local Testing Environment | 🚀 Run tests directly on your machine | 📈 Seamless integration with TesterAlly platform
         </p>
       </div>
 
       {/* Features Section */}
-  <section id="features" className="features max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-  <h2 className="section-title">AI-Driven Web Testing</h2>
-  <div className="space-y-5">
-    <div className="grid grid-cols-1 md:grid-cols-3">
-      <FeatureCard
-        title="Intelligent Test Automation"
-        description="Leverage advanced AI to generate and maintain test cases in simple, human-readable language. Streamline testing workflows by automating repetitive tasks, reducing manual effort, and ensuring higher accuracy in testing."
-        icon="⚙️"
-      />
-      <FeatureCard
-        title="Comprehensive Analytics"
-        description="Get real-time insights into testing performance with detailed analytics and reporting tools. Identify bottlenecks, track progress, and make informed decisions to enhance the quality of your testing processes."
-        icon="📊"
-      />
-      <FeatureCard
-        title="Reliable Test Coverage"
-        description="Perform robust testing with dynamic datasets to simulate real-world scenarios. Validate application behavior under various conditions to achieve higher reliability and enhanced test coverage."
-        icon="🔒"
-      />
-      <FeatureCard
-        title="AI-Driven Workflows"
-        description="Accelerate testing with automated workflows powered by cutting-edge AI technology."
-        icon="🤖"
-      />
-      <FeatureCard
-        title="Smart Element Recognition"
-        description="Identify and interact with UI elements through intelligent visual detection and precise coordinate mapping."
-        icon="👁"
-      />
-      <FeatureCard
-        title="Efficient Interaction Testing"
-        description="Automate complex testing tasks, such as form interactions and multi-step operations, with precision and ease."
-        icon="⚡"
-      />
-      
-    </div>
-  </div>
-</section>
-
+      <section id="features" className="features max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="section-title">Agent Testing Features</h2>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            <FeatureCard
+              title="Local Test Execution"
+              description="Execute tests directly on your machine using your local browser installations and system resources for efficient testing."
+              icon="⚙️"
+            />
+            <FeatureCard
+              title="Real-time Reporting"
+              description="View detailed test results in real-time with synchronized reporting between your local environment and the TesterAlly platform."
+              icon="📊"
+            />
+            <FeatureCard
+              title="Secure Testing"
+              description="Test applications behind your firewall without exposing internal systems, ensuring security compliance for sensitive applications."
+              icon="🔒"
+            />
+            <FeatureCard
+              title="Cross-browser Testing"
+              description="Utilize locally installed browsers to perform comprehensive testing across multiple browser environments."
+              icon="🌐"
+            />
+            <FeatureCard
+              title="Resource Optimization"
+              description="Efficiently manage system resources during test execution with intelligent CPU and memory allocation."
+              icon="💻"
+            />
+            <FeatureCard
+              title="Offline Capability"
+              description="Continue testing operations even without internet connectivity, with results synchronized when connection is restored."
+              icon="⚡"
+            />
+          </div>
+        </div>
+      </section>
 
       {/* How It Works Section */}
       <section id="how-it-works" className="how-it-works max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="section-title">How Tester-ally works </h2>
+        <h2 className="section-title">How the Agent Works</h2>
 
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-3">
             <StepCard
               step="1"
-              title="Codeless Test Creation"
-              description="Empower anyone to create test cases in simple, natural language, speeding up the test authoring process without the need for coding expertise."
+              title="Install Local Agent"
+              description="Download and install the TesterAlly Agent on your machine to establish a secure connection with the TesterAlly platform."
             />
             <StepCard
               step="2"
-              title="Test Execution Scheduling"
-              description="Set up tests to run as frequently as needed, whenever you choose, using the flexible Execution Planner to automate your testing cycles."
+              title="Configure Test Environment"
+              description="Set up your local testing environment with browsers, devices, and system resources that match your specific testing needs."
             />
             <StepCard
               step="3"
-              title="Comprehensive Test Reporting"
-              description="Gather detailed insights from your test results, along with AI-generated suggestions to diagnose why a test may have failed, helping teams pinpoint issues efficiently."
+              title="Execute & Monitor Tests"
+              description="Run tests locally while monitoring performance and results through the agent interface, with data synchronized to your TesterAlly account."
             />
           </div>
         </div>
       </section>
 
-      {/* About Us Section */}
+      {/* About Agent Section */}
       <section id="about-us" className="about-us max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="section-title">About Us</h2>
+        <h2 className="section-title">About TesterAlly Agent</h2>
         <p>
-        TesterAlly is leading the charge in AI-powered test automation solutions. 
-        Our mission is to empower development and QA teams to achieve impeccable software quality with unparalleled speed and accuracy. 
-        Driven by innovation and a commitment to excellence, we are revolutionizing the testing process. With our cutting-edge platform, 
-        we combine AI’s power with intuitive, codeless interfaces to simplify and accelerate testing across web, mobile, and API applications. 
-        TesterAlly is your trusted partner for automating and enhancing the testing lifecycle, ensuring seamless delivery of high-quality software at scale.
+          TesterAlly Agent extends the power of our cloud-based testing platform directly to your local environment.
+          This agent provides a bridge between your machine and the TesterAlly platform, allowing you to execute tests
+          locally while maintaining all the benefits of centralized test management. The agent is particularly useful
+          for testing applications that require access to internal resources, specialized hardware configurations,
+          or when security policies restrict external testing tools. With TesterAlly Agent, you get the best of both
+          worlds: local execution capabilities with enterprise-grade test management and reporting.
         </p>
       </section>
 
-      {/* Blog Highlights Section */}
-      <section id="blog" className="blog-highlights max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="section-title">From Our Blog</h2>
+      {/* Agent Resources - Modified from Blog section */}
+      <section id="resources" className="blog-highlights max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h2 className="section-title">Agent Resources</h2>
         <div className="blog-grid">
           <div className="blog-card">
-            <h4>Crowd Intelligence – Its impact on the training of AI</h4>
+            <h4>Agent Configuration Guide</h4>
             <p>
-              Explore how AI is transforming the landscape of test automation
-              and what it means for the future of software development. Discover
-              the latest trends in AI and how they are revolutionizing software
-              testing.
+              Learn how to configure your TesterAlly Agent for optimal performance in your local environment.
+              This guide covers all aspects of agent setup, including browser configurations, system requirements,
+              and integration with your development workflow.
             </p>
-            <button className="btn primary-btn" onClick={() => window.location.href = "https://www.crowd4test.com/blog/artificial-intelligence/crowd-intelligence-its-impact-on-the-training-of-ai/"} >Read More</button>
+            <button className="btn primary-btn">Read Guide</button>
           </div>
           <div className="blog-card">
-            <h4>Artificial Intelligence AI and Software Testing – The Scope</h4>
+            <h4>Troubleshooting & Best Practices</h4>
             <p>
-              Learn essential strategies to ensure your application performs
-              flawlessly across all browsers and devices. Learn how AI can help
-              QA teams achieve faster and more accurate results.
+              Discover solutions for common agent issues and learn best practices for efficient local test execution.
+              This resource includes performance optimization tips and strategies for maximizing test coverage.
             </p>
-            <button className="btn primary-btn" onClick={() => window.location.href = "https://www.crowd4test.com/blog/software-testing/artificial-intelligence-ai-and-software-testing-the-scope/"} >Read More</button>
+            <button className="btn primary-btn">Learn More</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Simple Agent Status Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8">
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold mb-4">Agent Status</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="border-l-4 border-purple-500 pl-3">
+              <div className="text-sm text-gray-500">CPU Usage</div>
+              <div className="text-lg font-semibold">12%</div>
+            </div>
+            <div className="border-l-4 border-purple-500 pl-3">
+              <div className="text-sm text-gray-500">Memory</div>
+              <div className="text-lg font-semibold">245 MB</div>
+            </div>
+            <div className="border-l-4 border-purple-500 pl-3">
+              <div className="text-sm text-gray-500">Tests Run</div>
+              <div className="text-lg font-semibold">17</div>
+            </div>
+            <div className="border-l-4 border-purple-500 pl-3">
+              <div className="text-sm text-gray-500">Uptime</div>
+              <div className="text-lg font-semibold">3h 42m</div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="testimonials max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ">
+      <section id="testimonials" className="testimonials max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="section-title">What Our Users Say</h2>
         <div className="testimonials-grid">
           <div className="testimonial-card">
             <p>
-              "This platform has completely transformed our testing workflow.
-              The AI capabilities are top-notch!"
+              "The local agent has been a game-changer for our internal application testing. We can now test securely behind our firewall while still using all of TesterAlly's features."
             </p>
-            <h4>- Jane Doe, Software Engineer</h4>
+            <h4>- David Kim, QA Lead</h4>
           </div>
           <div className="testimonial-card">
             <p>
-              "Detailed reporting and secure testing have made our development
-              process much smoother."
+              "Setting up the agent was seamless, and the performance is outstanding. We've cut our testing time in half by running tests locally."
             </p>
-            <h4>- John Smith, QA Lead</h4>
+            <h4>- Lisa Chen, DevOps Engineer</h4>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer id="contact" className="footer">
-        <p>© 2024 TesterAlly. All Rights Reserved.</p>
+        <p>© 2024 TesterAlly Agent v1.2.4. All Rights Reserved.</p>
         <div className="social-links">
           <a
             href="https://linkedin.com"
@@ -176,8 +195,8 @@ export default function Dashboard() {
           <a href="https://github.com/rangad123/TesterAlly-FE/" target="_blank" rel="noopener noreferrer">
             <FaGithub /> GitHub
           </a>
-          <a href="mailto:contact@testerally.com">
-            <FaEnvelope /> Contact
+          <a href="mailto:agent-support@testerally.com">
+            <FaEnvelope /> Support
           </a>
         </div>
       </footer>

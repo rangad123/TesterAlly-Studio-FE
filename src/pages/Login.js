@@ -91,6 +91,8 @@ const Login = (props) => {
 
         console.log("Role ID:", data.user.roleId); 
 
+        
+        fetchSystemInfo(data.user.id);
 
         handleRedirect(data.user.roleId);
   
@@ -113,7 +115,28 @@ const Login = (props) => {
     }
   };
   
-  
+
+const fetchSystemInfo = async (userId) => {
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/automation/user-login-success/?user_id=${userId}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP Error! Status: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const textResponse = await response.text();
+      throw new Error("Expected JSON but got: " + textResponse);
+    }
+
+    const systemInfo = await response.json();
+    console.log("✅ System Info:", systemInfo);
+  } catch (error) {
+    console.error("❌ Error fetching system info:", error);
+  }
+};
+
   
 
   return (
