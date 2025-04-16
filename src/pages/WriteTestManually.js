@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Clock, X, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
+import { getSuggestedElements } from './elementSuggestionUtils';
+
 
 const WriteTestManually = () => {
   const navigate = useNavigate();
@@ -24,6 +26,8 @@ const WriteTestManually = () => {
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const [selectedElement, setSelectedElement] = useState(null);
+  const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
+  const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -114,128 +118,37 @@ const WriteTestManually = () => {
             return;
         }
         
-        // Filter and prepare elements for display
-        let matchedElements = [];
+        let searchTerm = '';
         
-        // For click command with search terms
+        // Extract search term based on command type
         if (firstWord === 'click' && words.length > 1) {
-            const searchTerm = words.slice(1).join(' ').toLowerCase();
-            
-            // First try exact matches
-            let exactMatches = elementData.elements.filter(element => 
-                element.name && element.name.toLowerCase() === searchTerm
-            );
-            
-            // If no exact matches, try partial matches
-            if (exactMatches.length === 0) {
-                matchedElements = elementData.elements
-                    .filter(element => element.name && element.name.toLowerCase().includes(searchTerm))
-                    .slice(0, 20); // Limit to top 15 matches
-            } else {
-                matchedElements = exactMatches;
-            }
-        } 
-        // For type command with text after "in"
-        else if (firstWord === 'type') {
-            // Check if "in" exists in the command
+            // For click commands, everything after "click" is the search term
+            searchTerm = words.slice(1).join(' ').toLowerCase();
+        } else if (firstWord === 'type') {
+            // For type commands, extract what comes after "in "
             const inIndex = inputText.indexOf(' in ');
-            
             if (inIndex !== -1) {
-                // Extract what comes after "in " 
-                const afterIn = inputText.substring(inIndex + 4).trim();
-                
-                // If there's a search term after "in", filter by it
-                if (afterIn) {
-                    // First try exact matches
-                    let exactMatches = elementData.elements.filter(element => 
-                        element.name && element.name.toLowerCase() === afterIn
-                    );
-                    
-                    // If no exact matches, try partial matches
-                    if (exactMatches.length === 0) {
-                        matchedElements = elementData.elements
-                            .filter(element => element.name && element.name.toLowerCase().includes(afterIn))
-                            .slice(0, 15);
-                    } else {
-                        matchedElements = exactMatches;
-                    }
-                } else {
-                    // If just "type text in " with nothing after, show all potential elements
-                    matchedElements = elementData.elements
-                        .filter(element => element.name)
-                        .slice(0, 15);
-                }
-            } else {
-                // If just "type" or "type text" without "in", show potential input elements
-                matchedElements = elementData.elements
-                    .filter(element => 
-                        element.name && 
-                        (element.type === 'input' || element.type === 'textarea' || 
-                         element.tag === 'input' || element.tag === 'textarea')
-                    )
-                    .slice(0, 15);
-            }
-        }
-        // For just "click" show all interactive elements
-        else {
-            // For click, prioritize buttons, links, and other clickable elements
-            const clickableElements = elementData.elements
-                .filter(element => 
-                    element.name && 
-                    (element.type === 'button' || element.tag === 'button' || element.tag === 'a' || 
-                     element.type === 'link' || element.role === 'button')
-                );
-            
-            if (clickableElements.length > 0) {
-                matchedElements = clickableElements.slice(0, 10);
-                
-                // Add some non-button elements to the suggestions if we have space
-                if (clickableElements.length < 10) {
-                    const otherElements = elementData.elements
-                        .filter(element => 
-                            element.name && 
-                            !(element.type === 'button' || element.tag === 'button' || element.tag === 'a' || 
-                              element.type === 'link' || element.role === 'button')
-                        )
-                        .slice(0, 15 - clickableElements.length);
-                    
-                    matchedElements = [...matchedElements, ...otherElements];
-                }
-            } else {
-                // Fall back to all interactive elements
-                matchedElements = elementData.elements
-                    .filter(element => element.name)
-                    .slice(0, 15);
+                searchTerm = inputText.substring(inIndex + 4).trim();
             }
         }
         
-        // Handle duplicate element names by adding unique identifiers
-        const nameCount = {};
-        matchedElements.forEach(el => {
-            const lowerName = el.name?.toLowerCase() || '';
-            nameCount[lowerName] = (nameCount[lowerName] || 0) + 1;
-        });
+        // Get last click coordinates from executed steps
+        const lastClickCoordinates = testSteps.length > 0 ? 
+            getLastClickCoordinates(testSteps) : null;
         
-        const enhancedElements = matchedElements.map((el, index) => {
-            const lowerName = el.name?.toLowerCase() || '';
-            
-            // Create a more descriptive display name for duplicates
-            let displayName = el.name;
-            if (nameCount[lowerName] > 1) {
-                // Add element type and position info to distinguish duplicates
-                const elementType = el.type || el.tag || 'element';
-                displayName = `${el.name} (${elementType}, pos: ${index + 1})`;
+        // Use our enhanced algorithm to get suggestions with proper state
+        const suggestedElements = getSuggestedElements(
+            elementData.elements,
+            searchTerm,
+            firstWord,
+            { 
+                previouslySelectedElements, 
+                lastClickCoordinates 
             }
-            
-            return {
-                ...el,
-                displayName,
-                isDuplicate: nameCount[lowerName] > 1
-            };
-        });
+        );
         
-        setSuggestions(enhancedElements);
-        setShowSuggestions(enhancedElements.length > 0);
+        setSuggestions(suggestedElements);
+        setShowSuggestions(suggestedElements.length > 0);
     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
         setCommandType('open');
         setShowSuggestions(false);
@@ -243,8 +156,22 @@ const WriteTestManually = () => {
         setCommandType('');
         setShowSuggestions(false);
     }
-}, [newStep, elementData]);
+}, [newStep, elementData, previouslySelectedElements, testSteps]);
 
+
+const getLastClickCoordinates = (steps) => {
+  // Loop backwards through steps to find the last successful click action
+  for (let i = steps.length - 1; i >= 0; i--) {
+      const step = steps[i];
+      if (step.status === 'complete' && 
+          step.description.toLowerCase().startsWith('click') && 
+          step.selectedElement && 
+          step.selectedElement.click_point) {
+          return step.selectedElement.click_point;
+      }
+  }
+  return null;
+};
 
   const fetchTestData = async (projectId) => {
     if (!projectId) return;
@@ -318,7 +245,7 @@ const executeStep = async (stepObj) => {
               : `/api/placeholder/800/300?text=No_Screenshot`;
 
           console.log("Screenshot URL:", screenshotUrl);
-
+          
           return {
               status: 'complete',
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
@@ -326,6 +253,7 @@ const executeStep = async (stepObj) => {
               screenshot: screenshotUrl,
               coordinates: data.omniparser_data,
           };
+
       } else if (actionType === 'click' || actionType === 'type') {
           
           const selectedElement = stepObj.selectedElement;
@@ -378,6 +306,7 @@ const executeStep = async (stepObj) => {
           const screenshotUrl = data.screenshot
               ? `http://127.0.0.1:8000${data.screenshot}`
               : `/api/placeholder/800/300?text=No_Screenshot`;
+
 
           return {
               status: 'complete',
@@ -441,17 +370,17 @@ const addTestStep = async () => {
   const actionType = words[0].toLowerCase();
   
   if ((actionType === 'click' || actionType === 'type') && !selectedElement) {
-      alert("Please select an element from the suggestions before adding this step.");
-      return;
+    alert("Please select an element from the suggestions before adding this step.");
+    return;
   }
   
   const newStepObj = {
-      id: Date.now(),
-      description: newStep,
-      status: 'pending',
-      duration: '00:00',
-      screenshot: null,
-      selectedElement: selectedElement 
+    id: Date.now(),
+    description: newStep,
+    status: 'pending',
+    duration: '00:00',
+    screenshot: null,
+    selectedElement: selectedElement 
   };
   
   setSelectedElement(null);
@@ -461,74 +390,107 @@ const addTestStep = async () => {
   
   const executionResult = await executeStep(newStepObj);
   
+  // After successful execution, update the previouslySelectedElements
+  // In the addTestStep function, after execution:
+  if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
+    setLastClickCoordinates(newStepObj.selectedElement.click_point);
+    const element = newStepObj.selectedElement;
+
+    // Make sure click_point exists before accessing
+    if (element.click_point) {
+      const x = Math.round(element.click_point[0]);
+      const y = Math.round(element.click_point[1]);
+      const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+      
+      setPreviouslySelectedElements(prev => {
+        // Create a new object with all previous elements, but remove lastExecutedElement flag
+        const updatedPrev = {};
+        Object.keys(prev).forEach(key => {
+          updatedPrev[key] = {
+            ...prev[key],
+            lastExecutedElement: false 
+          };
+        });
+        
+        return {
+          ...updatedPrev,
+          [exactCoordinateKey]: {
+            lastSelected: Date.now(),
+            count: (prev[exactCoordinateKey]?.count || 0) + 1,
+            element: element,
+            lastExecutedElement: true,
+            coordinates: [x, y] // Store exact coordinates for proximity checking
+          }
+        };
+      });
+    }
+  }
+  
   setTestSteps(prev => prev.map(step => 
-      step.id === newStepObj.id ? {
-          ...step,
-          ...executionResult
-      } : step
+    step.id === newStepObj.id ? {
+      ...step,
+      ...executionResult,
+      elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined
+    } : step
   ));
   
   setNewStep('');
   
   setTimeout(() => {
-      if (previewRef.current) {
-          previewRef.current.scrollTo({
-              top: previewRef.current.scrollHeight,
-              behavior: 'smooth'
-          });
-      }
-      if (stepsRef.current) {
-          stepsRef.current.scrollTo({
-              top: stepsRef.current.scrollHeight,
-              behavior: 'smooth'
-          });
-      }
+    if (previewRef.current) {
+      previewRef.current.scrollTo({
+        top: previewRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+    if (stepsRef.current) {
+      stepsRef.current.scrollTo({
+        top: stepsRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, 100);
 };
+
 
 const handleSuggestionClick = (suggestion) => {
   let updatedStep = '';
   if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+    updatedStep = `click ${suggestion.displayName || suggestion.name}`;
   } else if (commandType === 'type') {
-      // Extract the text to type (before "in")
-      const inIndex = newStep.toLowerCase().indexOf(' in ');
-      if (inIndex !== -1) {
-          const textToType = newStep.substring(5, inIndex).trim();
-          if (textToType) {
-              updatedStep = `type ${textToType} in ${suggestion.displayName || suggestion.name}`;
-          } else {
-              // If no text was entered, focus cursor position for user to enter text
-              updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-          }
+    const inIndex = newStep.toLowerCase().indexOf(' in ');
+    if (inIndex !== -1) {
+      const textToType = newStep.substring(5, inIndex).trim();
+      // Keep any text the user was already typing
+      if (textToType) {
+        updatedStep = `type ${textToType} in ${suggestion.displayName || suggestion.name}`;
       } else {
-          // Default placeholder
-          updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+        // Position cursor after "type " for user to enter text
+        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
       }
+    } else {
+      updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+    }
   }
   
   setNewStep(updatedStep);
-  setSelectedElement(suggestion); // Store the selected element
+  setSelectedElement(suggestion);
   setShowSuggestions(false);
   
-  // Focus back on the input and position cursor appropriately
   if (inputRef.current) {
-      inputRef.current.focus();
-      
-      // For type commands, position cursor where text should be entered
-      if (commandType === 'type' && updatedStep.includes(' in ')) {
-          const typeIndex = updatedStep.indexOf('type ') + 5;
-          const inIndex = updatedStep.indexOf(' in ');
-          inputRef.current.setSelectionRange(typeIndex, inIndex);
-      } else {
-          // For click commands, position cursor at the end
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
-      }
+    inputRef.current.focus();
+    if (commandType === 'type' && updatedStep.includes(' in ')) {
+      // Position cursor between "type " and " in" for user to enter text
+      const typeIndex = updatedStep.indexOf('type ') + 5;
+      const inIndex = updatedStep.indexOf(' in ');
+      inputRef.current.setSelectionRange(typeIndex, inIndex);
+    } else {
+      // Position cursor at the end
+      const length = updatedStep.length;
+      inputRef.current.setSelectionRange(length, length);
+    }
   }
 };
-
-
 
 const createTestCase = async () => {
   if (testSteps.length === 0) {
@@ -650,7 +612,7 @@ const ImageModal = () => {
   );
 };
 
-
+/*
 const SuggestionsDropdown = () => {
   if (!showSuggestions || suggestions.length === 0) return null;
   
@@ -668,18 +630,25 @@ const SuggestionsDropdown = () => {
                       </>
                   )}
               </h4>
-              <p className="text-xs text-gray-600">Found {suggestions.length} matching elements</p>
+              <p className="text-xs text-gray-600">
+                Found {suggestions.length} matching elements
+                {suggestions.some(s => s.isDuplicate) && 
+                  " (highlighted items have duplicate names)"}
+              </p>
           </div>
           <ul className="divide-y divide-gray-100">
               {suggestions.map((suggestion, index) => (
                   <li 
-                      key={`${suggestion.id}-${index}`}
-                      className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-                          suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-                      }`}
-                      tabIndex={0}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      onKeyDown={(e) => {
+                    key={`${suggestion.id}-${index}`}
+                    className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+                      suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                      suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+                      suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+                      suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+                    }`}
+                    tabIndex={0}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                               handleSuggestionClick(suggestion);
                           } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
@@ -699,23 +668,144 @@ const SuggestionsDropdown = () => {
                       }}
                   >
                       <div className="flex justify-between items-center">
-                          <span className="font-medium">{suggestion.displayName || suggestion.name}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                              suggestion.type === 'button' || suggestion.tag === 'button' 
-                                  ? 'bg-blue-100 text-blue-700' 
-                                  : suggestion.type === 'input' || suggestion.tag === 'input'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-700'
-                          }`}>
-                              {suggestion.type || suggestion.tag || "Element"}
-                          </span>
+                        <span className="font-medium">
+                          {suggestion.displayName || suggestion.name}
+                          {suggestion.usageInfo && (
+                            <span className={`ml-2 text-xs font-semibold ${
+                              suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                              suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                              'text-green-600'
+                            }`}>
+                              ({suggestion.usageInfo})
+                            </span>
+                          )}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          suggestion.type === 'button' || suggestion.tag === 'button' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : suggestion.type === 'input' || suggestion.tag === 'input'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {suggestion.type || suggestion.tag || "Element"}
+                        </span>
                       </div>
                       
                       <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-                          <span>Position: x:{suggestion.click_point[0]}, y:{suggestion.click_point[1]}</span>
-                          {suggestion.isDuplicate && (
+                          <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+                          {suggestion.isDuplicate && !suggestion.usageInfo && (
                               <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
                                   Multiple matches
+                              </span>
+                          )}
+                      </div>
+                      
+                      {suggestion.text && (
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                              Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+                          </div>
+                      )}
+                  </li>
+              ))}
+          </ul>
+      </div>
+  );
+};
+*/
+
+const SuggestionsDropdown = () => {
+  if (!showSuggestions || suggestions.length === 0) return null;
+  
+  return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn">
+          <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+              <h4 className="font-medium text-purple-800 flex items-center">
+                  {commandType === 'click' ? (
+                      <>
+                          <span className="mr-2">🖱️</span> Click on an element:
+                      </>
+                  ) : (
+                      <>
+                          <span className="mr-2">⌨️</span> Select where to type:
+                      </>
+                  )}
+              </h4>
+              <p className="text-xs text-gray-600">
+                Found {suggestions.length} matching elements
+                {suggestions.some(s => s.isDuplicate) && 
+                  " (highlighted items have duplicate names)"}
+                {lastClickCoordinates && " (ordered by proximity to last click)"}
+              </p>
+          </div>
+          <ul className="divide-y divide-gray-100">
+              {suggestions.map((suggestion, index) => (
+                  <li 
+                    key={`${suggestion.id}-${index}`}
+                    className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+                      suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                      suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+                      suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+                      suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+                      suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+                      suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+                      suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+                    }`}
+                    tabIndex={0}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                              handleSuggestionClick(suggestion);
+                          } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                              e.preventDefault();
+                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                          } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              if (index > 0) {
+                                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                              } else {
+                                  inputRef.current.focus();
+                              }
+                          } else if (e.key === 'Escape') {
+                              setShowSuggestions(false);
+                              inputRef.current.focus();
+                          }
+                      }}
+                  >
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">
+                          {suggestion.displayName || suggestion.name}
+                          {suggestion.usageInfo && (
+                            <span className={`ml-2 text-xs font-semibold ${
+                              suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                              suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                              suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+                              'text-green-600'
+                            }`}>
+                              ({suggestion.usageInfo})
+                            </span>
+                          )}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          suggestion.type === 'button' || suggestion.tag === 'button' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : suggestion.type === 'input' || suggestion.tag === 'input'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {suggestion.type || suggestion.tag || "Element"}
+                        </span>
+                      </div>
+                      
+                      <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                          <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+                          {suggestion.isDuplicate && !suggestion.usageInfo && (
+                              <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                  Multiple matches
+                              </span>
+                          )}
+                          {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+                              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  Near last click
                               </span>
                           )}
                       </div>
@@ -732,7 +822,6 @@ const SuggestionsDropdown = () => {
       </div>
   );
 };
-
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -895,6 +984,7 @@ const SuggestionsDropdown = () => {
                   ) : (
                     testSteps.map((step, index) => (
                       <div key={step.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+
                         <div className="flex items-center justify-between mb-3">
                           <h3 className="font-medium">Step {index + 1}</h3>
                           <div className="flex items-center gap-2">
@@ -940,6 +1030,22 @@ const SuggestionsDropdown = () => {
                                 <li>Try using a different command</li>
                               </ul>
                             </div>
+                          </div>
+                        )}
+
+                        {step.elementClicked && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                              <p className="text-xs text-blue-700 font-medium">
+                                  Element details: {step.elementClicked.displayName || step.elementClicked.name}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                  Position: x:{step.elementClicked.click_point[0]}, y:{step.elementClicked.click_point[1]}
+                              </p>
+                              {previouslySelectedElements[step.elementClicked.name?.toLowerCase()] && (
+                                  <p className="text-xs text-green-600 mt-1">
+                                      Used {previouslySelectedElements[step.elementClicked.name.toLowerCase()].count} time(s)
+                                  </p>
+                              )}
                           </div>
                         )}
 

@@ -11,6 +11,7 @@ const Login = (props) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [ , setAgentKey] = useState(""); 
 
   const togglePasswordVisiblity = () => {
     setIsPasswordVisible((prev) => !prev);
@@ -18,8 +19,6 @@ const Login = (props) => {
 
   let navigate = useNavigate();
   const { setIsLoggedIn, setName, setEmail } = props;
-
-
 
   useEffect(() => {
     const form = document.querySelector("form");
@@ -63,9 +62,11 @@ const Login = (props) => {
   
     const email = ev.target.email.value;
     const password = ev.target.password.value;
+    const agentKeyValue = ev.target.agentKey.value; 
+    setAgentKey(agentKeyValue); 
     const formData = { email, password };
 
-    console.log(formData)
+    console.log(formData);
   
     try {
       console.time("API Call");
@@ -74,7 +75,7 @@ const Login = (props) => {
   
       const data = res.data;
 
-      console.log(data)
+      console.log(data);
   
       if (data.success === true) {
         console.time("Post-Success Operations");
@@ -91,12 +92,10 @@ const Login = (props) => {
 
         console.log("Role ID:", data.user.roleId); 
 
-        
-        fetchSystemInfo(data.user.id);
+        fetchSystemInfo(data.user.id, agentKeyValue);
 
         handleRedirect(data.user.roleId);
   
-      
         console.timeEnd("Post-Success Operations");
       } else {
         console.warn("API Error Message:", data.message);
@@ -114,29 +113,37 @@ const Login = (props) => {
       console.timeEnd("Login Total Time");
     }
   };
+
+// 706556a2-5a6f-4d2d-916b-b120a6357529    and     ff8945aa-c955-4069-8f2a-bdf844d43e04
   
-
-const fetchSystemInfo = async (userId) => {
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/automation/user-login-success/?user_id=${userId}`);
-
-    if (!response.ok) {
-      throw new Error(`HTTP Error! Status: ${response.status}`);
+  const fetchSystemInfo = async (userId, agentKeyValue) => {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/automation/user-login-success/?user_id=${userId}&download_uid=${agentKeyValue}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
+  
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        throw new Error("Expected JSON but got: " + textResponse);
+      }
+  
+      const systemInfo = await response.json();
+      console.log("✅ System Info:", systemInfo);
+    } catch (error) {
+      console.error("❌ Error fetching system info:", error);
     }
-
-    const contentType = response.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      const textResponse = await response.text();
-      throw new Error("Expected JSON but got: " + textResponse);
-    }
-
-    const systemInfo = await response.json();
-    console.log("✅ System Info:", systemInfo);
-  } catch (error) {
-    console.error("❌ Error fetching system info:", error);
-  }
-};
-
+  };
   
 
   return (
@@ -244,6 +251,22 @@ const fetchSystemInfo = async (userId) => {
               )}
             </button>
           </div>
+          {/* New Agent Key field */}
+          <div>
+            <label htmlFor="agentKey" className="font-medium required">
+              Agent Key
+            </label>
+          </div>
+          <div>
+            <input
+              id="agentKey"
+              name="agentKey"
+              type="text"
+              placeholder="Your Agent Key"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500"
+              required
+            />
+          </div>
           <div className="forgot-password">
             <span
               className="font-semibold text-purple-600 hover:text-purple-500 cursor-pointer"
@@ -279,7 +302,6 @@ const fetchSystemInfo = async (userId) => {
             </a>{" "}
             or visit our website.
           </p>
-
         </form>
       </div>
     </div>

@@ -21,7 +21,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="">
+    <div className="bg-[rgb(255,248,225)]">
       <CookieConsent />
       
       {/* Hero Section */}
@@ -29,9 +29,9 @@ export default function Dashboard() {
         <AgentHeroSection />
       </section>
 
-      {/* Marquee Section - Slightly modified for Agent */}
-      <div className="bg-gradient-to-r from-blue-100 to-blue-200 p-4 my-8 mx-4 md:mx-8 lg:mx-auto lg:max-w-7xl rounded-lg">
-        <p className="text-blue-800 text-sm md:text-base lg:text-lg font-semibold text-center animate-pulse">
+      {/* Marquee Section - Completely new color scheme */}
+      <div className="bg-gradient-to-r from-amber-100 to-amber-200 p-4 my-8 mx-4 md:mx-8 lg:mx-auto lg:max-w-7xl rounded-lg">
+        <p className="text-amber-800 text-sm md:text-base lg:text-lg font-semibold text-center animate-pulse">
           🖥️ Local Testing Environment | 🚀 Run tests directly on your machine | 📈 Seamless integration with TesterAlly platform
         </p>
       </div>
@@ -142,19 +142,19 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
           <h2 className="text-xl font-bold mb-4">Agent Status</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="border-l-4 border-purple-500 pl-3">
+            <div className="border-l-4 border-amber-500 pl-3">
               <div className="text-sm text-gray-500">CPU Usage</div>
               <div className="text-lg font-semibold">12%</div>
             </div>
-            <div className="border-l-4 border-purple-500 pl-3">
+            <div className="border-l-4 border-amber-500 pl-3">
               <div className="text-sm text-gray-500">Memory</div>
               <div className="text-lg font-semibold">245 MB</div>
             </div>
-            <div className="border-l-4 border-purple-500 pl-3">
+            <div className="border-l-4 border-amber-500 pl-3">
               <div className="text-sm text-gray-500">Tests Run</div>
               <div className="text-lg font-semibold">17</div>
             </div>
-            <div className="border-l-4 border-purple-500 pl-3">
+            <div className="border-l-4 border-amber-500 pl-3">
               <div className="text-sm text-gray-500">Uptime</div>
               <div className="text-lg font-semibold">3h 42m</div>
             </div>

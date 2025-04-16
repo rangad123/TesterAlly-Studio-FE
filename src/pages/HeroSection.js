@@ -24,24 +24,30 @@ const AgentHeroSection = () => {
 
     const renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(width, height);
-    renderer.setClearColor(0xedebfe, 0.3); // Keeping the original color
+    renderer.setClearColor(0xFFF8E1, 0.3); // Warm amber background color
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Modified particles effect - grid pattern instead of random
+    // Completely different particles effect - hexagonal pattern
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 1500; // Slightly reduced count
+    const particlesCount = 1800; // Increased count for more density
     const posArray = new Float32Array(particlesCount * 3);
     
-    // Create a more structured grid pattern
+    // Create a hexagonal lattice pattern
     let index = 0;
-    for (let i = -25; i <= 25; i += 2) {
-      for (let j = -25; j <= 25; j += 2) {
-        for (let k = -25; k <= 25; k += 5) {
+    const gridSize = 25; // Size of the overall grid
+    
+    for (let layer = -gridSize/2; layer < gridSize/2; layer += 2) {
+      for (let i = -gridSize; i < gridSize; i += 3) {
+        for (let j = -gridSize; j < gridSize; j += 3) {
           if (index < particlesCount * 3) {
-            posArray[index] = i + (Math.random() - 0.5) * 0.5; // x
+            // Offset every other row for hexagonal pattern
+            const xOffset = (Math.abs(layer) % 2) * 1.5;
+            
+            posArray[index] = i + xOffset + (Math.random() - 0.5) * 0.5; // x with offset
             posArray[index + 1] = j + (Math.random() - 0.5) * 0.5; // y
-            posArray[index + 2] = k + (Math.random() - 0.5) * 0.5; // z
+            posArray[index + 2] = layer + (Math.random() - 0.5) * 0.5; // z
+            
             index += 3;
           }
         }
@@ -51,10 +57,10 @@ const AgentHeroSection = () => {
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
 
     const particlesMaterial = new THREE.PointsMaterial({
-      size: 0.3, // Slightly larger particles
-      color: new THREE.Color('rgb(126, 58, 242)'), // Same purple color
+      size: 0.4, // Slightly larger points
+      color: new THREE.Color('rgb(245, 158, 11)'), // Amber color
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.8,
     });
 
     const particles = new THREE.Points(particlesGeometry, particlesMaterial);
@@ -63,10 +69,27 @@ const AgentHeroSection = () => {
 
     const animate = () => {
       requestAnimationFrame(animate);
-      // Different rotation pattern
-      particles.rotation.x += 0.0004;
-      particles.rotation.y += 0.0002;
-      particles.rotation.z += 0.0001;
+      
+      // Completely different rotation and animation pattern
+      particles.rotation.y += 0.0015;
+      
+      // Pulsating effect
+      const time = Date.now() * 0.0005;
+      const positions = particles.geometry.attributes.position.array;
+      
+      for (let i = 0; i < positions.length; i += 3) {
+        // Add a breathing effect to the particles
+        const originalZ = positions[i + 2];
+        const distance = Math.sqrt(
+          positions[i] * positions[i] + 
+          positions[i + 1] * positions[i + 1]
+        );
+        
+        // Create a ripple effect
+        positions[i + 2] = originalZ + Math.sin(time + distance * 0.5) * 0.3;
+      }
+      
+      particles.geometry.attributes.position.needsUpdate = true;
       renderer.render(scene, camera);
     };
 
@@ -92,7 +115,7 @@ const AgentHeroSection = () => {
   }, []);
 
   return (
-    <section className="relative bg-[rgb(237,235,254)] max-w-7xl mx-auto ">
+    <section className="relative bg-[rgb(255,248,225)] max-w-7xl mx-auto ">
       <div 
         ref={containerRef} 
         className="absolute inset-0 z-0"
@@ -104,13 +127,13 @@ const AgentHeroSection = () => {
 
         <motion.div 
             className="space-y-6 px-4"
-            initial={{ opacity: 0, y: 15 }} // Slightly different animation
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }} // Slightly faster
+            transition={{ duration: 0.7 }}
           >
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-[rgb(126,58,242)] mb-[40px]">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-[rgb(245,158,11)] mb-[40px]">
               Local Test Execution Environment
-              <div className="text-sm font-semibold mt-2 ml-8 text-[rgb(126,58,242)] flex items-center">
+              <div className="text-sm font-semibold mt-2 ml-8 text-[rgb(245,158,11)] flex items-center">
                 <FaDesktop className="mr-2" /> TesterAlly Agent
               </div>
             </h1>
@@ -137,15 +160,15 @@ const AgentHeroSection = () => {
 
           <motion.div 
             className="relative lg:h-[600px] sm:h-[300px]"
-            initial={{ opacity: 0, x: 20 }} // Different animation
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
             <img src={`${process.env.PUBLIC_URL}/agent-hero.svg`} className='lg:mt-[30px] sm:mt-[50px]' alt='TesterAlly Agent' />
             
-            {/* Simple network connection indicators */}
-            <div className="absolute top-1/2 left-1/3 w-8 h-8 rounded-full bg-purple-500 opacity-20 animate-ping" style={{animationDuration: '3s'}}></div>
-            <div className="absolute bottom-1/3 right-1/3 w-6 h-6 rounded-full bg-purple-500 opacity-15 animate-ping" style={{animationDuration: '4s', animationDelay: '1s'}}></div>
+            {/* Network connection indicators with updated colors */}
+            <div className="absolute top-1/2 left-1/3 w-8 h-8 rounded-full bg-amber-500 opacity-20 animate-ping" style={{animationDuration: '3s'}}></div>
+            <div className="absolute bottom-1/3 right-1/3 w-6 h-6 rounded-full bg-amber-500 opacity-15 animate-ping" style={{animationDuration: '4s', animationDelay: '1s'}}></div>
           </motion.div>
         </div>
       </div>
