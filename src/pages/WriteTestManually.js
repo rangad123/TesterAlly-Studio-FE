@@ -391,7 +391,6 @@ const addTestStep = async () => {
   const executionResult = await executeStep(newStepObj);
   
   // After successful execution, update the previouslySelectedElements
-  // In the addTestStep function, after execution:
   if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
     setLastClickCoordinates(newStepObj.selectedElement.click_point);
     const element = newStepObj.selectedElement;

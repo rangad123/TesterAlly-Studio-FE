@@ -6,12 +6,13 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Login.css";
 
 const URL = "http://127.0.0.1:8000/api/login/";
+const SYSTEM_CHECK_URL = "http://127.0.0.1:8000/installer/EXE_login/";
 
 const Login = (props) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
-  const [ , setAgentKey] = useState(""); 
+  const [, setAgentKey] = useState("");
 
   const togglePasswordVisiblity = () => {
     setIsPasswordVisible((prev) => !prev);
@@ -28,7 +29,7 @@ const Login = (props) => {
   }, []);
 
   const validateEmail = (email) => {
-    const domainRegex = /@.+\..+/; 
+    const domainRegex = /@.+\..+/;
     if (!domainRegex.test(email)) {
       setEmailError("Please include a valid domain name (e.g., example.com).");
     } else {
@@ -46,12 +47,43 @@ const Login = (props) => {
       case 2:
         navigate("/dashboard-user");
         break;
-      case 1: 
+      case 1:
         navigate("/admin-dashboard");
         break;
       default:
-        navigate("/dashboard/login"); 
+        navigate("/dashboard/login");
         break;
+    }
+  };
+
+  const verifySystemInfo = async ( downloadUid) => {
+    try {
+      console.time("System Verification");
+      const response = await axios.post(SYSTEM_CHECK_URL, {
+        "download_uid" : downloadUid
+      });
+      console.timeEnd("System Verification");
+
+      return {
+        success: true,
+        data: response.data
+      };
+
+    } catch (error) {
+      console.error("❌ Error verifying system:", error);
+      let errorMessage = "System verification failed.";
+      
+      if (error.response && error.response.data) {
+        errorMessage = error.response.data.error || error.response.data.Key_error || errorMessage;
+        if (errorMessage.includes("Download_uid does not match")) {
+          errorMessage = "Agent key does not match any agent.";
+        }
+      }
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
     }
   };
 
@@ -59,43 +91,58 @@ const Login = (props) => {
     ev.preventDefault();
     console.time("Login Total Time");
     setLoading(true);
-  
+
     const email = ev.target.email.value;
     const password = ev.target.password.value;
-    const agentKeyValue = ev.target.agentKey.value; 
-    setAgentKey(agentKeyValue); 
+    const agentKeyValue = ev.target.agentKey.value;
+    setAgentKey(agentKeyValue);
     const formData = { email, password };
 
-    console.log(formData);
-  
+    console.log("Login attempt with:", { email, agentKey: agentKeyValue });
+
     try {
+      // Step 1: Authenticate user
       console.time("API Call");
       const res = await axios.post(URL, formData);
       console.timeEnd("API Call");
-  
+
       const data = res.data;
 
-      console.log(data);
-  
       if (data.success === true) {
         console.time("Post-Success Operations");
-  
+
+
+        // Step 4: Verify system info before redirecting
+        const systemVerification = await verifySystemInfo(agentKeyValue);
+
+        console.log("agentKeyValue:",agentKeyValue)
+
+        // Step 2: Store user data in localStorage
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("userEmail", email);
         localStorage.setItem("userName", data.user.name);
         localStorage.setItem("userId", data.user.id);
         localStorage.setItem("user_id", data.user.user_id);
+        localStorage.setItem("agentKey", agentKeyValue);
 
+        // Step 3: Update app state
         setIsLoggedIn(true);
         setEmail(email);
         setName(data.user.name);
+        
+        if (systemVerification.success) {
+          console.log("✅ System verification successful:", systemVerification.data);
+          // System info matches, proceed with redirect
+          handleRedirect(data.user.roleId);
+          toast.success("Login successful!");
+        } else {
+          // System info doesn't match, show error and logout
+          toast.error(systemVerification.message || "System verification failed. Please use the correct device.");
+          // Reset login state
+          localStorage.clear();
+          setIsLoggedIn(false);
+        }
 
-        console.log("Role ID:", data.user.roleId); 
-
-        fetchSystemInfo(data.user.id, agentKeyValue);
-
-        handleRedirect(data.user.roleId);
-  
         console.timeEnd("Post-Success Operations");
       } else {
         console.warn("API Error Message:", data.message);
@@ -114,43 +161,11 @@ const Login = (props) => {
     }
   };
 
-// 706556a2-5a6f-4d2d-916b-b120a6357529    and     ff8945aa-c955-4069-8f2a-bdf844d43e04
-  
-  const fetchSystemInfo = async (userId, agentKeyValue) => {
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/automation/user-login-success/?user_id=${userId}&download_uid=${agentKeyValue}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-  
-      if (!response.ok) {
-        throw new Error(`HTTP Error! Status: ${response.status}`);
-      }
-  
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const textResponse = await response.text();
-        throw new Error("Expected JSON but got: " + textResponse);
-      }
-  
-      const systemInfo = await response.json();
-      console.log("✅ System Info:", systemInfo);
-    } catch (error) {
-      console.error("❌ Error fetching system info:", error);
-    }
-  };
-  
-
   return (
     <div className="w-full flex flex-col lg:flex-row justify-center items-center min-h-screen -mt-10 px-6 py-8 gap-8">
       <div className="hidden lg:block w-2/5 p-6 rounded-lg mt-[50px]">
         <img
-          src={`${process.env.PUBLIC_URL}/logo1.jpg`} 
+          src={`${process.env.PUBLIC_URL}/logo1.jpg`}
           alt="TesterAlly Login"
           className="w-full max-w-md mx-auto mb-6 rounded-3xl shadow-md transform hover:scale-105 transition-transform duration-300"
         />
@@ -233,6 +248,7 @@ const Login = (props) => {
           <div className="relative w-full">
             <input
               id="password"
+              name="password"
               type={isPasswordVisible ? "text" : "password"}
               placeholder="Your Password"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500"
@@ -251,7 +267,7 @@ const Login = (props) => {
               )}
             </button>
           </div>
-          {/* New Agent Key field */}
+          {/* Agent Key field */}
           <div>
             <label htmlFor="agentKey" className="font-medium required">
               Agent Key

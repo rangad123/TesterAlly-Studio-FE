@@ -376,29 +376,38 @@ return `${name}_${x}_${y}`;
 * @returns {Object} - Object with name groups and isDuplicate flags
 */
 export const identifyDuplicates = (elements) => {
-const nameGroups = {};
+  const nameGroups = {};
 
-// Group elements by name
-elements.forEach(element => {
-  if (!element.name) return;
-  
-  const lowerName = element.name.toLowerCase();
-  if (!nameGroups[lowerName]) {
-    nameGroups[lowerName] = [];
-  }
-  nameGroups[lowerName].push(element);
-});
+  // Group elements by name
+  elements.forEach(element => {
+    if (!element.name) return;
+    
+    const lowerName = element.name.toLowerCase();
+    if (!nameGroups[lowerName]) {
+      nameGroups[lowerName] = [];
+    }
+    nameGroups[lowerName].push(element);
+  });
 
-// Add isDuplicate flag to each element
-const elementsWithDuplicateFlag = elements.map(element => {
-  if (!element.name) return { ...element, isDuplicate: false };
-  
-  const lowerName = element.name.toLowerCase();
-  const isDuplicate = nameGroups[lowerName].length > 1;
-  return { ...element, isDuplicate };
-});
+  // Add isDuplicate flag and position number to each element
+  const elementsWithDuplicateFlag = elements.map(element => {
+    if (!element.name) return { ...element, isDuplicate: false, positionNumber: 0 };
+    
+    const lowerName = element.name.toLowerCase();
+    const isDuplicate = nameGroups[lowerName].length > 1;
+    
+    // Assign position numbers (1-based) for elements with the same name
+    let positionNumber = 0;
+    if (isDuplicate) {
+      positionNumber = nameGroups[lowerName].findIndex(el => 
+        el === element
+      ) + 1;
+    }
+    
+    return { ...element, isDuplicate, positionNumber };
+  });
 
-return { nameGroups, elementsWithDuplicateFlag };
+  return { nameGroups, elementsWithDuplicateFlag };
 };
 
 /**
@@ -409,24 +418,28 @@ return { nameGroups, elementsWithDuplicateFlag };
 * @returns {string} - A descriptive display name
 */
 export const createDisplayName = (element, index, isDuplicate) => {
-if (!element.name) return 'Unknown Element';
-if (!isDuplicate) return element.name;
+  if (!element.name) return 'Unknown Element';
+  if (!isDuplicate) return element.name;
 
-// Create more descriptive names for duplicates
-const elementType = element.type || element.tag || 'element';
-const displayName = `${element.name} (${elementType}`;
+  // Create more descriptive names for duplicates, now with position number
+  if (element.positionNumber) {
+    return `${element.name} position${element.positionNumber}`;
+  }
+  
+  // Fallback to the original logic if positionNumber is not available
+  const elementType = element.type || element.tag || 'element';
+  const displayName = `${element.name} (${elementType}`;
 
-// Add position info
-const positionInfo = element.click_point ? 
-  `, x:${Math.round(element.click_point[0])}, y:${Math.round(element.click_point[1])}` : 
-  `, pos: ${index + 1}`;
+  // Add position info
+  const positionInfo = element.click_point ? 
+    `, x:${Math.round(element.click_point[0])}, y:${Math.round(element.click_point[1])}` : 
+    `, pos: ${index + 1}`;
 
-// Add text content preview if available
-const textPreview = element.text ? `, text: "${element.text.substring(0, 10)}${element.text.length > 10 ? '...' : ''}"` : '';
+  // Add text content preview if available
+  const textPreview = element.text ? `, text: "${element.text.substring(0, 10)}${element.text.length > 10 ? '...' : ''}"` : '';
 
-return `${displayName}${positionInfo}${textPreview})`;
+  return `${displayName}${positionInfo}${textPreview})`;
 };
-
 /**
 * Returns enhanced elements with relevance scores for suggestions
 * @param {Array} elements - All available elements
@@ -552,10 +565,23 @@ export const createEnhancedDisplayName = (element, index, isDuplicate, proximity
   if (!element.name) return 'Unknown Element';
   if (!isDuplicate && !proximityIndicator) return element.name;
   
-  // Create base name
+  // Use position number for duplicate elements
+  if (isDuplicate && element.positionNumber) {
+    // Simple format for duplicates
+    const baseName = `${element.name} position${element.positionNumber}`;
+    
+    // Optionally add proximity indicator if available
+    if (proximityIndicator) {
+      return `${baseName} (${proximityIndicator})`;
+    }
+    return baseName;
+  }
+  
+  // Create base name using original logic
   const elementType = element.type || element.tag || 'element';
   let displayName = `${element.name} (${elementType}`;
   
+  // Rest of the original function...
   // Add position info
   if (element.click_point) {
     const [x, y] = element.click_point;
