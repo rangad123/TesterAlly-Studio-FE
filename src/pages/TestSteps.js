@@ -359,7 +359,6 @@ useEffect(() => {
   };
     
 
-
   const executeTestSteps = async (stepIds) => {
     setIsExecuting(true);
     setExecutionResults({});
@@ -492,7 +491,7 @@ useEffect(() => {
           }),
         });
         
-        console.log("click", stepDescription, [clickX, clickY]);
+        console.log("before click command:", stepDescription, [clickX, clickY]);
         
         if (!response.ok) {
           throw new Error('Failed to execute click command');
@@ -565,6 +564,135 @@ useEffect(() => {
           screenshot: screenshotUrl,
           coordinates: stepCoordinates,
           elementAction: { click_point: [clickX, clickY] },
+        };
+      }
+      else if (lowerCaseStep.startsWith('verify')) {
+        const clickX = stepCoordinates.click_x;
+        const clickY = stepCoordinates.click_y;
+        
+        if (!clickX || !clickY) {
+          throw new Error(`No coordinates found for verify step: "${stepDescription}"`);
+        }
+        
+        const verificationType = stepCoordinates.verification_type || 'text';
+        
+        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            command: lowerCaseStep,
+            user_id: user_id,
+            click_x: clickX,
+            click_y: clickY,
+            verification_type: verificationType
+          }),
+        });
+        
+        console.log("verify", stepDescription, [clickX, clickY], verificationType);
+        
+        if (!response.ok) {
+          throw new Error('Failed to execute verify command');
+        }
+        
+        const data = await response.json();
+        console.log("Verify response:", data);
+        
+        const screenshotUrl = data.screenshot ? 
+          `http://127.0.0.1:8000${data.screenshot}` : 
+          `/api/placeholder/800/300?text=No_Screenshot`;
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.status || "Verification completed",
+          screenshot: screenshotUrl,
+          coordinates: stepCoordinates,
+          verificationType: verificationType,
+          verifiedText: data.copied_text || "",
+          elementVerified: { click_point: [clickX, clickY] },
+        };
+      }
+      else if (lowerCaseStep.startsWith('get')) {
+        const clickX = stepCoordinates.click_x;
+        const clickY = stepCoordinates.click_y;
+        
+        if (!clickX || !clickY) {
+          throw new Error(`No coordinates found for get step: "${stepDescription}"`);
+        }
+        
+        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            command: lowerCaseStep,
+            user_id: user_id,
+            click_x: clickX,
+            click_y: clickY,
+            action_type: 'get'
+          }),
+        });
+        
+        console.log("get", stepDescription, [clickX, clickY]);
+        
+        if (!response.ok) {
+          throw new Error('Failed to execute get command');
+        }
+        
+        const data = await response.json();
+        console.log("Get response:", data);
+        
+        const screenshotUrl = data.screenshot ? 
+          `http://127.0.0.1:8000${data.screenshot}` : 
+          `/api/placeholder/800/300?text=No_Screenshot`;
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.status || "Retrieved element text successfully",
+          screenshot: screenshotUrl,
+          coordinates: stepCoordinates,
+          retrievedText: data.copied_text || "",
+          elementRetrieved: { click_point: [clickX, clickY] },
+        };
+      }
+      else if (lowerCaseStep.startsWith('scrollup') || lowerCaseStep.startsWith('scrolldown')) {
+        const isScrollUp = lowerCaseStep.startsWith('scrollup');
+        const updatedCommand = isScrollUp ? "scroll_up page" : "scroll_down page";
+        
+        console.log(`Converting '${isScrollUp ? 'scrollup' : 'scrolldown'}' to '${updatedCommand}'`);
+        
+        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            command: updatedCommand,
+            user_id: user_id
+          }),
+        });
+    
+        if (!response.ok) {
+          throw new Error(`Failed to execute ${isScrollUp ? 'scroll up' : 'scroll down'} command`);
+        }
+        
+        const data = await response.json();
+        console.log("Scroll Response:", data);
+        
+        const screenshotUrl = data.screenshot ? 
+          `http://127.0.0.1:8000${data.screenshot}` : 
+          `/api/placeholder/800/300?text=No_Screenshot`;
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.message || `${isScrollUp ? 'Scroll up' : 'Scroll down'} executed successfully`,
+          screenshot: screenshotUrl,
+          coordinates: stepCoordinates,
         };
       }
       else {

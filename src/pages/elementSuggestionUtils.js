@@ -1,182 +1,3 @@
-/*
-/**
- * Scores an element based on various criteria
- * @param {Object} element - The element object
- * @param {string} searchTerm - The search term
- * @param {string} commandType - The command type (click/type)
- * @param {Object} previousState - Contains previous clicks and coordinate information
- * @returns {number} - Score between 0-100 (higher is better)
-
-
-
-export const scoreElement = (element, searchTerm, commandType, previousState = {}) => {
-  if (!element || !element.name) return 0;
-  
-  let score = 0;
-  const elementName = element.name.toLowerCase();
-  const elementType = (element.type || '').toLowerCase();
-  const elementTag = (element.tag || '').toLowerCase();
-  const elementRole = (element.role || '').toLowerCase();
-  
-  // Base score for having a name
-  score += 20;
-  
-  // Search term matching logic
-  if (searchTerm) {
-    // Exact match gets highest priority
-    if (elementName === searchTerm) {
-      score += 60;
-    } 
-    // Starts with search term
-    else if (elementName.startsWith(searchTerm)) {
-      score += 40;
-    }
-    // Contains search term as a word
-    else if (elementName.includes(` ${searchTerm} `) || 
-             elementName.startsWith(`${searchTerm} `) || 
-             elementName.endsWith(` ${searchTerm}`)) {
-      score += 35;
-    }
-    // Contains search term anywhere
-    else if (elementName.includes(searchTerm)) {
-      score += 30;
-    }
-  }
-  
-  // Boost score based on element type for click commands
-  if (commandType === 'click') {
-    // Buttons and links get priority for click commands
-    if (elementType === 'button' || elementTag === 'button') {
-      score += 15;
-    } else if (elementType === 'link' || elementTag === 'a') {
-      score += 12;
-    } else if (elementRole === 'button') {
-      score += 10;
-    } else if (elementTag === 'input' && element.type === 'submit') {
-      score += 10;
-    }
-    
-    // Interactive elements get a small boost
-    if (['div', 'span', 'li', 'img'].includes(elementTag)) {
-      score += 5;
-    }
-  } 
-  // Boost score based on element type for type commands
-  else if (commandType === 'type') {
-    // Input fields get priority for type commands
-    if (elementTag === 'input' || elementTag === 'textarea') {
-      score += 15;
-    } else if (elementType === 'input' || elementType === 'textarea') {
-      score += 15;
-    } else if (elementRole === 'textbox') {
-      score += 12;
-    } else if (elementTag === 'div' && element.contentEditable === 'true') {
-      score += 10;
-    }
-  }
-  
-  // Elements with text content that matches search term get a boost
-  if (searchTerm && element.text && element.text.toLowerCase().includes(searchTerm)) {
-    score += 8;
-  }
-  
-  // Visible elements get priority
-  if (element.visible !== false) {
-    score += 5;
-  }
-  
-  // Proximity to last click boost with improved weighting
-  if (previousState.lastClickCoordinates && element.click_point) {
-    const [lastX, lastY] = previousState.lastClickCoordinates;
-    const [elementX, elementY] = element.click_point;
-    
-    // Calculate distance using Euclidean distance
-    const distance = Math.sqrt(
-      Math.pow(elementX - lastX, 2) + 
-      Math.pow(elementY - lastY, 2)
-    );
-    
-    // Enhanced proximity scoring with different tiers
-    if (distance < 5) {
-      // Almost exact location match
-      score += 40;
-    } else if (distance < 20) {
-      // Very close proximity
-      score += 30;
-    } else if (distance < 100) {
-      // Moderate proximity - non-linear scale
-      score += Math.max(0, 25 - Math.pow(distance/20, 1.5));
-    } else {
-      // Far but still influenced by distance
-      score += Math.max(0, 15 - (distance / 50));
-    }
-  }
-  
-  // Previously clicked elements get a boost - IMPROVED
-  if (previousState.previouslySelectedElements) {
-    // Check exact element match by coordinates and name
-    if (element.click_point && element.name) {
-      const x = Math.round(element.click_point[0]);
-      const y = Math.round(element.click_point[1]);
-      const exactKey = `${element.name.toLowerCase()}_${x}_${y}`;
-      
-      if (previousState.previouslySelectedElements[exactKey]) {
-        const prevElement = previousState.previouslySelectedElements[exactKey];
-        
-        // Huge boost if this was the last executed element
-        if (prevElement.lastExecutedElement) {
-          score += 70;
-        } else {
-          const recencyBonus = Math.min(20, Math.max(0, 20 - ((Date.now() - prevElement.lastSelected) / 60000)));
-          const frequencyBonus = Math.min(15, prevElement.count * 3);
-          score += recencyBonus + frequencyBonus;
-        }
-      } else {
-        // Check if any element with the same name was previously clicked
-        // This helps with situations where the same element appears in different locations
-        const nameMatchKeys = Object.keys(previousState.previouslySelectedElements)
-          .filter(key => key.startsWith(element.name.toLowerCase() + '_'));
-        
-        if (nameMatchKeys.length > 0) {
-          // Find the closest matching element by coordinates
-          let closestDist = Infinity;
-          let closestElement = null;
-          
-          for (const key of nameMatchKeys) {
-            const prevElement = previousState.previouslySelectedElements[key];
-            if (prevElement.coordinates) {
-              const dist = Math.sqrt(
-                Math.pow(prevElement.coordinates[0] - x, 2) + 
-                Math.pow(prevElement.coordinates[1] - y, 2)
-              );
-              
-              if (dist < closestDist) {
-                closestDist = dist;
-                closestElement = prevElement;
-              }
-            }
-          }
-          
-          if (closestElement) {
-            // Boost based on proximity to previously clicked element with same name
-            if (closestDist < 20) {
-              // Very close - likely the same element but coordinates shifted slightly
-              score += closestElement.lastExecutedElement ? 40 : 25;
-            } else if (closestDist < 100) {
-              // Somewhat close - could be related
-              score += closestElement.lastExecutedElement ? 20 : 10;
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  // Prevent score from exceeding 100 (before adding last executed bonus)
-  return Math.min(score, 100);
-};
-*/
-
 /**
  * Enhanced version of scoreElement that puts stronger emphasis on proximity to last clicked element
  * @param {Object} element - The element object
@@ -191,8 +12,6 @@ export const scoreElement = (element, searchTerm, commandType, previousState = {
   let score = 0;
   const elementName = element.name.toLowerCase();
   const elementType = (element.type || '').toLowerCase();
-  const elementTag = (element.tag || '').toLowerCase();
-  const elementRole = (element.role || '').toLowerCase();
   
   // Base score for having a name
   score += 20;
@@ -221,33 +40,26 @@ export const scoreElement = (element, searchTerm, commandType, previousState = {
   
   // Boost score based on element type for click commands
   if (commandType === 'click') {
-    // Buttons and links get priority for click commands
-    if (elementType === 'button' || elementTag === 'button') {
-      score += 15;
-    } else if (elementType === 'link' || elementTag === 'a') {
-      score += 12;
-    } else if (elementRole === 'button') {
-      score += 10;
-    } else if (elementTag === 'input' && element.type === 'submit') {
-      score += 10;
-    }
-    
-    // Interactive elements get a small boost
-    if (['div', 'span', 'li', 'img'].includes(elementTag)) {
-      score += 5;
+    if (element.interactivity === true) {
+      score += 15;  
     }
   } 
-  // Boost score based on element type for type commands
   else if (commandType === 'type') {
-    // Input fields get priority for type commands
-    if (elementTag === 'input' || elementTag === 'textarea') {
+    if (elementType === 'icon' || elementType === 'textarea') {
       score += 15;
-    } else if (elementType === 'input' || elementType === 'textarea') {
-      score += 15;
-    } else if (elementRole === 'textbox') {
-      score += 12;
-    } else if (elementTag === 'div' && element.contentEditable === 'true') {
-      score += 10;
+    }
+  }
+  else if (commandType === 'verify' || commandType === 'get' ) {
+    if (elementType === 'text') {
+      score += 30;  // Major boost for text elements
+    }
+    
+    if (searchTerm && elementName.includes(searchTerm)) {
+      score += 25;
+    }
+
+    if (element.interactivity === true) {
+      score -= 10;
     }
   }
   
@@ -271,25 +83,35 @@ export const scoreElement = (element, searchTerm, commandType, previousState = {
     const distance = Math.sqrt(
       Math.pow(elementX - lastX, 2) + 
       Math.pow(elementY - lastY, 2)
-    );
+    ); 
+    let proximityScore = 0;
     
     // Dramatically enhanced proximity scoring with different tiers
     if (distance < 5) {
       // Almost exact location match - maximum proximity boost
-      score += 70;
+      proximityScore = 70;
+      console.log(`  VERY HIGH PROXIMITY: ${proximityScore} points (distance < 5px)`);
     } else if (distance < 50) {
       // Very close proximity - high boost with sharp falloff
-      score += Math.max(0, 65 - Math.pow(distance/10, 1.5));
+      proximityScore = Math.max(0, 65 - Math.pow(distance/10, 1.5));
+      console.log(`  HIGH PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 50px)`);
+
     } else if (distance < 150) {
       // Moderate proximity - moderate boost
-      score += Math.max(0, 40 - Math.pow(distance/30, 1.5));
+      proximityScore = Math.max(0, 40 - Math.pow(distance/30, 1.5));
+      console.log(`  MODERATE PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 150px)`);
     } else if (distance < 300) {
       // Further away but still in view
-      score += Math.max(0, 20 - (distance / 30));
+      proximityScore = Math.max(0, 20 - (distance / 30));
+      console.log(`  LOW PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 300px)`);
     } else {
       // Far but still somewhat relevant
-      score += Math.max(0, 10 - (distance / 100));
+      proximityScore = Math.max(0, 10 - (distance / 100));
+      console.log(`  DISTANT: ${proximityScore.toFixed(2)} points (distance >= 300px)`);
     }
+    
+    score += proximityScore;
+    console.log(`  Current total score after proximity: ${score.toFixed(2)}`);
   }
   
   // Previously clicked elements boost logic remains, but with adjusted values
@@ -471,7 +293,8 @@ export const getSuggestedElements = (elements, searchTerm, commandType, state = 
   
   // Sort by score (descending)
   const sortedElements = elementsWithDuplicateFlag.sort((a, b) => b.score - a.score);
-  
+
+
   // Enhance with display names and usage info
   const result = sortedElements.map((element, index) => {
     const displayName = createDisplayName(element, index, element.isDuplicate);
@@ -528,7 +351,12 @@ export const getSuggestedElements = (elements, searchTerm, commandType, state = 
     
     return { ...element, displayName, usageInfo };
   });
-  
+/*  
+  console.log(`\n--- FINAL TOP 10 ELEMENTS WITH DISPLAY NAMES ---`);
+  result.slice(0, 10).forEach((element, index) => {
+    console.log(`#${index + 1}: ${element.displayName} (Score: ${element.score.toFixed(2)})${element.usageInfo ? ` - ${element.usageInfo}` : ''}`);
+  });
+*/  
   // Return top matches limited to 20
   return result.slice(0, 20);
 };

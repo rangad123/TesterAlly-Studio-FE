@@ -13,6 +13,8 @@ const Login = (props) => {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [, setAgentKey] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+
 
   const togglePasswordVisiblity = () => {
     setIsPasswordVisible((prev) => !prev);
@@ -87,6 +89,25 @@ const Login = (props) => {
     }
   };
 
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem("rememberEmail");
+    const rememberedPassword = localStorage.getItem("rememberPassword");
+    const rememberedAgentKey = localStorage.getItem("rememberAgentKey"); 
+  
+    if (rememberedEmail && rememberedPassword) {
+      document.getElementById("email").value = rememberedEmail;
+      document.getElementById("password").value = rememberedPassword;
+      document.getElementById("agentKey").value = rememberedAgentKey;
+      setRememberMe(true);
+    }
+  
+    const form = document.querySelector("form");
+    if (form) {
+      form.setAttribute("autocomplete", "off");
+    }
+  }, []);
+  
+
   const handleLogin = async (ev) => {
     ev.preventDefault();
     console.time("Login Total Time");
@@ -124,6 +145,17 @@ const Login = (props) => {
         localStorage.setItem("userId", data.user.id);
         localStorage.setItem("user_id", data.user.user_id);
         localStorage.setItem("agentKey", agentKeyValue);
+
+        if (rememberMe) {
+          localStorage.setItem("rememberEmail", email);
+          localStorage.setItem("rememberPassword", password);
+          localStorage.setItem("rememberAgentKey", agentKeyValue);
+        } else {
+          localStorage.removeItem("rememberEmail");
+          localStorage.removeItem("rememberPassword");
+          localStorage.removeItem("rememberAgentKey");
+        }
+        
 
         // Step 3: Update app state
         setIsLoggedIn(true);
@@ -295,6 +327,8 @@ const Login = (props) => {
             <input
               type="checkbox"
               id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 dark:focus:ring-purple-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             />
             <label htmlFor="remember" className="font-medium">

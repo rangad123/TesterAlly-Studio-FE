@@ -19,6 +19,13 @@ const WriteTestManually = () => {
     projectId: ''
   });
 
+  const [verificationModal, setVerificationModal] = useState({
+    isOpen: false,
+    textToVerify: '',
+    matchingElements: [],
+    selectedElement: null
+  });
+
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [commandType, setCommandType] = useState('');
@@ -109,7 +116,7 @@ const WriteTestManually = () => {
     const firstWord = words[0];
     
     // Check if the command is a click or type command
-    if (['click', 'type'].includes(firstWord)) {
+    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
         setCommandType(firstWord);
         
         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
@@ -130,6 +137,11 @@ const WriteTestManually = () => {
             if (inIndex !== -1) {
                 searchTerm = inputText.substring(inIndex + 4).trim();
             }
+        }else if (firstWord === 'verify' && words.length > 1) {
+          // For verify commands, everything after "verify" is the search term
+          searchTerm = words.slice(1).join(' ').toLowerCase();
+        }else if (firstWord === 'get' && words.length > 1) {
+          searchTerm = words.slice(1).join(' ').toLowerCase();
         }
         
         // Get last click coordinates from executed steps
@@ -146,9 +158,15 @@ const WriteTestManually = () => {
                 lastClickCoordinates 
             }
         );
+
+        
         
         setSuggestions(suggestedElements);
         setShowSuggestions(suggestedElements.length > 0);
+        
+    } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
+      setCommandType('scroll');
+      setShowSuggestions(false);
     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
         setCommandType('open');
         setShowSuggestions(false);
@@ -192,284 +210,524 @@ const getLastClickCoordinates = (steps) => {
     }
   };
 
-const executeStep = async (stepObj) => {
-  setIsProcessing(true);
-
-  try {
-      const stepDescription = stepObj.description;
-      const words = stepDescription.trim().split(' ');
-      
-      const actionType = words[0].toLowerCase();
-      words[0] = actionType;
-
-      const updatedStepDescription = words.join(' ');
+  const executeStep = async (stepObj) => {
+    setIsProcessing(true);
   
-      console.log("Updated Step Description:", updatedStepDescription); 
+    try {
+        const stepDescription = stepObj.description;
+        const words = stepDescription.trim().split(' ');
+        
+        const actionType = words[0].toLowerCase();
+        words[0] = actionType;
   
+        let updatedStepDescription = stepDescription;
     
-      const stepIndex = testSteps.length;
-      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+        if (actionType === 'scrollup') {
+          updatedStepDescription = "scroll_up page";
+          console.log("Converting 'scrollup' to 'scroll_up page'");
+        } else if (actionType === 'scrolldown') {
+          updatedStepDescription = "scroll_down page";
+          console.log("Converting 'scrolldown' to 'scroll_down page'");
+        } else {
+          words[0] = actionType;
+          updatedStepDescription = words.join(' ');
+        }
+
+        console.log("Updated Step Description:", updatedStepDescription); 
+        
+      
+        const stepIndex = testSteps.length;
+        if (actionType === 'scrollup' || actionType === 'scrolldown') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${actionType === 'scrollup' ? 'up' : 'down'}, please wait...`);
+        } else if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
-      } else if (actionType === 'click') {
+        } else if (actionType === 'click') {
           setLoadingMessage(`Step ${stepIndex + 1}: Executing click, please wait...`);
-      } else if (actionType === 'type') {
+        } else if (actionType === 'type') {
           setLoadingMessage(`Step ${stepIndex + 1}: Typing text, please wait...`);
-      } else {
+        } else if (actionType === 'verify') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Verifying element, please wait...`);
+        } else if (actionType === 'get') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
+        } else {
           setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
-      }
+        }
 
-      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ command: updatedStepDescription, user_id: user_id }), 
-          });
-
-          console.log("Open URL:", updatedStepDescription);
-          console.log("User_Id:", user_id);
-
-          if (!response.ok) {
-              throw new Error('Failed to execute navigation command');
-          }
-
-          const data = await response.json();
-          console.log("Response:", data);
-
-          if (data.omniparser_data && data.omniparser_data.elements) {
-              setElementData(data.omniparser_data);
-              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-          }
-
-          const screenshotUrl = data.screenshot
-              ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
-
-          console.log("Screenshot URL:", screenshotUrl);
-          
-          return {
-              status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-              message: data.status || "Page loaded successfully",
-              screenshot: screenshotUrl,
-              coordinates: data.omniparser_data,
-          };
-
-      } else if (actionType === 'click' || actionType === 'type') {
-          
+  
+        if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+            const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: updatedStepDescription, user_id: user_id }), 
+            });
+  
+            console.log("Open URL:", updatedStepDescription);
+            console.log("User_Id:", user_id);
+  
+            if (!response.ok) {
+                throw new Error('Failed to execute navigation command');
+            }
+  
+            const data = await response.json();
+            console.log("Response:", data);
+  
+            if (data.omniparser_data && data.omniparser_data.elements) {
+                setElementData(data.omniparser_data);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            }
+  
+            const screenshotUrl = data.screenshot
+                ? `http://127.0.0.1:8000${data.screenshot}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
+  
+            console.log("Screenshot URL:", screenshotUrl);
+            
+            return {
+                status: 'complete',
+                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                message: data.status || "Page loaded successfully",
+                screenshot: screenshotUrl,
+                coordinates: data.omniparser_data,
+            };
+  
+        } else if (actionType === 'click' || actionType === 'type') {
+            
+            const selectedElement = stepObj.selectedElement;
+            
+            if (!selectedElement) {
+                throw new Error(`No element selected for this action. Please select an element from the suggestions.`);
+            }
+  
+            let requestBody = {
+                command: stepDescription, 
+                user_id: user_id,
+                click_x: selectedElement.click_point[0],
+                click_y: selectedElement.click_point[1],
+            };
+  
+            if (actionType === 'type') {
+                const inIndex = stepDescription.toLowerCase().indexOf(' in ');
+                if (inIndex !== -1) {
+                    const textToType = stepDescription.substring(5, inIndex);
+                    requestBody.input_text = textToType;
+                }
+            }
+  
+            console.log(`Sending coordinates for ${actionType} step:`, {
+                click_x: selectedElement.click_point[0],
+                click_y: selectedElement.click_point[1],
+                requestBody
+            });
+  
+            const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+  
+            console.log(actionType, stepDescription, selectedElement.click_point);
+  
+            if (!response.ok) {
+                throw new Error(`Failed to execute ${actionType} command`);
+            }
+  
+            const data = await response.json();
+            console.log(`${actionType} response:`, data);
+  
+            if (data.coordinates && data.coordinates.elements) {
+                setElementData(data.coordinates);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
+            }
+  
+            const screenshotUrl = data.screenshot
+                ? `http://127.0.0.1:8000${data.screenshot}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
+  
+  
+            return {
+                status: 'complete',
+                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
+                screenshot: screenshotUrl,
+                coordinates: data.coordinates || elementData,
+                elementAction: selectedElement,
+                requestBody,
+            };
+        } else if (actionType === 'verify') {
           const selectedElement = stepObj.selectedElement;
-          
+            
           if (!selectedElement) {
-              throw new Error(`No element selected for this action. Please select an element from the suggestions.`);
+              throw new Error(`No element selected for verification. Please select an element from the suggestions.`);
           }
-
+          const verificationType = stepObj.verificationType || 'text';
+  
           let requestBody = {
               command: stepDescription, 
               user_id: user_id,
               click_x: selectedElement.click_point[0],
               click_y: selectedElement.click_point[1],
+              verification_type: verificationType
           };
-
-          if (actionType === 'type') {
-              const inIndex = stepDescription.toLowerCase().indexOf(' in ');
-              if (inIndex !== -1) {
-                  const textToType = stepDescription.substring(5, inIndex);
-                  requestBody.input_text = textToType;
-              }
-          }
-
-          console.log(`Sending coordinates for ${actionType} step:`, {
-              click_x: selectedElement.click_point[0],
-              click_y: selectedElement.click_point[1],
-              requestBody
-          });
-
+  
+          console.log(`Sending coordinates for verify step:`, requestBody);
+  
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
+              body: JSON.stringify(requestBody), 
           });
-
-          console.log(actionType, stepDescription, selectedElement.click_point);
-
+  
           if (!response.ok) {
-              throw new Error(`Failed to execute ${actionType} command`);
+              throw new Error(`Failed to execute verify command`);
           }
-
+  
           const data = await response.json();
-          console.log(`${actionType} response:`, data);
-
-          if (data.coordinates && data.coordinates.elements) {
-              setElementData(data.coordinates);
-              sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
-          }
-
-          const screenshotUrl = data.screenshot
-              ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
-
-
-          return {
-              status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-              message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
-              screenshot: screenshotUrl,
-              coordinates: data.coordinates || elementData,
-              elementAction: selectedElement,
-              requestBody,
-          };
-      } else {
-          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ command: stepDescription }), 
-          });
-
-          if (!response.ok) {
-              throw new Error('Failed to execute command');
-          }
-
-          const data = await response.json();
-
+          console.log(`Verify response:`, data);
+  
           if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
               sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
           }
-
+  
           const screenshotUrl = data.screenshot
               ? `http://127.0.0.1:8000${data.screenshot}`
               : `/api/placeholder/800/300?text=No_Screenshot`;
-
+  
+//              const verificationPassed = c.verify_result === "pass";
+  
           return {
+//              status: verificationPassed ? 'complete' : 'error',
               status: 'complete',
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-              message: data.status || "Command executed successfully",
+              message: data.status,
               screenshot: screenshotUrl,
               coordinates: data.coordinates,
+              verificationType: verificationType,
+//              verificationResult: verificationPassed ? 'passed' : 'failed',
+              verifiedText: data.copied_text || "",
+              elementVerified: selectedElement,
+              requestBody,
           };
-      }
-  } catch (error) {
-      console.error('Step execution error:', error);
-      return {
-          status: 'error',
-          duration: '00:00',
-          error: error.message
-      };
-  } finally {
-      setIsProcessing(false);
-      setLoadingMessage('');
-  }
-};
+        } else if (actionType === 'scrollup' || actionType === 'scrolldown') {
+          const requestBody = { 
+            command: updatedStepDescription, 
+            user_id: user_id
+          };
 
+          console.log("Scroll Request Body:", requestBody);
 
-const addTestStep = async () => {
-  if (!newStep.trim() || isProcessing) return;
-  
-  setShowSuggestions(false);
-  
-  const words = newStep.trim().split(' ');
-  const actionType = words[0].toLowerCase();
-  
-  if ((actionType === 'click' || actionType === 'type') && !selectedElement) {
-    alert("Please select an element from the suggestions before adding this step.");
-    return;
-  }
-  
-  const newStepObj = {
-    id: Date.now(),
-    description: newStep,
-    status: 'pending',
-    duration: '00:00',
-    screenshot: null,
-    selectedElement: selectedElement 
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          });
+
+          if (!response.ok) throw new Error(`Failed to execute ${actionType} command`);
+            const data = await response.json();
+            
+            console.log("Scroll Response:", data);
+
+          if (data.omniparser_data && data.omniparser_data.elements) {
+            setElementData(data.omniparser_data);
+            sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+          }
+
+          const screenshotUrl = data.screenshot
+            ? `http://127.0.0.1:8000${data.screenshot}`
+            : `/api/placeholder/800/300?text=No_Screenshot`;
+
+          return {
+            status: 'complete',
+            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+            message: data.message || `${actionType} executed successfully`,
+            screenshot: screenshotUrl,
+            coordinates: data.coordinates || {},
+            requestBody,
+          };
+        } else if (actionType === 'get') {
+            const selectedElement = stepObj.selectedElement;
+                
+            if (!selectedElement) {
+              throw new Error(`No element selected for get operation. Please select an element from the suggestions.`);
+            }
+
+            let requestBody = {
+              command: stepDescription, 
+              user_id: user_id,
+              click_x: selectedElement.click_point[0],
+              click_y: selectedElement.click_point[1],
+              action_type: 'get' 
+            };
+
+            console.log(`Sending coordinates for get step:`, requestBody);
+
+            const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody), 
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to execute get command`);
+            }
+
+            const data = await response.json();
+            console.log(`Get response:`, data);
+
+            if (data.omniparser_data && data.omniparser_data.elements) {
+              setElementData(data.omniparser_data);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            }
+
+            const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
+
+            return {
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.status || "Retrieved element text successfully",
+              screenshot: screenshotUrl,
+              coordinates: data.coordinates,
+              retrievedText: data.copied_text || "",
+              elementRetrieved: selectedElement,
+              requestBody,
+            };
+          }
+
+    } catch (error) {
+        console.error('Step execution error:', error);
+        return {
+            status: 'error',
+            duration: '00:00',
+            error: error.message
+        };
+    } finally {
+        setIsProcessing(false);
+        setLoadingMessage('');
+    }
   };
-  
-  setSelectedElement(null);
-  
-  setTestSteps(prev => [...prev, newStepObj]);
-  setNewStep('');
-  
-  const executionResult = await executeStep(newStepObj);
-  
-  // After successful execution, update the previouslySelectedElements
-  if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
-    setLastClickCoordinates(newStepObj.selectedElement.click_point);
-    const element = newStepObj.selectedElement;
 
-    // Make sure click_point exists before accessing
-    if (element.click_point) {
-      const x = Math.round(element.click_point[0]);
-      const y = Math.round(element.click_point[1]);
-      const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+
+  const addTestStep = async () => {
+    if (!newStep.trim() || isProcessing) return;
+    
+    setShowSuggestions(false);
+    
+    const words = newStep.trim().split(' ');
+    const actionType = words[0].toLowerCase();
+    
+    // For verification steps, check if the text exists in cached element data first
+    if (actionType === 'verify') {
+      const textToVerify = words.slice(1).join(' ');
       
-      setPreviouslySelectedElements(prev => {
-        // Create a new object with all previous elements, but remove lastExecutedElement flag
-        const updatedPrev = {};
-        Object.keys(prev).forEach(key => {
-          updatedPrev[key] = {
-            ...prev[key],
-            lastExecutedElement: false 
+      // Always try to find matching elements by text, even if an element is selected
+      const matchingElements = checkTextInElementData(textToVerify);
+      
+      if (matchingElements && matchingElements.length > 0) {
+        // Always open confirmation modal for verify commands
+        setVerificationModal({
+          isOpen: true,
+          textToVerify,
+          matchingElements,
+          selectedElement: selectedElement || matchingElements[0]
+        });
+        return;
+      } else {
+        alert("Text not found on the current page. Please try a different text or command.");
+        return;
+      }
+    }
+    
+    
+    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
+      alert("Please select an element from the suggestions before adding this step.");
+      return;
+    }
+    
+    const newStepObj = {
+      id: Date.now(),
+      description: newStep,
+      status: 'pending',
+      duration: '00:00',
+      screenshot: null,
+      selectedElement: selectedElement,
+      verificationType: selectedElement?.verificationType || 'text'
+    };
+    
+    setSelectedElement(null);
+    
+    setTestSteps(prev => [...prev, newStepObj]);
+    setNewStep('');
+    
+    const executionResult = await executeStep(newStepObj);
+    
+    // After successful execution, update the previouslySelectedElements
+    if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
+      setLastClickCoordinates(newStepObj.selectedElement.click_point);
+      const element = newStepObj.selectedElement;
+  
+      if (element.click_point) {
+        const x = Math.round(element.click_point[0]);
+        const y = Math.round(element.click_point[1]);
+        const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+  
+        console.log('Generated key for element:', exactCoordinateKey);
+        
+        setPreviouslySelectedElements(prev => {
+          const updatedPrev = {};
+          Object.keys(prev).forEach(key => {
+            updatedPrev[key] = {
+              ...prev[key],
+              lastExecutedElement: false 
+            };
+          });
+          
+          return {
+            ...updatedPrev,
+            [exactCoordinateKey]: {
+              lastSelected: Date.now(),
+              count: (prev[exactCoordinateKey]?.count || 0) + 1,
+              element: element,
+              lastExecutedElement: true,
+              coordinates: [x, y]
+            }
           };
         });
-        
-        return {
-          ...updatedPrev,
-          [exactCoordinateKey]: {
-            lastSelected: Date.now(),
-            count: (prev[exactCoordinateKey]?.count || 0) + 1,
-            element: element,
-            lastExecutedElement: true,
-            coordinates: [x, y] // Store exact coordinates for proximity checking
-          }
-        };
-      });
+      }
     }
-  }
-  
-  setTestSteps(prev => prev.map(step => 
-    step.id === newStepObj.id ? {
-      ...step,
-      ...executionResult,
-      elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined
-    } : step
-  ));
-  
-  setNewStep('');
-  
-  setTimeout(() => {
-    if (previewRef.current) {
-      previewRef.current.scrollTo({
-        top: previewRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-    if (stepsRef.current) {
-      stepsRef.current.scrollTo({
-        top: stepsRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, 100);
-};
+    
+    // Update test step with execution result, paying special attention to verification results
+    setTestSteps(prev => prev.map(step => 
+      step.id === newStepObj.id ? {
+        ...step,
+        ...executionResult,
+        elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
+        elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
+        // For verification steps, include the verification result details
+        verificationResult: executionResult.verificationResult,
+        verifiedText: executionResult.verifiedText
+      } : step
+    ));
+    
+    setNewStep('');
+    
+    setTimeout(() => {
+      if (previewRef.current) {
+        previewRef.current.scrollTo({
+          top: previewRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+      if (stepsRef.current) {
+        stepsRef.current.scrollTo({
+          top: stepsRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+  };
 
+  const handleVerificationConfirm = async () => {
+    const { textToVerify, selectedElement } = verificationModal;
+    
+    // Create new step object
+    const newStepObj = {
+      id: Date.now(),
+      description: `verify ${textToVerify}`,
+      status: 'pending',
+      duration: '00:00',
+      screenshot: null,
+      selectedElement: selectedElement,
+      verificationType: 'text'
+    };
+    
+    // Close modal and reset
+    setVerificationModal({
+      isOpen: false,
+      textToVerify: '',
+      matchingElements: [],
+      selectedElement: null
+    });
+    
+    // Add step to test steps
+    setTestSteps(prev => [...prev, newStepObj]);
+    setNewStep('');
+    
+    // Execute the step
+    const executionResult = await executeStep(newStepObj);
+    
+    // Update test step with execution result
+    setTestSteps(prev => prev.map(step => 
+      step.id === newStepObj.id ? {
+        ...step,
+        ...executionResult,
+        elementVerified: selectedElement
+      } : step
+    ));
+    
+    // Auto-scroll to show new step
+    setTimeout(() => {
+      if (previewRef.current) {
+        previewRef.current.scrollTo({
+          top: previewRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+      if (stepsRef.current) {
+        stepsRef.current.scrollTo({
+          top: stepsRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+  };
 
 const handleSuggestionClick = (suggestion) => {
   let updatedStep = '';
+  
   if (commandType === 'click') {
     updatedStep = `click ${suggestion.displayName || suggestion.name}`;
   } else if (commandType === 'type') {
     const inIndex = newStep.toLowerCase().indexOf(' in ');
     if (inIndex !== -1) {
       const textToType = newStep.substring(5, inIndex).trim();
-      // Keep any text the user was already typing
       if (textToType) {
         updatedStep = `type ${textToType} in ${suggestion.displayName || suggestion.name}`;
       } else {
-        // Position cursor after "type " for user to enter text
         updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
       }
     } else {
       updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-    }
+    } 
+  } else if (commandType === 'verify') {
+    updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
+    
+    // For verify commands, set the step but also show the confirmation modal
+    setNewStep(updatedStep);
+    setSelectedElement(suggestion);
+    setShowSuggestions(false);
+    
+    // Show verification modal
+    const textToVerify = suggestion.displayName || suggestion.name;
+    const matchingElements = [suggestion]; // We already have the element
+    
+    setVerificationModal({
+      isOpen: true,
+      textToVerify,
+      matchingElements,
+      selectedElement: suggestion
+    });
+    
+    return; 
+  } else if (commandType === 'get') {
+    updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+    
+    setNewStep(updatedStep);
+    setSelectedElement(suggestion);
+    setShowSuggestions(false);
+    
+    return;
   }
   
   setNewStep(updatedStep);
@@ -479,12 +737,10 @@ const handleSuggestionClick = (suggestion) => {
   if (inputRef.current) {
     inputRef.current.focus();
     if (commandType === 'type' && updatedStep.includes(' in ')) {
-      // Position cursor between "type " and " in" for user to enter text
       const typeIndex = updatedStep.indexOf('type ') + 5;
       const inIndex = updatedStep.indexOf(' in ');
       inputRef.current.setSelectionRange(typeIndex, inIndex);
     } else {
-      // Position cursor at the end
       const length = updatedStep.length;
       inputRef.current.setSelectionRange(length, length);
     }
@@ -611,106 +867,61 @@ const ImageModal = () => {
   );
 };
 
-/*
-const SuggestionsDropdown = () => {
-  if (!showSuggestions || suggestions.length === 0) return null;
+const checkTextInElementData = (textToVerify) => {
+  if (!elementData || !elementData.elements) return null;
+  
+  const searchText = textToVerify.toLowerCase();
+  const matchingElements = elementData.elements.filter(element => {
+    // Check if element has text content that includes the search text
+    return element.text && element.text.toLowerCase().includes(searchText);
+  });
+  
+  return matchingElements.length > 0 ? matchingElements : null;
+};
+
+const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, matchingElements }) => {
+  if (!isOpen) return null;
   
   return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn">
-          <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-              <h4 className="font-medium text-purple-800 flex items-center">
-                  {commandType === 'click' ? (
-                      <>
-                          <span className="mr-2">🖱️</span> Click on an element:
-                      </>
-                  ) : (
-                      <>
-                          <span className="mr-2">⌨️</span> Select where to type:
-                      </>
-                  )}
-              </h4>
-              <p className="text-xs text-gray-600">
-                Found {suggestions.length} matching elements
-                {suggestions.some(s => s.isDuplicate) && 
-                  " (highlighted items have duplicate names)"}
-              </p>
-          </div>
-          <ul className="divide-y divide-gray-100">
-              {suggestions.map((suggestion, index) => (
-                  <li 
-                    key={`${suggestion.id}-${index}`}
-                    className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-                      suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-                      suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-                      suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-                      suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-                    }`}
-                    tabIndex={0}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                              handleSuggestionClick(suggestion);
-                          } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                              e.preventDefault();
-                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
-                          } else if (e.key === 'ArrowUp') {
-                              e.preventDefault();
-                              if (index > 0) {
-                                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                              } else {
-                                  inputRef.current.focus();
-                              }
-                          } else if (e.key === 'Escape') {
-                              setShowSuggestions(false);
-                              inputRef.current.focus();
-                          }
-                      }}
-                  >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">
-                          {suggestion.displayName || suggestion.name}
-                          {suggestion.usageInfo && (
-                            <span className={`ml-2 text-xs font-semibold ${
-                              suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                              suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                              'text-green-600'
-                            }`}>
-                              ({suggestion.usageInfo})
-                            </span>
-                          )}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          suggestion.type === 'button' || suggestion.tag === 'button' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : suggestion.type === 'input' || suggestion.tag === 'input'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {suggestion.type || suggestion.tag || "Element"}
-                        </span>
-                      </div>
-                      
-                      <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-                          <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-                          {suggestion.isDuplicate && !suggestion.usageInfo && (
-                              <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                                  Multiple matches
-                              </span>
-                          )}
-                      </div>
-                      
-                      {suggestion.text && (
-                          <div className="text-xs text-gray-500 mt-1 truncate">
-                              Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-                          </div>
-                      )}
-                  </li>
-              ))}
-          </ul>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Verification</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          Found {matchingElements.length} element(s) containing "{textToVerify}".
+        </p>
+        <div className="max-h-48 overflow-y-auto mb-4 border border-gray-200 rounded-md p-2">
+          {matchingElements.map((element, index) => (
+            <div key={index} className="p-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0">
+              <div className="font-medium text-sm">{element.name || 'Element'}</div>
+              {element.text && element.text.trim() !== "" && (
+                <div className="text-xs text-gray-600">
+                  Content: "{element.text?.substring(0, 50)}{element.text?.length > 50 ? '...' : ''}"
+                </div>
+              )}
+              <div className="text-xs text-gray-600">
+                Type: {element.tag === 'a' || element.type === 'link' ? 'Link' : 'Text'}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
+          >
+            Verify
+          </button>
+        </div>
       </div>
+    </div>
   );
 };
-*/
 
 const SuggestionsDropdown = () => {
   if (!showSuggestions || suggestions.length === 0) return null;
@@ -723,18 +934,26 @@ const SuggestionsDropdown = () => {
                       <>
                           <span className="mr-2">🖱️</span> Click on an element:
                       </>
-                  ) : (
+                  ) : commandType === 'type' ? (
                       <>
                           <span className="mr-2">⌨️</span> Select where to type:
                       </>
-                  )}
+                  ) : commandType === 'verify' ? (
+                      <>
+                          <span className="mr-2">✓</span> Verify text on page:
+                      </>
+                  ) : commandType === 'get' ? (
+                      <>
+                          <span className="mr-2">📄</span> Get text from page:
+                      </>
+                  ) : null}
               </h4>
-              <p className="text-xs text-gray-600">
-                Found {suggestions.length} matching elements
-                {suggestions.some(s => s.isDuplicate) && 
-                  " (highlighted items have duplicate names)"}
-                {lastClickCoordinates && " (ordered by proximity to last click)"}
-              </p>
+                <p className="text-xs text-gray-600">
+                  Found {suggestions.length} matching elements
+                  {suggestions.some(s => s.isDuplicate) && 
+                    " (highlighted items have duplicate names)"}
+                  {lastClickCoordinates && " (ordered by proximity to last click)"}
+                </p>
           </div>
           <ul className="divide-y divide-gray-100">
               {suggestions.map((suggestion, index) => (
@@ -784,15 +1003,22 @@ const SuggestionsDropdown = () => {
                             </span>
                           )}
                         </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          suggestion.type === 'button' || suggestion.tag === 'button' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : suggestion.type === 'input' || suggestion.tag === 'input'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {suggestion.type || suggestion.tag || "Element"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            suggestion.type === 'button' || suggestion.tag === 'button' 
+                                ? 'bg-blue-100 text-blue-700' 
+                                : suggestion.type === 'input' || suggestion.tag === 'input'
+                                ? 'bg-green-100 text-green-700'
+                                : suggestion.type === 'link' || suggestion.tag === 'a'
+                                ? 'bg-purple-100 text-purple-700'
+                                : suggestion.type === 'text'
+                                ? 'bg-gray-100 text-gray-700'
+                                : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {suggestion.type || suggestion.tag || "Element"}
+                          </span>
+                          
+                        </div>
                       </div>
                       
                       <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
@@ -822,7 +1048,7 @@ const SuggestionsDropdown = () => {
   );
 };
 
-  return (
+  return ( 
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
         <div className="p-4 md:p-6">
@@ -962,6 +1188,7 @@ const SuggestionsDropdown = () => {
                       {commandType === 'click' && "Click command - type element name or select from suggestions"}
                       {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
                       {commandType === 'open' && "Navigation command - enter a URL"}
+                      {commandType === 'scroll' && "Scroll command - use 'scrollup' or 'scrolldown'"}
                     </div>
                   )}
                 </div>
@@ -1007,12 +1234,37 @@ const SuggestionsDropdown = () => {
                             </div>
                           </div>
                         )}
+
                         {step.message && (
                           <p className="text-xs text-gray-600 mt-1">
                             <span className="font-medium">Status:</span> {step.message}
                           </p>
                         )}
-                        
+
+                        {/* Verification result display */}
+                        {step.description.toLowerCase().startsWith('verify') && step.status === 'complete' && (
+                          <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg">
+                            <div className="flex items-center text-green-600 mb-2">
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              <span className="font-medium">Verification passed</span>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              Successfully verified {step.verificationType === 'link' ? 'link' : 'text'}: 
+                              "{step.selectedElement?.displayName || step.selectedElement?.name || 'Element'}"
+                            </p>
+                            {step.verifiedText && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                Actual content: "{step.verifiedText.substring(0, 50)}{step.verifiedText.length > 50 ? '...' : ''}"
+                              </p>
+                            )}
+                            {step.selectedElement && (
+                              <div className="mt-2 text-xs text-gray-500">
+                                <span className="font-medium">Element location:</span> x:{Math.round(step.selectedElement.click_point[0])}, y:{Math.round(step.selectedElement.click_point[1])}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {step.status === 'error' && (
                           <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
                             <div className="flex items-center text-red-600 mb-2">
@@ -1029,6 +1281,45 @@ const SuggestionsDropdown = () => {
                                 <li>Try using a different command</li>
                               </ul>
                             </div>
+                          </div>
+                        )}
+
+                        {step.description.toLowerCase().startsWith('verify') && step.status === 'error' && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                            <div className="flex items-center text-red-600 mb-2">
+                              <XCircle className="w-5 h-5 mr-2" />
+                              <span className="font-medium">Verification failed</span>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              Failed to verify {step.verificationType || 'text'}: "{step.selectedElement?.name || 'Element'}"
+                            </p>
+                            {step.error && (
+                              <p className="text-xs text-red-600 mt-1">{step.error}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Get result display */}
+                        {step.description.toLowerCase().startsWith('get') && step.status === 'complete' && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                            <div className="flex items-center text-green-600 mb-2">
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              <span className="font-medium">Retrieved element text</span>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              Successfully retrieved text from: 
+                              "{step.selectedElement?.displayName || step.selectedElement?.name || 'Element'}"
+                            </p>
+                            {step.retrievedText && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                Text content: "{step.retrievedText.substring(0, 50)}{step.retrievedText.length > 50 ? '...' : ''}"
+                              </p>
+                            )}
+                            {step.selectedElement && (
+                              <div className="mt-2 text-xs text-gray-500">
+                                <span className="font-medium">Element location:</span> x:{Math.round(step.selectedElement.click_point[0])}, y:{Math.round(step.selectedElement.click_point[1])}
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1053,6 +1344,13 @@ const SuggestionsDropdown = () => {
                   )}
                 </div>
                 <ImageModal />
+                <VerificationConfirmation
+                  isOpen={verificationModal.isOpen}
+                  onClose={() => setVerificationModal({...verificationModal, isOpen: false})}
+                  onConfirm={handleVerificationConfirm}
+                  textToVerify={verificationModal.textToVerify}
+                  matchingElements={verificationModal.matchingElements}
+                />
               </div>
             </div>
           </div>
