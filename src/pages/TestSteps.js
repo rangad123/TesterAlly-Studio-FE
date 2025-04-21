@@ -370,7 +370,11 @@ useEffect(() => {
       
       try {
         if (!step) continue;
-  
+        console.log(`🔹 Starting Step ${step.step_number}: ${step.step_description}`);
+
+        console.log("Running Step ID:", stepId);
+        console.log("Expected Step:", step);
+
         setExecutionResults(prev => ({
           ...prev,
           [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
@@ -378,7 +382,7 @@ useEffect(() => {
   
         const result = await executeStep(step.step_description, user_id);
   
-        console.log("result:", result)
+        console.log(`✅ Finished Step ${step.step_number}:`, result);
   
         setExecutionResults(prev => ({
           ...prev,
@@ -406,13 +410,17 @@ useEffect(() => {
               
               if (countdown < 0) {
                 clearInterval(countdownInterval);
+                console.log("➡️ Moving to next step...\n");
+                console.log(`Executing Step ID: ${stepId}`);
+                console.log("Step Data:", step);
+
                 resolve();
               }
             }, 1000);
           });
         }
       } catch (error) {
-        console.error(`Error executing step ${stepId}:`, error);
+        console.error(`❗ Error executing step ${step.step_number}:`, error);
         setExecutionResults(prev => ({
           ...prev,
           [stepId]: {
