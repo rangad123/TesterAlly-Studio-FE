@@ -22,7 +22,8 @@ const TestSteps = () => {
   const [selectedSteps, setSelectedSteps] = useState([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState({});
-  const [elementData, setElementData] = useState(null);
+  const [expandedScreenshot, setExpandedScreenshot] = useState(null);
+//  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
@@ -180,10 +181,10 @@ const TestSteps = () => {
         const latestStepWithCoordinates = [...sortedData].reverse().find(step => 
           step.step_coordinates && Object.keys(step.step_coordinates).length > 0
         );
-        
+
         if (latestStepWithCoordinates) {
-          setElementData(latestStepWithCoordinates.step_coordinates);
-          sessionStorage.setItem('latestElementData', JSON.stringify(latestStepWithCoordinates.step_coordinates));
+//          setElementData(latestStepWithCoordinates.step_coordinates);
+//          sessionStorage.setItem('latestElementData', JSON.stringify(latestStepWithCoordinates.step_coordinates));
         }
       }
     } catch (err) {
@@ -323,24 +324,6 @@ const TestSteps = () => {
     setEditValue("");
     setError(null);
   };
-
-
-useEffect(() => {
-    if (elementData) {
-      sessionStorage.setItem('latestElementData', JSON.stringify(elementData));
-    }
-  }, [elementData]);
-
-  useEffect(() => {
-    const storedData = sessionStorage.getItem('latestElementData');
-    if (storedData) {
-      try {
-        setElementData(JSON.parse(storedData));
-      } catch (error) {
-        console.error('Error parsing stored element data:', error);
-      }
-    }
-  }, []);
   
 
   const handleRunSteps = async () => {
@@ -479,8 +462,16 @@ useEffect(() => {
         };
       } 
       else if (lowerCaseStep.includes('click')) {
+        const stepCoordinates = matchingStep?.step_coordinates || {};
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
+
+        console.log("STEP COORDINATES DEBUG:");
+        console.log("- Step description:", stepDescription);
+        console.log("- Matching step found:", !!matchingStep);
+        console.log("- Raw step coordinates from matchingStep:", matchingStep?.step_coordinates);
+        console.log("- Parsed clickX/clickY:", [clickX, clickY]);
+//        console.log("- Element data from session:", elementData);
         
         if (!clickX || !clickY) {
           throw new Error(`No coordinates found for click step: "${stepDescription}"`);
@@ -761,7 +752,6 @@ const selectAllSteps = () => {
   }
 };
 
-const [expandedScreenshot, setExpandedScreenshot] = useState(null);
 const handleExpandScreenshot = (screenshot) => {
   setExpandedScreenshot(screenshot);
 };
