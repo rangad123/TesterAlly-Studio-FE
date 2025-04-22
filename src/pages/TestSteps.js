@@ -419,16 +419,19 @@ const TestSteps = () => {
   };
 
 
-  const executeStep = async (stepDescription, user_id) => {
+  const executeStep = async (step, user_id) => {
     try {
+
+      const stepDescription = step.step_description;
       const lowerCaseStep = stepDescription.toLowerCase();
-      
-      const matchingStep = steps.find(s => s.step_description === stepDescription);
-      if (!matchingStep) {
-        throw new Error(`Could not find step with description: ${stepDescription}`);
-      }
-      
-      const stepCoordinates = matchingStep.step_coordinates || {};
+      const stepCoordinates = step.step_coordinates || {};
+
+      console.log("Executing step directly:", {
+      step_id: step.id,
+      step_number: step.step_number, 
+      description: stepDescription,
+      coordinates: stepCoordinates
+    });
       
       if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
         const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
@@ -462,16 +465,13 @@ const TestSteps = () => {
         };
       } 
       else if (lowerCaseStep.includes('click')) {
-        const stepCoordinates = matchingStep?.step_coordinates || {};
+
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
 
         console.log("STEP COORDINATES DEBUG:");
         console.log("- Step description:", stepDescription);
-        console.log("- Matching step found:", !!matchingStep);
-        console.log("- Raw step coordinates from matchingStep:", matchingStep?.step_coordinates);
         console.log("- Parsed clickX/clickY:", [clickX, clickY]);
-//        console.log("- Element data from session:", elementData);
         
         if (!clickX || !clickY) {
           throw new Error(`No coordinates found for click step: "${stepDescription}"`);
