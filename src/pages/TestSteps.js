@@ -363,7 +363,7 @@ const TestSteps = () => {
           [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
         }));
   
-        const result = await executeStep(step.step_description, user_id);
+        const result = await executeStep(step, user_id);
   
         console.log(`✅ Finished Step ${step.step_number}:`, result);
   
@@ -422,6 +422,13 @@ const TestSteps = () => {
   const executeStep = async (step, user_id) => {
     try {
 
+      if (!step || typeof step !== 'object') {
+        throw new Error("Invalid step object provided to executeStep");
+      }
+      if (!step.step_description) {
+        throw new Error("Step is missing step_description property");
+      }
+
       const stepDescription = step.step_description;
       const lowerCaseStep = stepDescription.toLowerCase();
       const stepCoordinates = step.step_coordinates || {};
@@ -465,7 +472,7 @@ const TestSteps = () => {
         };
       } 
       else if (lowerCaseStep.includes('click')) {
-
+        
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
 
