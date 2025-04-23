@@ -10,7 +10,8 @@ import {
   FaRegFileAlt,
   FaClipboardList,
   FaPlusCircle,
-  FaServer
+  FaServer,
+  FaChartBar 
 } from "react-icons/fa";
 import TestEnvironmentModal from "./TestEnvironmentModal";
 
@@ -185,6 +186,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     { icon: FaFileAlt, label: "Test Cases", path: "/test-cases" },
     { icon: FaRegFileAlt, label: "Requirements", path: "/requirement-details" },
     { icon: FaClipboardList, label: "Test Suites", path: "/test-suites" },
+    { icon: FaChartBar, label: "Reports", path: "/reports" },
     {
       icon: FaCog,
       label: "Project Settings",

@@ -35,6 +35,11 @@ const WriteTestManually = () => {
   const [selectedElement, setSelectedElement] = useState(null);
   const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
   const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
+  const [secondaryVerification, setSecondaryVerification] = useState({
+    isOpen: false,
+    stepObj: null
+  });
+  
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -215,8 +220,8 @@ const getLastClickCoordinates = (steps) => {
   
     try {
         const stepDescription = stepObj.description;
-        const words = stepDescription.trim().split(' ');
         
+        const words = stepDescription.trim().split(' ');
         const actionType = words[0].toLowerCase();
         words[0] = actionType;
   
@@ -628,7 +633,7 @@ const getLastClickCoordinates = (steps) => {
     }, 100);
   };
 
-  const handleVerificationConfirm = async () => {
+  const handleVerificationConfirm = () => {
     const { textToVerify, selectedElement } = verificationModal;
     
     // Create new step object
@@ -642,7 +647,7 @@ const getLastClickCoordinates = (steps) => {
       verificationType: 'text'
     };
     
-    // Close modal and reset
+    // Close first modal
     setVerificationModal({
       isOpen: false,
       textToVerify: '',
@@ -650,11 +655,27 @@ const getLastClickCoordinates = (steps) => {
       selectedElement: null
     });
     
+    // Open second confirmation instead of directly executing
+    setSecondaryVerification({
+      isOpen: true,
+      stepObj: newStepObj
+    });
+  };
+  
+  const handleFinalVerificationConfirm = async () => {
+    const newStepObj = secondaryVerification.stepObj;
+    
+    // Close the secondary confirmation modal
+    setSecondaryVerification({
+      isOpen: false,
+      stepObj: null
+    });
+    
     // Add step to test steps
     setTestSteps(prev => [...prev, newStepObj]);
     setNewStep('');
     
-    // Execute the step
+    // Execute the step (this part stays the same)
     const executionResult = await executeStep(newStepObj);
     
     // Update test step with execution result
@@ -662,11 +683,11 @@ const getLastClickCoordinates = (steps) => {
       step.id === newStepObj.id ? {
         ...step,
         ...executionResult,
-        elementVerified: selectedElement
+        elementVerified: newStepObj.selectedElement
       } : step
     ));
     
-    // Auto-scroll to show new step
+    // Auto-scroll to show new step (unchanged)
     setTimeout(() => {
       if (previewRef.current) {
         previewRef.current.scrollTo({
@@ -877,6 +898,40 @@ const checkTextInElementData = (textToVerify) => {
   });
   
   return matchingElements.length > 0 ? matchingElements : null;
+};
+
+const SecondaryVerificationConfirmation = ({ isOpen, onClose, onConfirm, stepObj }) => {
+  if (!isOpen || !stepObj) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Final Verification Confirmation</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          Are you sure you want to verify "{stepObj.description.substring(7)}" on the page?
+        </p>
+        <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-md mb-4">
+          <p className="text-sm text-yellow-700">
+            This will execute the verification action on the selected element.
+          </p>
+        </div>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700"
+          >
+            Confirm Verify
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, matchingElements }) => {
@@ -1350,6 +1405,12 @@ const SuggestionsDropdown = () => {
                   onConfirm={handleVerificationConfirm}
                   textToVerify={verificationModal.textToVerify}
                   matchingElements={verificationModal.matchingElements}
+                />
+                <SecondaryVerificationConfirmation
+                  isOpen={secondaryVerification.isOpen}
+                  onClose={() => setSecondaryVerification({isOpen: false, stepObj: null})}
+                  onConfirm={handleFinalVerificationConfirm}
+                  stepObj={secondaryVerification.stepObj}
                 />
               </div>
             </div>

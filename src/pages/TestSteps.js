@@ -347,6 +347,8 @@ const TestSteps = () => {
     setExecutionResults({});
     
     const user_id = localStorage.getItem("user_id");
+    const selectedProject = JSON.parse(localStorage.getItem(`selectedProject_${user_id}`) || '{}');
+    const projectId = selectedProject.id;
     
     for (const stepId of stepIds) {
       const step = steps.find(s => s.id === stepId);
@@ -414,10 +416,39 @@ const TestSteps = () => {
         break;
       }
     }
+
+    const testRunSummary = {
+      execution_date: new Date().toISOString(),
+      name: testCaseName, 
+      project_id: projectId,
+      testcase_id: testCaseId, 
+      status: stepIds.some(id => executionResults[id]?.status === 'error') ? "FAIL" : "PASS",
+      total_steps: stepIds.length,
+      passed_steps: stepIds.filter(id => executionResults[id]?.status === 'complete').length,
+      failed_steps: stepIds.filter(id => executionResults[id]?.status === 'error').length,
+      execution_time: calculateExecutionTime(executionResults),
+      id: Date.now().toString(), 
+    };
+  
+    // Get existing test case results from localStorage
+    const savedResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
+
+    savedResults.push(testRunSummary);
+    localStorage.setItem('testCaseResults', JSON.stringify(savedResults));
     
     setIsExecuting(false);
   };
 
+
+  const calculateExecutionTime = (results) => {
+    // Simple implementation - you might want to track actual time
+    return Object.values(results).reduce((total, result) => {
+      const durationStr = result.duration || '00:00';
+      const [minutes, seconds] = durationStr.split(':').map(Number);
+      return total + (minutes * 60) + seconds;
+    }, 0);
+  };
+  
 
   const executeStep = async (step, user_id) => {
     try {
@@ -430,7 +461,14 @@ const TestSteps = () => {
       }
 
       const stepDescription = step.step_description;
-      const lowerCaseStep = stepDescription.toLowerCase();
+
+      const words = stepDescription.trim().split(' '); 
+      const actionType = words[0].toLowerCase();
+      words[0] = actionType;
+
+      let updatedStepDescription = stepDescription;
+      console.log("Updated Step Description:", updatedStepDescription); 
+
       const stepCoordinates = step.step_coordinates || {};
 
       console.log("Executing step directly:", {
@@ -440,16 +478,16 @@ const TestSteps = () => {
       coordinates: stepCoordinates
     });
       
-      if (lowerCaseStep.startsWith('open ') || lowerCaseStep.includes('go to ')) {
+      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
         const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: lowerCaseStep, user_id: user_id }),
+          body: JSON.stringify({ command: updatedStepDescription, user_id: user_id }),
         });
   
-        console.log("open url:", lowerCaseStep);
+        console.log("open url:", updatedStepDescription);
         console.log("User_Id:", user_id);
   
         if (!response.ok) {
@@ -471,7 +509,7 @@ const TestSteps = () => {
           coordinates: stepCoordinates,
         };
       } 
-      else if (lowerCaseStep.includes('click')) {
+      else if (actionType === 'click' || actionType === 'type') {
         
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
@@ -490,7 +528,7 @@ const TestSteps = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            command: lowerCaseStep,
+            command: stepDescription,
             user_id: user_id,
             click_x: clickX,
             click_y: clickY
@@ -519,60 +557,8 @@ const TestSteps = () => {
           elementAction: { click_point: [clickX, clickY] },
         };
       }
-      else if (lowerCaseStep.includes('type')) {
-        const clickX = stepCoordinates.click_x;
-        const clickY = stepCoordinates.click_y;
-        
-        if (!clickX || !clickY) {
-          throw new Error(`No coordinates found for type step: "${stepDescription}"`);
-        }
-        
-        const words = stepDescription.trim().split(' ');
-        const inIndex = words.findIndex(word => word.toLowerCase() === 'in');
-        
-        if (inIndex <= 1 || inIndex >= words.length - 1) {
-          throw new Error("Invalid type command format. Expected: 'type [text] in [element]'");
-        }
-        
-        const textToType = words.slice(1, inIndex).join(' ');
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: lowerCaseStep,
-            user_id: user_id,
-            click_x: clickX,
-            click_y: clickY,
-            input_text: textToType,
-          }),
-        });
-        
-        console.log("type", stepDescription, [clickX, clickY], textToType);
-        
-        if (!response.ok) {
-          throw new Error('Failed to execute type command');
-        }
-        
-        const data = await response.json();
-        console.log("Type response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.message || "Type action executed successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-          elementAction: { click_point: [clickX, clickY] },
-        };
-      }
-      else if (lowerCaseStep.startsWith('verify')) {
+      else if (actionType === 'verify') {
+
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
         
@@ -588,7 +574,7 @@ const TestSteps = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            command: lowerCaseStep,
+            command: stepDescription,
             user_id: user_id,
             click_x: clickX,
             click_y: clickY,
@@ -620,7 +606,8 @@ const TestSteps = () => {
           elementVerified: { click_point: [clickX, clickY] },
         };
       }
-      else if (lowerCaseStep.startsWith('get')) {
+      else if (actionType === 'get') {
+
         const clickX = stepCoordinates.click_x;
         const clickY = stepCoordinates.click_y;
         
@@ -634,7 +621,7 @@ const TestSteps = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            command: lowerCaseStep,
+            command: stepDescription,
             user_id: user_id,
             click_x: clickX,
             click_y: clickY,
@@ -665,8 +652,9 @@ const TestSteps = () => {
           elementRetrieved: { click_point: [clickX, clickY] },
         };
       }
-      else if (lowerCaseStep.startsWith('scrollup') || lowerCaseStep.startsWith('scrolldown')) {
-        const isScrollUp = lowerCaseStep.startsWith('scrollup');
+      else if (actionType === 'scrollup' || actionType === 'scrolldown') {
+
+        const isScrollUp = stepDescription.startsWith('scrollup');
         const updatedCommand = isScrollUp ? "scroll_up page" : "scroll_down page";
         
         console.log(`Converting '${isScrollUp ? 'scrollup' : 'scrolldown'}' to '${updatedCommand}'`);
@@ -708,7 +696,7 @@ const TestSteps = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            command: lowerCaseStep,
+            command: stepDescription,
             user_id: user_id
           }),
         });

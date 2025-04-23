@@ -109,7 +109,16 @@ const TestSuites = () => {
     fetchTestCases();
   }, [selectedProject, testSuites]);
   
-  
+  const handleViewTestSuite = (testSuite) => {
+    navigate("/testsuite", {
+      state: {
+        testSuiteId: testSuite.id,
+        testSuiteName: testSuite.title,
+        projectId: selectedProject?.id,
+        testSuite: testSuite
+      }
+    });
+  };
 
   const filteredTestSuites = testSuites.filter((testSuite) =>
     testSuite.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -143,7 +152,7 @@ const TestSuites = () => {
     }
   };
 
-  const handleEdit = (testSuiteId, title, description, labels, pre_requisite ) => {
+  const handleEdit = (testSuiteId, title, description, labels, pre_requisite) => {
     setEditingId(testSuiteId);
     setEditedTitle(title);
     setEditedDescription(description);
@@ -204,7 +213,6 @@ const TestSuites = () => {
     }
   };
   
-
   const handleCancel = () => {
     setEditingId(null);
   };
@@ -234,7 +242,7 @@ const TestSuites = () => {
 
             <div className="p-4 flex flex-col lg:flex-row justify-between items-center space-y-4 sm:space-y-0">
               <h2 className="text-lg font-medium text-gray-700">
-                {selectedProject ? `Test Suites  ${/* Commented out selectedProject.name */ ''}` : 'Select a Project'}
+                {selectedProject ? `Test Suites` : 'Select a Project'}
               </h2>
               {selectedProject && (
                 <div className="relative w-full sm:w-64">
@@ -279,9 +287,6 @@ const TestSuites = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Labels
                       </th>
-{/*                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Project
-                      </th>  */}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Test Cases
                       </th>
@@ -294,7 +299,12 @@ const TestSuites = () => {
                     {filteredTestSuites.map((testSuite) => (
                       <tr key={testSuite.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {testSuite.title}
+                          <span 
+                            className="cursor-pointer text-purple-600 hover:text-purple-800"
+                            onClick={() => handleViewTestSuite(testSuite)}
+                          >
+                            {testSuite.title}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testSuite.description}
@@ -305,11 +315,8 @@ const TestSuites = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testSuite.labels.join(", ")}
                         </td>
-{/*                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {selectedProject?.name}
-                        </td>  */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {testCaseNames[testSuite.id]?.join(", ") || "No Test Cases"}
+                          {testCaseNames[testSuite.id]?.join(", ") || "No Test Cases"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-2">
@@ -340,71 +347,71 @@ const TestSuites = () => {
           {editingId && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
               <div className="bg-white shadow-xl rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
-                    <div className="p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Edit Test Suite</h3>
-                        <button 
-                          onClick={handleCancel}
-                          className="text-gray-500 hover:text-gray-700"
-                        >
-                          <X className="w-6 h-6" />
-                        </button>
-                      </div>
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                  <input
-                    type="text"
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800">Edit Test Suite</h3>
+                    <button 
+                      onClick={handleCancel}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                      <input
+                        type="text"
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <input
+                        type="text"
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Pre-Requisite</label>
+                      <input
+                        type="text"
+                        value={editedPreRequisite}
+                        onChange={(e) => setEditedPreRequisite(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Labels</label>
+                      <input
+                        type="text"
+                        value={editedLabels.join(", ")}
+                        onChange={(e) => setEditedLabels(e.target.value.split(",").map(label => label.trim()))}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleSave(editingId)}
+                        className="inline-flex items-center px-4 py-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200"
+                      >
+                        <Save className="w-4 h-4 mr-1" />
+                        Save
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        className="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <input
-                    type="text"
-                    value={editedDescription}
-                    onChange={(e) => setEditedDescription(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Pre-Requisite</label>
-                  <input
-                    type="text"
-                    value={editedPreRequisite}
-                    onChange={(e) => setEditedPreRequisite(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Labels</label>
-                  <input
-                    type="text"
-                    value={editedLabels.join(", ")}
-                    onChange={(e) => setEditedLabels(e.target.value.split(",").map(label => label.trim()))}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleSave(editingId)}
-                    className="inline-flex items-center px-4 py-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200"
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="inline-flex items-center px-4 py-2 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors duration-200"
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Cancel
-                  </button>
-                </div>
-              </div>
-              </div>
               </div>
             </div>
           )}
