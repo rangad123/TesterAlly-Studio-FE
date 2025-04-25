@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import { AiOutlinePlus } from "react-icons/ai";
-import { Save, X, Edit2, Trash2, Plus } from 'lucide-react';
+import { Save, X, Edit2, Trash2, Copy } from 'lucide-react';
 
 const TestCases = () => {
   const navigate = useNavigate();
@@ -14,7 +14,6 @@ const TestCases = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [testSteps, setTestSteps] = useState([]);
-  const [newStepValue, setNewStepValue] = useState("");
   const [editingStep, setEditingStep] = useState(null);
   const [editStepValue, setEditStepValue] = useState("");
   const [testCaseTypes, setTestCaseTypes] = useState([]);
@@ -154,35 +153,6 @@ const TestCases = () => {
     setActiveTab('details');
   };
 
-  const handleAddStep = async () => {
-    if (!newStepValue.trim()) {
-      setError("Step description cannot be empty");
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/api/teststeps/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testcase: editingTestCase.id,
-          step_number: testSteps.length + 1,
-          step_description: newStepValue.trim()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to add step");
-      }
-
-      await fetchTestSteps(editingTestCase.id);
-      setNewStepValue("");
-    } catch (error) {
-      setError("Failed to add step");
-      console.error("Error adding step:", error);
-    }
-  };
-
   const handleUpdateStep = async (stepId) => {
     if (!editStepValue.trim()) {
       setError("Step description cannot be empty");
@@ -297,6 +267,119 @@ const TestCases = () => {
     });
   };
 
+  const handleCopy = async (testCaseId) => {
+    try {
+      setLoading(true);
+      const testCaseToCopy = testCases.find(tc => tc.id === testCaseId);
+      if (!testCaseToCopy) throw new Error("Test case not found");
+  
+      // 1. Create new test case
+      const createTestCaseRequest = {
+        project_id: selectedProject.id,
+        name: testCaseToCopy.name,
+        testcase_type: testCaseToCopy.testcase_type,
+        testcase_priority: testCaseToCopy.testcase_priority
+      };
+  
+      console.log("Request: Create test case", createTestCaseRequest);
+  
+      const newTestCaseResponse = await fetch(
+        `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createTestCaseRequest),
+        }
+      );
+  
+      console.log("Response: Create test case", newTestCaseResponse);
+  
+      if (!newTestCaseResponse.ok) {
+        const errorText = await newTestCaseResponse.text();
+        console.error("Create test case error response:", errorText);
+        throw new Error("Failed to create copied test case");
+      }
+  
+      const newTestCase = await newTestCaseResponse.json();
+      console.log("Created copied test case:", newTestCase);
+  
+      // 2. Get existing steps
+      console.log(`Request: Fetch steps for testCaseId ${testCaseId}`);
+      const stepsResponse = await fetch(
+        `http://127.0.0.1:8000/api/teststeps/?testcase_id=${testCaseId}`
+      );
+  
+      console.log("Response: Fetch steps", stepsResponse);
+  
+      if (!stepsResponse.ok) {
+        const errorText = await stepsResponse.text();
+        console.error("Fetch steps error response:", errorText);
+        throw new Error("Failed to fetch steps for copying");
+      }
+  
+      const steps = await stepsResponse.json();
+  
+      const stepsData = steps.map((step, index) => ({
+        testcase: newTestCase.id,
+        step_number: step.step_number,
+        step_description: step.step_description,
+        teststep_result: step.teststep_result || "not_executed",
+        step_coordinates: step.step_coordinates || {}
+      }));
+  
+      // 3. Bulk create steps
+      console.log("Request: Bulk create steps", stepsData);
+  
+      const bulkStepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/bulk-create/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ steps: stepsData })
+      });
+  
+      console.log("Response: Bulk create steps", bulkStepResponse);
+  
+      if (!bulkStepResponse.ok) {
+        const errorText = await bulkStepResponse.text();
+        console.error("Bulk create error response:", errorText);
+        throw new Error("Failed to bulk create steps");
+      }
+  
+      // 4. Refresh test cases list
+      console.log(`Request: Refresh test cases for project ${selectedProject.id}`);
+      const updatedTestCasesResponse = await fetch(
+        `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          }
+        }
+      );
+  
+      console.log("Response: Refresh test cases", updatedTestCasesResponse);
+  
+      if (!updatedTestCasesResponse.ok) {
+        const errorText = await updatedTestCasesResponse.text();
+        console.error("Refresh test cases error response:", errorText);
+        throw new Error("Failed to refresh test cases");
+      }
+  
+      const updatedData = await updatedTestCasesResponse.json();
+  
+      setTestCases(updatedData.map(testCase => ({
+        ...testCase,
+        project_name: selectedProject.name
+      })));
+  
+      setError(null);
+    } catch (error) {
+      console.error("Error copying test case:", error);
+      setError("Failed to copy test case");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDelete = async (testCaseId) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this test case?");
@@ -426,22 +509,6 @@ const TestCases = () => {
             </>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newStepValue}
-                  onChange={(e) => setNewStepValue(e.target.value)}
-                  className="flex-1 p-2 border border-gray-300 rounded-md"
-                  placeholder="Enter new test step"
-                />
-                <button
-                  onClick={handleAddStep}
-                  className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Step
-                </button>
-              </div>
   
               <div className="space-y-2">
                 {testSteps.map((step) => (
@@ -617,11 +684,20 @@ const TestCases = () => {
                             Edit
                           </button>
                           <button
-
-                          onClick={(e) => {
-                            e.stopPropagation(); 
-                            handleDelete(testCase.id);
-                          }}
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              handleCopy(testCase.id);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200 ml-2"
+                          >
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              handleDelete(testCase.id);
+                            }}
                             className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200 ml-2"
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
@@ -636,92 +712,7 @@ const TestCases = () => {
             )}
           </div>
 
-          {editingTestCase && renderEditModal (
- {/* <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-    <div className="bg-white shadow-xl rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">Edit Test Case</h3>
-          <button 
-            onClick={handleCancel}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        <div className="grid gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name<span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={editingTestCase.name}
-              onChange={(e) => setEditingTestCase(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Test Case Type<span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                value={editingTestCase.type}
-                onChange={(e) => setEditingTestCase(prev => ({ ...prev, type: e.target.value }))}
-                className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none transition-all duration-200 pr-8"
-              >
-                <option value="">Select Type</option>
-                {testCaseTypes.map((type) => (
-                  <option key={type.id} value={type.name}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-              
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Test Case Priority<span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                value={editingTestCase.priority}
-                onChange={(e) => setEditingTestCase(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none transition-all duration-200 pr-8"
-              >
-                <option value="">Select Priority</option>
-                {testCasePriorities.map((priority) => (
-                  <option key={priority.id} value={priority.priority_level}>
-                    {priority.priority_level}
-                  </option>
-                ))}
-              </select>
-              
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={handleSave}
-              className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200"
-            >
-              <Save className="w-4 h-4 mr-1" />
-              Save
-            </button>
-            <button
-              onClick={handleCancel}
-              className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100 transition-colors duration-200"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div> */}
-)}
+          {editingTestCase && renderEditModal ()}
         </div>
       </div>
     </div>

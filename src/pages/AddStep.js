@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Plus, X, Camera, Info } from "lucide-react";
+import { Plus, X, Camera, Info, Check } from "lucide-react";
 
 const AddStep = ({ 
   testCaseId, 
@@ -328,55 +328,53 @@ const handleSuggestionClick = (suggestion) => {
     );
   };
 
-  const renderStepActions = (step) => {
-    if (isExecuting || executionResults[step.id]) {
-        return null;
-      }
+const renderStepActions = (step) => {
+  if (isExecuting || executionResults[step.id]) {
+    return null;
+  }
 
-    return (
-      <>
-        {hoveredStep === step.id && (
-          <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
-            {/* Only show Camera Button if no capture exists yet */}
-            {!capturedSteps[step.id] && (
-              <button
-                onClick={() => handleCaptureElement(step.id, step.step_number)}
-                className="p-1.5 bg-blue-100 rounded-full text-blue-600 hover:bg-blue-200 transition-colors"
-                title="Capture Element"
-                disabled={captureLoading[step.id]}
-              >
-                {captureLoading[step.id] ? (
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <Camera size={16} />
-                )}
-              </button>
+  return (
+    <>
+      {hoveredStep === step.id && (
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
+          {/* Camera Button - Show different states based on capture */}
+          <button
+            onClick={() => capturedSteps[step.id] 
+              ? handleExpandScreenshot(capturedSteps[step.id].screenshot)
+              : handleCaptureElement(step.id, step.step_number)
+            }
+            onDoubleClick={() => capturedSteps[step.id] && handleExpandScreenshot(capturedSteps[step.id].screenshot)}
+            className={`p-1.5 ${capturedSteps[step.id] 
+              ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+              : 'bg-blue-100 text-blue-600 hover:bg-blue-200'} 
+              rounded-full transition-colors`}
+            title={capturedSteps[step.id] ? "Screenshot captured" : "Capture Element"}
+            disabled={captureLoading[step.id]}
+          >
+            {captureLoading[step.id] ? (
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              capturedSteps[step.id] ? (
+                <Check size={16} />
+              ) : (
+                <Camera size={16} />
+              )
             )}
-  
-            {/* Add Step Button - Only show after successful capture */}
-            {capturedSteps[step.id] && (
-              <button
-                onClick={() => setInsertingAfterStep(step.step_number)}
-                className="p-1.5 bg-purple-100 rounded-full text-purple-600 hover:bg-purple-200 transition-colors"
-                title="Add step below"
-              >
-                <Plus size={16} />
-              </button>
-            )}
-  
-            {/* Note Button */}
-            <button
-              onClick={() => setShowNoteModal(true)}
-              className="p-1.5 bg-yellow-100 rounded-full text-yellow-600 hover:bg-yellow-200 transition-colors"
-              title="Show Instructions"
-            >
-              <Info size={16} />
-            </button>
-          </div>
-        )}
-      </>
-    );
-  };
+          </button>
+
+          {/* Note Button */}
+          <button
+            onClick={() => setShowNoteModal(true)}
+            className="p-1.5 bg-yellow-100 rounded-full text-yellow-600 hover:bg-yellow-200 transition-colors"
+            title="Show Instructions"
+          >
+            <Info size={16} />
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
 
   const renderStepContent = (step) => {
     return (
@@ -385,21 +383,6 @@ const handleSuggestionClick = (suggestion) => {
         {captureLoading[step.id] && (
           <div className="mt-3 ml-12 text-sm p-3 rounded text-blue-700">
             Capture is loading... Please open your test page.
-          </div>
-        )}
-
-        {/* Capture success message with screenshot */}
-        {capturedSteps[step.id] && !insertingAfterStep && (
-          <div className="mt-3 ml-12 text-sm p-3 rounded bg-green-50 text-green-700">
-            Element captured successfully. Now you can add a step.
-            {capturedSteps[step.id].screenshot && (
-              <img 
-                src={capturedSteps[step.id].screenshot} 
-                alt="Captured screenshot" 
-                className="w-full max-h-40 object-contain mt-2 border border-gray-200 rounded-md cursor-pointer"
-                onClick={() => handleExpandScreenshot(capturedSteps[step.id].screenshot)}
-              />
-            )}
           </div>
         )}
 
@@ -505,7 +488,8 @@ const handleSuggestionClick = (suggestion) => {
     handleExpandScreenshot,
     showNoteModal,
     expandedScreenshot,
-    error
+    error,
+    setInsertingAfterStep
   };
 };
 

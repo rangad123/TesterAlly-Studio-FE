@@ -13,7 +13,6 @@ const TestSteps = () => {
   const [error, setError] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const [newStepValue, setNewStepValue] = useState("");
   const [activeTab, setActiveTab] = useState("testSteps");
   const [testCase, setTestCase] = useState(null);
   const [editingTestCase, setEditingTestCase] = useState(null);
@@ -24,9 +23,8 @@ const TestSteps = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState({});
   const [hoveredStep, setHoveredStep] = useState(null);
-const [addingStep, setAddingStep] = useState(false);
-const [deletingStepId, setDeletingStepId] = useState(null);
-const [updatingStepId, setUpdatingStepId] = useState(null);
+  const [deletingStepId, setDeletingStepId] = useState(null);
+  const [updatingStepId, setUpdatingStepId] = useState(null);
 
 //  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
@@ -262,41 +260,6 @@ const [updatingStepId, setUpdatingStepId] = useState(null);
       console.error("Delete operation failed:", err);
     } finally {
       setDeletingStepId(null);
-    }
-  };
-
-  const handleAddStep = async () => {
-    if (!newStepValue.trim()) {
-      setError("Step description cannot be empty");
-      return;
-    }
-    setAddingStep(true); 
-
-    try {
-      const newStepNumber = steps.length + 1;
-      const response = await fetch(`${apiBaseUrl}/teststeps/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testcase: parseInt(testCaseId),
-          step_number: newStepNumber,
-          step_description: newStepValue.trim()
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to add step");
-      }
-      
-      await fetchSteps();
-      setNewStepValue("");
-      setError(null);
-    } catch (err) {
-      setError("Failed to add step. Please try again.");
-      console.error("Error adding step:", err);
-    } finally {
-      setAddingStep(false);
     }
   };
 
@@ -952,35 +915,15 @@ const selectAllSteps = () => {
             </div>
           )}
 
-          <div className="mb-6 flex items-center gap-2 ">
-            <input
-              type="text"
-              value={newStepValue}
-              onChange={(e) => setNewStepValue(e.target.value)}
-              className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
-              placeholder="Enter new test step"
-            />
-            <button
-              onClick={handleAddStep}
-              disabled={addingStep}
-              className="inline-flex items-center px-4 py-2 bg-purple-400 text-white rounded-md hover:bg-purple-500"
-            >
-              {addingStep ? (
-                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              {addingStep ? "Adding..." : "Add Step"}
-            </button>
-          </div>
-
           <div className="flex justify-end mb-2">
             <button
               onClick={selectAllSteps}
               className="inline-flex items-center text-sm text-gray-600 hover:text-purple-600"
               disabled={isExecuting || steps.length === 0}
             >
-              <CheckSquare className="w-4 h-4 mr-1" />
+              {selectedSteps.length !== steps.length && steps.length > 0 && (
+                <CheckSquare className="w-4 h-4 mr-1" />
+              )}
               {selectedSteps.length === steps.length && steps.length > 0 ? 'Unselect All' : 'Select All'}
             </button>
           </div>
@@ -1041,7 +984,10 @@ const selectAllSteps = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
+                    <div 
+                      className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden"
+                      onDoubleClick={() => startEditing(step)}
+                    >
                       {step.step_description}
                       {executionResults[step.id] && (
                         <div className={`mt-2 text-sm p-2 rounded ${
@@ -1089,10 +1035,10 @@ const selectAllSteps = () => {
                     {!isExecuting && !executionResults[step.id] && (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => startEditing(step)}
-                          className="p-2 text-blue-600 hover:text-blue-700"
+                          onClick={() => addStepComponent.setInsertingAfterStep(step.step_number)}
+                          className="p-2 text-purple-600 hover:text-purple-700"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Plus className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteStep(step.id)}
