@@ -26,8 +26,8 @@ const TestSuite = () => {
   const [executionInProgress, setExecutionInProgress] = useState(false);
   const [cancellationRequested, setCancellationRequested] = useState(false);
   const [showExecutionModal, setShowExecutionModal] = useState(false);
-  const [waitBetweenSteps, setWaitBetweenSteps] = useState(1000);
-  const [waitBetweenCases, setWaitBetweenCases] = useState(3000);
+  const [waitBetweenSteps, setWaitBetweenSteps] = useState("1000");
+  const [waitBetweenCases, setWaitBetweenCases] = useState("3000");
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
@@ -241,9 +241,12 @@ const handleRunTestSuite = async () => {
   }
   
   setExecutionResults(initialResults);
+
+  const waitStepsMs = parseInt(waitBetweenSteps) || 1000;
+  const waitCasesMs = parseInt(waitBetweenCases) || 3000;
   
   try {
-    // Check if cancellation was requested before making API call
+
     if (cancellationRequested) {
       setError("Test execution was cancelled");
       setExecutionInProgress(false);
@@ -251,17 +254,21 @@ const handleRunTestSuite = async () => {
       return;
     }
 
+    const requestBody = {
+      testsuite_id: testSuiteId,
+      user_id: userId,
+      wait_between_steps: waitStepsMs,
+      wait_between_cases: waitCasesMs,
+    };
+
+    console.log("Request Body:", requestBody);
+
     const response = await fetch("http://127.0.0.1:8000/automation/run_testsuite/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        testsuite_id: testSuiteId,
-        user_id: userId, 
-        wait_between_steps: waitBetweenSteps,
-        wait_between_cases: waitBetweenCases
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -342,13 +349,14 @@ const handleRunTestSuite = async () => {
       // Get existing test suite results from localStorage
       const testSuiteResults = JSON.parse(localStorage.getItem('testSuiteResults') || '[]');
       testSuiteResults.push(testSuiteResult);
-      localStorage.setItem('testSuiteResults', JSON.stringify(testSuiteResults));
-      
-      // Also save individual test case results
+      const latestSuiteResults = testSuiteResults.slice(-10);
+      localStorage.setItem('testSuiteResults', JSON.stringify(latestSuiteResults));
+
       const testCaseResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
+
       result.testcases.forEach(testcase => {
         const testCaseResult = {
-          id: Date.now() + testcase.testcase_id, // unique identifier
+          id: Date.now() + testcase.testcase_id,
           project_id: projectId,
           testcase_id: testcase.testcase_id,
           name: testcase.testcase_name,
@@ -361,8 +369,10 @@ const handleRunTestSuite = async () => {
         };
         testCaseResults.push(testCaseResult);
       });
+    
+      const latestCaseResults = testCaseResults.slice(-10);
+      localStorage.setItem('testCaseResults', JSON.stringify(latestCaseResults));
       
-      localStorage.setItem('testCaseResults', JSON.stringify(testCaseResults));
     }
     setTestSuiteSummary({
       status: result.summary.status,
@@ -428,51 +438,53 @@ const fetchTestStepDetails = async (testCaseId) => {
     );
   };
 
-  const ExecutionModal = () => {
-    if (!showExecutionModal) return null;
-    
+  const ExecutionModal = ({
+    show,
+    onClose,
+    waitBetweenSteps,
+    setWaitBetweenSteps,
+    waitBetweenCases,
+    setWaitBetweenCases,
+  }) => {
+    if (!show) return null;
+  
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Test Execution Settings</h3>
-            <button 
-              onClick={handleCloseExecutionModal}
-              className="text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="w-5 h-5" />
             </button>
           </div>
-          
+  
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="waitSteps" className="block text-sm font-medium text-gray-700 mb-1">
                 Wait Time Between Test Steps (milliseconds)
               </label>
               <input
-                type="number"
-                min="0"
-                step="1"
+                id="waitSteps"
+                type="text"
                 value={waitBetweenSteps}
-                onChange={(e) => setWaitBetweenSteps(parseInt(e.target.value))}
+                onChange={(e) => setWaitBetweenSteps(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
-            
+  
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="waitCases" className="block text-sm font-medium text-gray-700 mb-1">
                 Wait Time Between Test Cases (milliseconds)
               </label>
               <input
-                type="number"
-                min="0"
-                step="1"
+                id="waitCases"
+                type="text"
                 value={waitBetweenCases}
-                onChange={(e) => setWaitBetweenCases(parseInt(e.target.value))}
+                onChange={(e) => setWaitBetweenCases(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
-            
+  
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleRunTestSuite}
@@ -486,7 +498,7 @@ const fetchTestStepDetails = async (testCaseId) => {
         </div>
       </div>
     );
-  };
+  };  
 
   const renderTestSuiteInfo = () => (
     <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -781,7 +793,15 @@ const fetchTestStepDetails = async (testCaseId) => {
       )}
       
       {expandedScreenshot && <ScreenshotModal />}
-      <ExecutionModal />
+      <ExecutionModal
+        show={showExecutionModal}
+        onClose={handleCloseExecutionModal}
+        waitBetweenSteps={waitBetweenSteps}
+        setWaitBetweenSteps={setWaitBetweenSteps}
+        waitBetweenCases={waitBetweenCases}
+        setWaitBetweenCases={setWaitBetweenCases}
+      />
+
     </div>
   );
 };

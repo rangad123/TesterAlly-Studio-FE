@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import AddStep from "./AddStep";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw } from "lucide-react";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
@@ -22,7 +23,11 @@ const TestSteps = () => {
   const [selectedSteps, setSelectedSteps] = useState([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResults, setExecutionResults] = useState({});
-  const [expandedScreenshot, setExpandedScreenshot] = useState(null);
+  const [hoveredStep, setHoveredStep] = useState(null);
+const [addingStep, setAddingStep] = useState(false);
+const [deletingStepId, setDeletingStepId] = useState(null);
+const [updatingStepId, setUpdatingStepId] = useState(null);
+
 //  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
@@ -195,6 +200,20 @@ const TestSteps = () => {
     }
   }, [testCaseId, apiBaseUrl]);
 
+  const addStepComponent = AddStep({
+    testCaseId,
+    steps,
+    fetchSteps,
+    apiBaseUrl,
+    hoveredStep,
+    setHoveredStep,
+    isExecuting,
+    executionResults
+  });
+
+  const handleViewExecutionScreenshot = (screenshot) => {
+    addStepComponent.handleExpandScreenshot(screenshot);
+  };
 
   useEffect(() => {
     if (!testCaseId) {
@@ -208,6 +227,8 @@ const TestSteps = () => {
     if (!window.confirm("Are you sure you want to delete this step?")) return;
     setError(null);
     
+    setDeletingStepId(stepId);
+
     try {
       const deleteResponse = await fetch(`${apiBaseUrl}/teststeps/${stepId}/?testcase_id=${testCaseId}`, {
         method: "DELETE",
@@ -239,6 +260,8 @@ const TestSteps = () => {
     } catch (err) {
       setError("Error deleting step. Please try again.");
       console.error("Delete operation failed:", err);
+    } finally {
+      setDeletingStepId(null);
     }
   };
 
@@ -247,6 +270,7 @@ const TestSteps = () => {
       setError("Step description cannot be empty");
       return;
     }
+    setAddingStep(true); 
 
     try {
       const newStepNumber = steps.length + 1;
@@ -271,6 +295,8 @@ const TestSteps = () => {
     } catch (err) {
       setError("Failed to add step. Please try again.");
       console.error("Error adding step:", err);
+    } finally {
+      setAddingStep(false);
     }
   };
 
@@ -284,6 +310,7 @@ const TestSteps = () => {
       setError("Step description cannot be empty");
       return;
     }
+    setUpdatingStepId(stepId);
 
     try {
       const step = steps.find(s => s.id === stepId);
@@ -316,6 +343,8 @@ const TestSteps = () => {
     } catch (err) {
       setError("Failed to update step. Please try again.");
       console.error("Error updating step:", err);
+    } finally {
+      setUpdatingStepId(null); 
     }
   };
 
@@ -430,11 +459,11 @@ const TestSteps = () => {
       id: Date.now().toString(), 
     };
   
-    // Get existing test case results from localStorage
     const savedResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
 
     savedResults.push(testRunSummary);
-    localStorage.setItem('testCaseResults', JSON.stringify(savedResults));
+    const latestResults = savedResults.slice(-10);
+    localStorage.setItem('testCaseResults', JSON.stringify(latestResults));
     
     setIsExecuting(false);
   };
@@ -747,36 +776,6 @@ const selectAllSteps = () => {
   }
 };
 
-const handleExpandScreenshot = (screenshot) => {
-  setExpandedScreenshot(screenshot);
-};
-
-const ScreenshotModal = () => {
-  if (!expandedScreenshot) return null;
-
-
-  return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-      onClick={() => setExpandedScreenshot(null)}
-    >
-      <div className="relative max-w-4xl max-h-[90vh] w-full">
-        <button 
-          className="absolute top-2 right-2 bg-white rounded-full p-1"
-          onClick={() => setExpandedScreenshot(null)}
-        >
-          <X className="w-6 h-6" />
-        </button>
-        <img 
-          src={expandedScreenshot} 
-          alt="Full screen preview" 
-          className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
-        />
-      </div>
-    </div>
-  );
-};
-
   const renderTestCaseInfo = () => {
     if (!testCase) return <div>Loading test case details...</div>;
 
@@ -963,10 +962,15 @@ const ScreenshotModal = () => {
             />
             <button
               onClick={handleAddStep}
+              disabled={addingStep}
               className="inline-flex items-center px-4 py-2 bg-purple-400 text-white rounded-md hover:bg-purple-500"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Step
+              {addingStep ? (
+                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
+              {addingStep ? "Adding..." : "Add Step"}
             </button>
           </div>
 
@@ -982,12 +986,13 @@ const ScreenshotModal = () => {
           </div>
 
           <div className="space-y-3 ">
-            {steps.map((step) => (
+          {steps.map((step) => (
+            <React.Fragment key={step.id}>
               <div
-                key={step.id}
-                className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4"
+                className="relative flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 transition-all duration-200"
+                onMouseEnter={() => setHoveredStep(step.id)}
+                onMouseLeave={() => setHoveredStep(null)}
               >
-                
                 {activeTab === "testSteps" && (
                   <input
                     type="checkbox"
@@ -1017,10 +1022,16 @@ const ScreenshotModal = () => {
                     />
                     <button
                       onClick={() => handleUpdateStep(step.id)}
+                      disabled={updatingStepId === step.id}
                       className="p-2 text-green-600 hover:text-green-700"
                     >
-                      <Save className="w-4 h-4" />
+                      {updatingStepId === step.id ? (
+                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
                     </button>
+
                     <button
                       onClick={cancelEdit}
                       className="p-2 text-gray-600 hover:text-gray-700"
@@ -1064,13 +1075,13 @@ const ScreenshotModal = () => {
                           )}
                         </div>
                       )}
-                      {executionResults[step.id]?.screenshot && (
+                      {executionResults[step.id] && executionResults[step.id].screenshot && (
                         <div className="mt-2">
                           <img 
                             src={executionResults[step.id].screenshot} 
-                            alt="Execution screenshot" 
-                            className="w-full max-h-60 object-contain border border-gray-200 rounded-md cursor-pointer"
-                            onClick={() => handleExpandScreenshot(executionResults[step.id].screenshot)}
+                            alt="Execution result" 
+                            className="w-full max-h-40 object-contain mt-2 border border-gray-200 rounded-md cursor-pointer"
+                            onClick={() => handleViewExecutionScreenshot(executionResults[step.id].screenshot)}
                           />
                         </div>
                       )}
@@ -1085,24 +1096,35 @@ const ScreenshotModal = () => {
                         </button>
                         <button
                           onClick={() => handleDeleteStep(step.id)}
+                          disabled={deletingStepId === step.id}
                           className="p-2 text-red-600 hover:text-red-700"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingStepId === step.id ? (
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     )}
                   </>
                 )}
+
+                {addStepComponent.renderStepActions(step)}
               </div>
-            ))}
+              
+              {/* This is where we render the step content BELOW the step */}
+              {addStepComponent.renderStepContent(step)}
+            </React.Fragment>
+          ))}
           </div>
-          </>
-          ) : (
-            renderTestCaseInfo()
-          )}
+        </>
+      ) : (
+        renderTestCaseInfo()
+      )}
 
-          <ScreenshotModal />
-
+          <addStepComponent.ScreenshotModal />
+          <addStepComponent.InstructionsModal />
         </div>
       </div>
     </div>

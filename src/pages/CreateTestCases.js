@@ -13,6 +13,7 @@ const CreateTestCases = () => {
   const [priorities, setPriorities] = useState([]);
   const [, setError] = useState(null);
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -61,11 +62,14 @@ const CreateTestCases = () => {
     return isValid;
   };
 
-  const handleWriteTestManually = () => {
+  const handleNextClick = () => {
     if (!validateFields()) return;
+    setShowModal(true);
+  };
 
-
-    navigate("/write-manually", {
+  const handleOptionClick = (option) => {
+    const route = option === "write" ? "/writemanually-test" : "/write-manually";
+    navigate(route, {
       state: {
         testCaseInfo: {
           name,
@@ -76,63 +80,8 @@ const CreateTestCases = () => {
       }
     });
   };
-
-
-/*  const validateFields = () => {
-    const newErrors = {};
-    let isValid = true;
-
-    if (!name.trim()) {
-      newErrors.name = "Test Case Name is required!";
-      isValid = false;
-    }
-
-    if (!testCaseType.trim()) {
-      newErrors.type = "Test Case Type is required!";
-      isValid = false;
-    }
-
-    if (!testCasePriority.trim()) {
-      newErrors.priority = "Test Case Priority is required!";
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleCreateTestCase = async () => {
-    if (!validateFields()) return;
-
-    const payload = {
-      project_id: selectedProject.id,
-      name,
-      type: testCaseType,
-      priority: testCasePriority,
-    };
-
-    setIsLoading(true);
-    try {
-      const response = await fetch("https://testerally-be-ylpr.onrender.com/api/testcases/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        alert("Test Case Created Successfully");
-        navigate("/test-cases");
-      } else {
-        const errorData = await response.json();
-        alert(`Failed to create test case: ${errorData.message || "Unknown error"}`);
-      }
-    } catch (error) {
-      alert(`Error: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-*/
+  
+  
 
   const handleCancel = () => {
     navigate("/dashboard-user");
@@ -222,18 +171,6 @@ const CreateTestCases = () => {
                       </span>
                     )}
                   </div>
-                  <div className="create-test-cases-button-group-right">
-                    
-                    {/*
-                    <button
-                      onClick={handleCreateTestCase}
-                      className="create-btn"
-                      disabled={isLoading || !selectedProject}
-                    >
-                      {isLoading ? "Creating..." : "Create"}
-                    </button>
-                    */}
-                  </div>
                 </div>
 
                 <div className="create-test-cases-input-container">
@@ -322,16 +259,38 @@ const CreateTestCases = () => {
                       Cancel
                     </button>
 
-                    <button onClick={handleWriteTestManually} className="create-test-cases-btn-manual bg-purple-600">
+                    <button onClick={handleNextClick} className="create-test-cases-btn-manual bg-purple-600">
                       Next
                     </button>
-
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        {showModal && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3 className="modal-title">Choose an option</h3>
+              <p className="modal-desc">How do you want to create the test steps?</p>
+              <div className="modal-buttons">
+                <button
+                  onClick={() => handleOptionClick("write")}
+                  className="modal-btn bg-purple-500 hover:bg-purple-600 text-white"
+                >
+                  Write Manually
+                </button>
+                <button
+                  onClick={() => handleOptionClick("record")}
+                  className="modal-btn bg-purple-100 hover:bg-purple-200 text-purple-700"
+                >
+                  Record
+                </button>
+              </div>
+              <button onClick={() => setShowModal(false)} className="modal-close text-gray-500">Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

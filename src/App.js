@@ -301,7 +301,7 @@ import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
 import CreateProject from "./pages/CreateProject";
 import CreateTestCases from "./pages/CreateTestCases";
-import WriteTestManually from "./pages/WriteTestManually";
+import WriteRecord from "./pages/WriteRecord";
 import TestSuite from "./pages/TestSuite";
 import CreateTestSuite from "./pages/CreateTestSuite";
 import DashBoard from "./pages/DashBoard";
@@ -351,6 +351,7 @@ import MemberPriorities from "./pages/MemberPriorities";
 import TestAutomationControl from "./pages/TestExecution";
 import Agent from "./pages/Agent";
 import Reports from "./pages/Reports";
+import WriteTestManually from "./pages/WriteTestManually";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -778,6 +779,15 @@ const App = () => {
               />
               <Route
                 path="write-manually"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <WriteRecord />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/writemanually-test"
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>

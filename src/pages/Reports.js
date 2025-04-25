@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { FaSearch, FaExclamationTriangle, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { Calendar, BarChart2, Download, RefreshCw } from 'lucide-react';
@@ -551,99 +550,112 @@ const Reports = () => {
               <div className="p-4 border-b">
                 <h3 className="text-lg font-semibold text-gray-800">Test Execution Summary</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6">
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="bg-purple-100 p-3 rounded-lg">
-                        <BarChart2 className="w-6 h-6 text-purple-600" />
+              {/* MODIFIED: Updated to ensure the boxes display in one row with better sizing */}
+              <div className="flex flex-row flex-wrap p-4">
+                {/* Total Test Runs */}
+                <div className="w-full sm:w-1/2 md:w-1/4 p-2">
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md h-full">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="bg-purple-100 p-2 rounded-lg">
+                          <BarChart2 className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
+                          <span className="text-green-500 text-xs font-medium">↑ 12%</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
-                        <span className="text-green-500 text-sm font-medium">↑ 12%</span>
+                      <h4 className="text-sm font-medium text-gray-700">Total Test Runs</h4>
+                      <div className="flex items-baseline mt-1">
+                        <p className="text-2xl font-bold text-gray-900 transition-all duration-1000">
+                          {animatedTotalRuns}
+                        </p>
+                        <span className="ml-1 text-xs text-gray-500">executions</span>
                       </div>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-700">Total Test Runs</h4>
-                    <div className="flex items-baseline mt-2">
-                      <p className="text-3xl font-bold text-gray-900 transition-all duration-1000">
-                        {animatedTotalRuns}
-                      </p>
-                      <span className="ml-2 text-sm text-gray-500">executions</span>
-                    </div>
-                    <div className="mt-4 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="bg-purple-600 h-full rounded-full" style={{ width: '100%', transition: 'width 1s ease-in-out' }}></div>
+                      <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div className="bg-purple-600 h-full rounded-full" style={{ width: '100%', transition: 'width 1s ease-in-out' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="bg-green-100 p-3 rounded-lg">
-                        <FaCheckCircle className="w-6 h-6 text-green-600" />
+                {/* Pass Rate */}
+                <div className="w-full sm:w-1/2 md:w-1/4 p-2">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md h-full">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="bg-green-100 p-2 rounded-lg">
+                          <FaCheckCircle className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
+                          <span className="text-green-500 text-xs font-medium">↑ 5%</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
-                        <span className="text-green-500 text-sm font-medium">↑ 5%</span>
+                      <h4 className="text-sm font-medium text-gray-700">Pass Rate</h4>
+                      <div className="flex items-baseline mt-1">
+                        <p className="text-2xl font-bold text-green-600 transition-all duration-1000">
+                          {animatedPassRate}%
+                        </p>
+                        <span className="ml-1 text-xs text-gray-500">success</span>
                       </div>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-700">Pass Rate</h4>
-                    <div className="flex items-baseline mt-2">
-                      <p className="text-3xl font-bold text-green-600 transition-all duration-1000">
-                        {animatedPassRate}%
-                      </p>
-                      <span className="ml-2 text-sm text-gray-500">success</span>
-                    </div>
-                    <div className="mt-4 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="bg-green-500 h-full rounded-full" style={{ width: `${stats.passRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div className="bg-green-500 h-full rounded-full" style={{ width: `${stats.passRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-xl shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="bg-red-100 p-3 rounded-lg">
-                        <FaTimesCircle className="w-6 h-6 text-red-600" />
+                {/* Fail Rate */}
+                <div className="w-full sm:w-1/2 md:w-1/4 p-2">
+                  <div className="bg-gradient-to-r from-red-50 to-rose-50 rounded-lg shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md h-full">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="bg-red-100 p-2 rounded-lg">
+                          <FaTimesCircle className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
+                          <span className="text-red-500 text-xs font-medium">↓ 3%</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
-                        <span className="text-red-500 text-sm font-medium">↓ 3%</span>
+                      <h4 className="text-sm font-medium text-gray-700">Fail Rate</h4>
+                      <div className="flex items-baseline mt-1">
+                        <p className="text-2xl font-bold text-red-600 transition-all duration-1000">
+                          {animatedFailRate}%
+                        </p>
+                        <span className="ml-1 text-xs text-gray-500">failures</span>
                       </div>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-700">Fail Rate</h4>
-                    <div className="flex items-baseline mt-2">
-                      <p className="text-3xl font-bold text-red-600 transition-all duration-1000">
-                        {animatedFailRate}%
-                      </p>
-                      <span className="ml-2 text-sm text-gray-500">failures</span>
-                    </div>
-                    <div className="mt-4 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="bg-red-500 h-full rounded-full" style={{ width: `${stats.failRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div className="bg-red-500 h-full rounded-full" style={{ width: `${stats.failRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="bg-yellow-100 p-3 rounded-lg">
-                        <FaExclamationTriangle className="w-6 h-6 text-yellow-600" />
+                {/* Pending Rate */}
+                <div className="w-full sm:w-1/2 md:w-1/4 p-2">
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-lg shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md h-full">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="bg-yellow-100 p-2 rounded-lg">
+                          <FaExclamationTriangle className="w-5 h-5 text-yellow-600" />
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
+                          <span className="text-yellow-500 text-xs font-medium">↓ 2%</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Trend</span>
-                        <span className="text-yellow-500 text-sm font-medium">↓ 2%</span>
+                      <h4 className="text-sm font-medium text-gray-700">Pending Rate</h4>
+                      <div className="flex items-baseline mt-1">
+                        <p className="text-2xl font-bold text-yellow-600 transition-all duration-1000">
+                          {animatedPendingRate}%
+                        </p>
+                        <span className="ml-1 text-xs text-gray-500">pending</span>
                       </div>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-700">Pending Rate</h4>
-                    <div className="flex items-baseline mt-2">
-                      <p className="text-3xl font-bold text-yellow-600 transition-all duration-1000">
-                        {animatedPendingRate}%
-                      </p>
-                      <span className="ml-2 text-sm text-gray-500">pending</span>
-                    </div>
-                    <div className="mt-4 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                      <div className="bg-yellow-500 h-full rounded-full" style={{ width: `${stats.pendingRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      <div className="mt-2 h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div className="bg-yellow-500 h-full rounded-full" style={{ width: `${stats.pendingRate}%`, transition: 'width 1s ease-in-out' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
