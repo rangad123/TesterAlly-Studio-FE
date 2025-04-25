@@ -164,13 +164,16 @@ const Login = (props) => {
         
         if (systemVerification.success) {
           console.log("✅ System verification successful:", systemVerification.data);
-          // System info matches, proceed with redirect
+
+          const userId = localStorage.getItem("userId"); 
+          checkForUpdates(userId);
+          console.log("userId:",userId);
+
           handleRedirect(data.user.roleId);
           toast.success("Login successful!");
         } else {
-          // System info doesn't match, show error and logout
+
           toast.error(systemVerification.message || "System verification failed. Please use the correct device.");
-          // Reset login state
           localStorage.clear();
           setIsLoggedIn(false);
         }
@@ -190,6 +193,65 @@ const Login = (props) => {
     } finally {
       setLoading(false);
       console.timeEnd("Login Total Time");
+    }
+  };
+
+  const checkForUpdates = async (userId) => {
+    try {
+      const queryParams = new URLSearchParams({
+        user_id: userId,
+      });
+  
+      const getResponse = await fetch(`http://127.0.0.1:8000/installer/track-download/?${queryParams}`);
+      if (!getResponse.ok) {
+        throw new Error("Failed to fetch download UID");
+      }
+      
+      const responseData = await getResponse.json();
+      console.log("response data:", responseData);
+
+      if (Array.isArray(responseData) && responseData.length > 0) {
+
+        const sortedDownloads = [...responseData].sort((a, b) => 
+          new Date(b.last_downloaded) - new Date(a.last_downloaded)
+        );
+        
+        const hasUpdate = sortedDownloads.some(item => item.is_update_available === "yes");
+        
+        const mostRecentDownload = sortedDownloads[0];
+        
+        if (hasUpdate) {
+          const current_version = mostRecentDownload.file_version;
+          
+          toast.info(
+            <div className="update-notification">
+              <div className="flex items-center">
+                <div>
+                  <p className="font-bold">Update Available!</p>
+                  <p>A new version is now available.</p>
+                  <p className="text-sm mt-1">Your current version: {current_version}</p>
+                </div>
+              </div>
+              <button 
+                className="mt-2 bg-purple-600 text-white px-4 py-1 rounded-lg hover:bg-purple-700 transition-colors w-full"
+                onClick={() => window.open('https://testerally.ai', '_blank')}
+              >
+                Download Update
+              </button>
+            </div>,
+            {
+              autoClose: false,
+              closeOnClick: false,
+              position: "top-right",
+              className: "update-toast",
+            }
+          );
+        } else {
+          console.log("No updates available at this time.");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check for updates:", error);
     }
   };
 
