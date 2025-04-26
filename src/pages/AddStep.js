@@ -489,7 +489,8 @@ const renderStepActions = (step) => {
     showNoteModal,
     expandedScreenshot,
     error,
-    setInsertingAfterStep
+    setInsertingAfterStep,
+    insertingAfterStep
   };
 };
 

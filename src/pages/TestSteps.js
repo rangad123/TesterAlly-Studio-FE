@@ -1034,12 +1034,14 @@ const selectAllSteps = () => {
                     </div>
                     {!isExecuting && !executionResults[step.id] && (
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => addStepComponent.setInsertingAfterStep(step.step_number)}
-                          className="p-2 text-purple-600 hover:text-purple-700"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                        {addStepComponent.insertingAfterStep !== step.step_number && (
+                          <button
+                            onClick={() => addStepComponent.setInsertingAfterStep(step.step_number)}
+                            className="p-2 text-purple-600 hover:text-purple-700"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteStep(step.id)}
                           disabled={deletingStepId === step.id}
