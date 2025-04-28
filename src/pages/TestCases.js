@@ -142,6 +142,7 @@ const TestCases = () => {
     testCase.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  /*
   const handleEdit = async (testCase) => {
     setEditingTestCase({
       id: testCase.id,
@@ -152,7 +153,7 @@ const TestCases = () => {
     await fetchTestSteps(testCase.id);
     setActiveTab('details');
   };
-
+*/
   const handleUpdateStep = async (stepId) => {
     if (!editStepValue.trim()) {
       setError("Step description cannot be empty");
@@ -673,6 +674,7 @@ const TestCases = () => {
                           {testCase.project_name}
                         </td> */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+{/*                            
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); 
@@ -683,6 +685,7 @@ const TestCases = () => {
                             <Edit2 className="w-4 h-4 mr-1" />
                             Edit
                           </button>
+*/}
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); 

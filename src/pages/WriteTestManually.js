@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Trash2, Plus, Camera, Check, Info } from 'lucide-react';
+import { X, Plus, Camera, Check, Info, Save } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 
 const WriteTestManually = () => {
@@ -22,8 +22,9 @@ const WriteTestManually = () => {
   const [commandSuggestions, setCommandSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [commandType, setCommandType] = useState("");
-  const [ , setTempStepValue] = useState("");
+  const [, setTempStepValue] = useState("");
   const [originalStepValues, setOriginalStepValues] = useState({});
+  const [lastCapturedStepId, setLastCapturedStepId] = useState(null);
   
   const inputRef = useRef(null);
 
@@ -156,75 +157,209 @@ const WriteTestManually = () => {
     }
   };
 
- 
-  const handleAddStep = (afterIndex = null) => {
-    const newStep = {
-      id: `step-${Date.now()}`, 
-      stepNumber: testSteps.length + 1,
-      choice: "",
-      isSaved: false,
-      isSelected: true
-    };
-    
+
+const handleSaveStep = (index) => {
+  if (testSteps[index].choice.trim() === "") {
+    alert("Please provide a step description before saving.");
+    return;
+  }
+
+  const updatedSteps = [...testSteps];
+  updatedSteps[index].isSaved = true;
+  setTestSteps(updatedSteps);
+  setEditingStep(null);
+  setShowSuggestions(false);
+
+  // Clean up original values
+  setOriginalStepValues(prev => {
+    const newValues = {...prev};
+    delete newValues[index];
+    return newValues;
+  });
+};
+
+const handleAddStep = (afterIndex = null) => {
+  // Cancel any existing editable step first
+  if (editingStep !== null) {
+    handleCancelEdit(editingStep);
+  }
   
-    let updatedSteps;
-    if (afterIndex !== null) {
-     
-      updatedSteps = [
-        ...testSteps.slice(0, afterIndex + 1),
-        newStep,
-        ...testSteps.slice(afterIndex + 1)
-      ];
-    } else {
-     
-      updatedSteps = [...testSteps, newStep];
+  // Create new step
+  const newStep = {
+    id: `step-${Date.now()}`, 
+    stepNumber: testSteps.length + 1,
+    choice: "",
+    isSaved: false,
+    isSelected: true
+  };
+  
+  let updatedSteps;
+  if (afterIndex !== null) {
+    updatedSteps = [
+      ...testSteps.slice(0, afterIndex + 1),
+      newStep,
+      ...testSteps.slice(afterIndex + 1)
+    ];
+  } else {
+    updatedSteps = [...testSteps, newStep];
+  }
+  
+  // Re-number steps
+  updatedSteps.forEach((step, idx) => {
+    step.stepNumber = idx + 1;
+  });
+  
+  setTestSteps(updatedSteps);
+  setTempStepValue("");
+  
+  // Set this new step as the one being edited
+  const newEditingIndex = afterIndex !== null ? afterIndex + 1 : updatedSteps.length - 1;
+  setEditingStep(newEditingIndex);
+  
+  // Close suggestions
+  setShowSuggestions(false);
+};
+
+const handleSaveAndAddStep = () => {
+  const currentEditingIndex = editingStep;
+  
+  if (currentEditingIndex === null) {
+    handleAddStep();
+    return;
+  }
+
+  if (testSteps[currentEditingIndex].choice.trim() === "") {
+    alert("Please provide a step description before adding a new step.");
+    return;
+  }
+
+  // Save the current step
+  const updatedSteps = [...testSteps];
+  updatedSteps[currentEditingIndex].isSaved = true;
+  setTestSteps(updatedSteps);
+  
+  // Clear editing state
+  setEditingStep(null);
+  setShowSuggestions(false);
+  
+  // Add new step after the current one
+  setTimeout(() => {
+    handleAddStep(currentEditingIndex);
+  }, 0);
+};
+
+const handleDoubleClick = (index) => {
+  if (testSteps[index].isSaved) {
+    // If another step is being edited, cancel that first
+    if (editingStep !== null && editingStep !== index) {
+      handleCancelEdit(editingStep);
     }
     
-    updatedSteps.forEach((step, idx) => {
-      step.stepNumber = idx + 1;
+    // Now set up the double-clicked step for editing
+    setOriginalStepValues(prev => ({
+      ...prev,
+      [index]: testSteps[index].choice
+    }));
+    
+    const updatedSteps = [...testSteps];
+    updatedSteps[index].isSaved = false;
+    setTestSteps(updatedSteps);
+    setEditingStep(index);
+    setTempStepValue(testSteps[index].choice);
+    
+    // Show suggestions if this step has captured data
+    const stepId = testSteps[index].id;
+    if (capturedSteps[stepId]) {
+      const input = testSteps[index].choice;
+      const words = input.trim().split(' ');
+      const command = words[0].toLowerCase();
+      
+      if (['click', 'type', 'verify', 'get'].includes(command)) {
+        setCommandType(command);
+        fetchElementSuggestions(command, input, words, stepId);
+        setShowSuggestions(index);
+      }
+    }
+  }
+};
+
+const handleCancelEdit = (index) => {
+  if (index === null || index >= testSteps.length) return;
+  
+  const updatedSteps = [...testSteps];
+
+  // If it's a new step with no saved data, delete it
+  if (!updatedSteps[index].isSaved && !originalStepValues[index]) {
+    handleDeleteStep(index);
+    return;
+  }
+
+  // If it's an edited existing step, restore original value
+  if (originalStepValues[index]) {
+    updatedSteps[index].choice = originalStepValues[index];
+    updatedSteps[index].isSaved = true; 
+    setTestSteps(updatedSteps);
+
+    // Clean up original values
+    setOriginalStepValues(prev => {
+      const newValues = {...prev};
+      delete newValues[index];
+      return newValues;
     });
+  }
+  
+  setEditingStep(null);
+  setShowSuggestions(false);
+  setCommandSuggestions([]);
+};
+
+const handleCaptureElement = async (stepId) => {
+  setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
+  
+  try {
+    const user_id = localStorage.getItem("userId");
+
+    const requestBody = {
+      user_id: user_id,
+    };
+
+    console.log("Request body for /insert_screen/:", requestBody);
     
-    setTestSteps(updatedSteps);
-    setTempStepValue("");
-    setEditingStep(afterIndex !== null ? afterIndex + 1 : updatedSteps.length - 1);
-  };
+    const response = await fetch('http://127.0.0.1:8000/automation/insert_screen/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-  const handleSaveStep = (index) => {
-    if (testSteps[index].choice.trim() === "") {
-      alert("Please provide a step description before saving.");
-      return;
+    if (!response.ok) {
+      throw new Error('Failed to capture element');
     }
 
-    const updatedSteps = [...testSteps];
-    updatedSteps[index].isSaved = true;
-    setTestSteps(updatedSteps);
-    setEditingStep(null);
-  };
+    const data = await response.json();
+    console.log("Capture response:", data);
 
-  const handleCancelEdit = (index) => {
-    const updatedSteps = [...testSteps];
+    setCapturedSteps(prev => ({
+      ...prev,
+      [stepId]: {
+        coordinates: data.coordinates || {},
+        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
+        timestamp: new Date().toISOString(),
+        elements: data.omniparser_data?.elements || []
+      }
+    }));
 
-    if (!updatedSteps[index].isSaved && !originalStepValues[index]) {
-      handleDeleteStep(index);
-      return;
-    }
-
-    if (originalStepValues[index]) {
-      updatedSteps[index].choice = originalStepValues[index];
-      updatedSteps[index].isSaved = true; 
-      setTestSteps(updatedSteps);
-
-      setOriginalStepValues(prev => {
-        const newValues = {...prev};
-        delete newValues[index];
-        return newValues;
-      });
-    }
+    setLastCapturedStepId(stepId);
     
-    setEditingStep(null);
-    setShowSuggestions(false);
-    setCommandSuggestions([]);
-  };
+  } catch (error) {
+    console.error('Element capture error:', error);
+    alert("Failed to capture element. Please try again.");
+  } finally {
+    setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
+  }
+};
+
 
   const handleDeleteStep = (index) => {
     const updatedSteps = testSteps.filter((_, idx) => idx !== index);
@@ -234,67 +369,6 @@ const WriteTestManually = () => {
     setTestSteps(updatedSteps);
     setEditingStep(null);
   };
-
-  const handleDoubleClick = (index) => {
-    if (testSteps[index].isSaved) {
-      setOriginalStepValues(prev => ({
-        ...prev,
-        [index]: testSteps[index].choice
-      }));
-      
-      const updatedSteps = [...testSteps];
-      updatedSteps[index].isSaved = false;
-      setTestSteps(updatedSteps);
-      setEditingStep(index);
-      setTempStepValue(testSteps[index].choice);
-    }
-  };
-
-  const handleCaptureElement = async (stepId) => {
-    setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
-    
-    try {
-      const user_id = localStorage.getItem("userId");
-
-      const requestBody = {
-        user_id: user_id,
-      };
-
-      console.log("Request body for /insert_screen/:", requestBody);
-      
-      const response = await fetch('http://127.0.0.1:8000/automation/insert_screen/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to capture element');
-      }
-  
-      const data = await response.json();
-      console.log("Capture response:", data);
-
-      setCapturedSteps(prev => ({
-        ...prev,
-        [stepId]: {
-          coordinates: data.coordinates || {},
-          screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
-          timestamp: new Date().toISOString(),
-          elements: data.omniparser_data?.elements || []
-        }
-      }));
-      
-    } catch (error) {
-      console.error('Element capture error:', error);
-      alert("Failed to capture element. Please try again.");
-    } finally {
-      setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
-    }
-  };
-
 
   const handleCommandInputChange = (e, index) => {
     const input = e.target.value;
@@ -307,10 +381,18 @@ const WriteTestManually = () => {
     
     if (['click', 'type', 'verify', 'get'].includes(command)) {
       setCommandType(command);
+      
+      // First try to use the current step's captured data
       const stepId = testSteps[index].id;
       
+      // If this step has captured data, use it
       if (capturedSteps[stepId]) {
         fetchElementSuggestions(command, input, words, stepId);
+        setShowSuggestions(index);
+      } 
+      // Otherwise, use the last captured step's data if available
+      else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
+        fetchElementSuggestions(command, input, words, lastCapturedStepId);
         setShowSuggestions(index);
       } else {
         setShowSuggestions(false);
@@ -332,29 +414,59 @@ const WriteTestManually = () => {
     console.log("Current command:", command);
   
     let filtered = [];
-
+  
     if (command === "click") {
-      filtered = elements.filter(el => el.interactivity === true);
+      filtered = elements.filter(el => el.interactivity === true && el.type === "icon");
+      if (words.length > 1) {
+        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(el => 
+            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+            (el.text && el.text.toLowerCase().includes(searchTerm))
+          );
+        }
+      }
     } else if (command === "type") {
-      filtered = elements.filter(el => el.type === "icon" || el.type === "textarea");
+      filtered = elements.filter(el => el.type === "text");
+
+      if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
+        const inIndex = inputValue.toLowerCase().indexOf(" in ");
+        const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+
+        if (afterInText) {
+          filtered = filtered.filter(el => 
+            (el.name && el.name.toLowerCase().includes(afterInText)) || 
+            (el.text && el.text.toLowerCase().includes(afterInText))
+          );
+        }
+      }
+      // For type command without "in", don't filter elements at all
     } else if (command === "verify") {
       filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text);
+      if (words.length > 1) {
+        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(el => 
+            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+            (el.text && el.text.toLowerCase().includes(searchTerm))
+          );
+        }
+      }
     } else if (command === "get") {
       filtered = elements.filter(el => el.text || el.type === "text" || el.type === "textarea");
-    }
-    
-    if (words.length > 1) {
-      const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
-      if (searchTerm) {
-        filtered = filtered.filter(el => 
-          (el.name && el.name.toLowerCase().includes(searchTerm)) || 
-          (el.text && el.text.toLowerCase().includes(searchTerm))
-        );
+      if (words.length > 1) {
+        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+        if (searchTerm) {
+          filtered = filtered.filter(el => 
+            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+            (el.text && el.text.toLowerCase().includes(searchTerm))
+          );
+        }
       }
     }
     
     filtered = filtered.slice(0, 20);
-    
+
     if (filtered.length === 0 && elements.length > 0) {
       filtered = elements
         .filter(el => el.interactivity === true)
@@ -370,12 +482,20 @@ const WriteTestManually = () => {
     let step = updatedSteps[index];
     let updatedStepValue = '';
 
+    const sameNameElements = commandSuggestions.filter((el, i) => 
+      commandSuggestions.indexOf(suggestion) > i && 
+      ((el.name && suggestion.name && el.name === suggestion.name) || 
+       (el.text && suggestion.text && el.text === suggestion.text))
+    );
+    const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+  
+
     console.log("Selected suggestion:", suggestion);
-  console.log("Step ID:", step.id);
-  console.log("Captured steps data:", capturedSteps[step.id]);
-    
+    console.log("Step ID:", step.id);
+    console.log("Captured steps data:", capturedSteps[step.id]);
+
     if (commandType === 'click') {
-      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}`;
+      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
     } else if (commandType === 'type') {
       const currentText = step.choice;
       const inIndex = currentText.toLowerCase().indexOf(' in ');
@@ -402,7 +522,7 @@ const WriteTestManually = () => {
       setCapturedSteps(prev => ({
         ...prev,
         [step.id]: {
-          ...prev[step.id],
+          ...prev[step.id] || {},  // Use current data or initialize empty object
           coordinates: {
             click_x: suggestion.coordinates.x || 0,
             click_y: suggestion.coordinates.y || 0
@@ -427,35 +547,6 @@ const WriteTestManually = () => {
         inputRef.current.setSelectionRange(length, length);
       }
     }
-  };
-
-  const handleExpandScreenshot = (screenshot) => {
-    setExpandedScreenshot(screenshot);
-  };
-
-  const ScreenshotModal = () => {
-    if (!expandedScreenshot) return null;
-
-    return (
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-        onClick={() => setExpandedScreenshot(null)}
-      >
-        <div className="relative max-w-4xl max-h-[90vh] w-full">
-          <button 
-            className="absolute top-2 right-2 bg-white rounded-full p-1"
-            onClick={() => setExpandedScreenshot(null)}
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <img 
-            src={expandedScreenshot} 
-            alt="Full screen preview" 
-            className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
-          />
-        </div>
-      </div>
-    );
   };
 
   const InstructionsModal = () => {
@@ -511,121 +602,133 @@ const WriteTestManually = () => {
             {testSteps.map((step, index) => (
               <div 
                 key={index}
-                className="relative flex items-center gap-4 bg-white p-4 mb-4 rounded-lg border border-gray-200"
-                onDoubleClick={() => handleDoubleClick(index)}
+                className="relative mb-6" // Increased margin for screenshot
               >
-                <input
-                  type="checkbox"
-                  checked={step.isSelected}
-                  onChange={() => {
-                    const updatedSteps = [...testSteps];
-                    updatedSteps[index].isSelected = !updatedSteps[index].isSelected;
-                    setTestSteps(updatedSteps);
-                  }}
-                  className="w-5 h-5 text-purple-600"
-                />
-                
-                <span className="font-medium min-w-[60px]">#{step.stepNumber}</span>
-                
-                {step.isSaved ? (
-                  <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
-                    {step.choice}
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      ref={showSuggestions === index ? inputRef : null}
-                      type="text"
-                      className="w-full border border-gray-300 rounded-md p-2"
-                      value={step.choice}
-                      onChange={(e) => handleCommandInputChange(e, index)}
-                      placeholder="Enter test step description"
-                      autoFocus={editingStep === index}
-                    />
-                  </div>
-                )}
-
-                {step.isSaved ? (
-                  <div className="flex gap-2">
-                    {capturedSteps[step.id] && (
+                <div 
+                  className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200"
+                  onDoubleClick={() => handleDoubleClick(index)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={step.isSelected}
+                    onChange={() => {
+                      const updatedSteps = [...testSteps];
+                      updatedSteps[index].isSelected = !updatedSteps[index].isSelected;
+                      setTestSteps(updatedSteps);
+                    }}
+                    className="w-5 h-5 text-purple-600"
+                  />
+                  
+                  <span className="font-medium min-w-[60px]">#{step.stepNumber}</span>
+                  
+                  {step.isSaved ? (
+                    <div className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden">
+                      {step.choice}
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        ref={showSuggestions === index ? inputRef : null}
+                        type="text"
+                        className="w-full border border-gray-300 rounded-md p-2"
+                        value={step.choice}
+                        onChange={(e) => handleCommandInputChange(e, index)}
+                        placeholder="Enter test step description"
+                        autoFocus={editingStep === index}
+                      />
+                    </div>
+                  )}
+                  {step.isSaved ? (
+                    <div className="flex gap-2">
+                      {/* Delete button only for saved steps */}
                       <button
-                        onClick={() => handleExpandScreenshot(capturedSteps[step.id].screenshot)}
-                        className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100"
-                        title="View Screenshot"
+                        className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100"
+                        onClick={() => handleDeleteStep(index)}
+                        title="Delete Step"
                       >
-                        <Check className="w-4 h-4" />
+                        <X className="w-4 h-4" />
                       </button>
-                    )}
-                    
-                    {/* Add new step button that inserts after this step */}
-                    <button
-                      className="inline-flex items-center px-3 py-1.5 bg-purple-50 text-purple-600 rounded-md hover:bg-purple-100"
-                      onClick={() => handleAddStep(index)}
-                      title="Add Step After This"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                    
-                    {/* Delete button */}
-                    <button
-                      className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100"
-                      onClick={() => handleDeleteStep(index)}
-                      title="Delete Step"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    {/* Save button */}
-                    <button
-                      className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100"
-                      onClick={() => handleSaveStep(index)}
-                      title="Save Step"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    
-                    {/* Camera button */}
-                    <button
-                      onClick={() => capturedSteps[step.id] 
-                        ? handleExpandScreenshot(capturedSteps[step.id].screenshot)
-                        : handleCaptureElement(step.id)
-                      }
-                      className={`inline-flex items-center px-3 py-1.5 ${capturedSteps[step.id] 
-                        ? 'bg-green-50 text-green-600 hover:bg-green-100' 
-                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100'} 
-                        rounded-md transition-colors`}
-                      title={capturedSteps[step.id] ? "Show Screenshot" : "Capture Element"}
-                      disabled={captureLoading[step.id]}
-                    >
-                      {captureLoading[step.id] ? (
-                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      {/* For new steps: Plus button (save & add new) */}
+                      {/* For editing existing steps: Check button (only save) */}
+                      {originalStepValues[index] ? (
+                        <button
+                          className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100"
+                          onClick={() => handleSaveStep(index)}
+                          title="Save Step"
+                        >
+                          <Save className="w-4 h-4" />
+                        </button>
                       ) : (
-                        capturedSteps[step.id] ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <Camera className="w-4 h-4" />
-                        )
+                        <button
+                          className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100"
+                          onClick={() => handleSaveAndAddStep()}
+                          title="Save & Add New Step"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                       )}
-                    </button>
-                    
-                    {/* Cancel button - only shown during edit */}
-                    <button
-                      className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100"
-                      onClick={() => handleCancelEdit(index)}
-                      title="Cancel"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                      
+                      {/* Camera button */}
+                      <button
+                        onClick={() => handleCaptureElement(step.id)}
+                        className={`inline-flex items-center px-3 py-1.5 ${
+                          capturedSteps[step.id] 
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100' 
+                            : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                        } rounded-md transition-colors`}
+                        title={capturedSteps[step.id] ? "Screenshot Captured" : "Capture Element"}
+                        disabled={captureLoading[step.id]}
+                      >
+                        {captureLoading[step.id] ? (
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          capturedSteps[step.id] ? <Check className="w-4 h-4" /> : <Camera className="w-4 h-4" />
+                        )}
+                      </button>
+                      
+                      {/* Cancel button - only shown during edit */}
+                      <button
+                        className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 rounded-md hover:bg-gray-100"
+                        onClick={() => handleCancelEdit(index)}
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                                    
+                  {/* Capture loading message */}
+                  {captureLoading[step.id] && (
+                    <div className="absolute left-0 -bottom-8 w-full text-sm p-2 bg-blue-50 rounded text-blue-700 z-10">
+                      Capture is loading... Please open your test page.
+                    </div>
+                  )}
+                </div>
                 
-                {/* Capture loading message */}
-                {captureLoading[step.id] && (
-                  <div className="absolute left-0 -bottom-8 w-full text-sm p-2 bg-blue-50 rounded text-blue-700 z-10">
-                    Capture is loading... Please open your test page.
-                  </div>
+                {/* Display screenshot below the step if it exists */}
+                {capturedSteps[step.id] && capturedSteps[step.id].screenshot && (
+                  <div className="mt-2 w-full flex justify-center">
+                    <div className="max-w-md w-full">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="px-3 py-2 bg-gray-50 flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-500">Screenshot</span>
+                        <div className="flex gap-2">
+                          <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">
+                            <Check className="inline w-3 h-3 mr-1" />Captured
+                          </span>
+                        </div>
+                      </div>
+                      <img 
+                        src={capturedSteps[step.id].screenshot} 
+                        alt={`Screenshot for step ${step.stepNumber}`}
+                        className="w-full h-auto max-h-40 object-cover cursor-pointer"
+                        onClick={() => setExpandedScreenshot(capturedSteps[step.id].screenshot)}
+                      />
+                    </div>
+                  </div></div>
                 )}
               </div>
             ))}
@@ -633,29 +736,42 @@ const WriteTestManually = () => {
             {/* Element suggestions dropdown */}
             {showSuggestions !== false && commandSuggestions.length > 0 && (
               <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20 relative">
-                {commandSuggestions.map((element, idx) => (
-                  <div 
-                    key={idx}
-                    onClick={() => handleSuggestionClick(element, showSuggestions)}
-                    className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                  >
-                    <div className={`w-4 h-4 rounded-full ${
-                      commandType === 'click' ? 'bg-blue-100' : 
-                      commandType === 'type' ? 'bg-green-100' : 
-                      commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                    }`}></div>
-                    <span>{element.name || element.text || element.id || 'Element ' + (idx + 1)}</span>
-                    {element.text && (
-                      <span className="text-xs text-gray-500 truncate max-w-xs">
-                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                {commandSuggestions.map((element, idx) => {
+                  const sameNameElements = commandSuggestions.filter((el, i) => 
+                    i < idx && 
+                    ((el.name && element.name && el.name === element.name) || 
+                    (el.text && element.text && el.text === element.text))
+                  );
+                  const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+                  
+                  return (
+                    <div 
+                      key={idx}
+                      onClick={() => handleSuggestionClick(element, showSuggestions)}
+                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                    >
+                      <div className={`w-4 h-4 rounded-full ${
+                        commandType === 'click' ? 'bg-blue-100' : 
+                        commandType === 'type' ? 'bg-green-100' : 
+                        commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                      }`}></div>
+                      <span>
+                        {element.name || element.text || element.id || 'Element ' + (idx + 1)}
+                        {position}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      {element.text && (
+                        <span className="text-xs text-gray-500 truncate max-w-xs">
+                          "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {testSteps.length === 0 && (
+           {/* Only show Add Step button when there are no steps OR all steps are saved */}
+            {(testSteps.length === 0 || !testSteps.some(step => !step.isSaved)) && (
               <button
                 onClick={() => handleAddStep()}
                 className="inline-flex items-center px-4 py-2 bg-purple-50 text-purple-600 rounded-md hover:bg-purple-100"
@@ -669,7 +785,26 @@ const WriteTestManually = () => {
       </div>
       
       {/* Modals */}
-      <ScreenshotModal />
+      {expandedScreenshot && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setExpandedScreenshot(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full">
+            <button 
+              className="absolute top-2 right-2 bg-white rounded-full p-1"
+              onClick={() => setExpandedScreenshot(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={expandedScreenshot} 
+              alt="Full screen preview" 
+              className="w-full h-auto max-h-[90vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
       <InstructionsModal />
     </div>
   );
