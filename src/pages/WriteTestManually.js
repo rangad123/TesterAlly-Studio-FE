@@ -157,16 +157,35 @@ const WriteTestManually = () => {
     }
   };
 
-
 const handleSaveStep = (index) => {
   if (testSteps[index].choice.trim() === "") {
     alert("Please provide a step description before saving.");
     return;
   }
 
+  // First check if there's an empty step at the end
+  const lastStepIndex = testSteps.length - 1;
+  const lastStep = testSteps[lastStepIndex];  
+  const hasEmptyLastStep = lastStepIndex !== index && 
+                           lastStep && 
+                           !lastStep.isSaved && 
+                           lastStep.choice.trim() === "";
+
+  // Update the current step
   const updatedSteps = [...testSteps];
   updatedSteps[index].isSaved = true;
-  setTestSteps(updatedSteps);
+  
+  // Remove empty last step if needed
+  const finalSteps = hasEmptyLastStep ? 
+    updatedSteps.filter((_, idx) => idx !== lastStepIndex) : 
+    updatedSteps;
+    
+  // Renumber steps if necessary
+  finalSteps.forEach((step, idx) => {
+    step.stepNumber = idx + 1;
+  });
+  
+  setTestSteps(finalSteps);
   setEditingStep(null);
   setShowSuggestions(false);
 
@@ -360,194 +379,203 @@ const handleCaptureElement = async (stepId) => {
   }
 };
 
+const handleDeleteStep = (index) => {
+  const updatedSteps = testSteps.filter((_, idx) => idx !== index);
+  
+  // Renumber steps
+  updatedSteps.forEach((step, idx) => {
+    step.stepNumber = idx + 1;
+  });
+  
+  setTestSteps(updatedSteps);
+  setEditingStep(null);
+  
+  // Clean up any references in original values
+  setOriginalStepValues(prev => {
+    const newValues = {...prev};
+    delete newValues[index];
+    return newValues;
+  });
+};
 
-  const handleDeleteStep = (index) => {
-    const updatedSteps = testSteps.filter((_, idx) => idx !== index);
-    updatedSteps.forEach((step, idx) => {
-      step.stepNumber = idx + 1;
-    });
-    setTestSteps(updatedSteps);
-    setEditingStep(null);
-  };
+const handleCommandInputChange = (e, index) => {
+  const input = e.target.value;
+  const updatedSteps = [...testSteps];
+  updatedSteps[index].choice = input;
+  setTestSteps(updatedSteps);
 
-  const handleCommandInputChange = (e, index) => {
-    const input = e.target.value;
-    const updatedSteps = [...testSteps];
-    updatedSteps[index].choice = input;
-    setTestSteps(updatedSteps);
-
-    const words = input.trim().split(' ');
-    const command = words[0].toLowerCase();
+  const words = input.trim().split(' ');
+  const command = words[0].toLowerCase();
+  
+  if (['click', 'type', 'verify', 'get'].includes(command)) {
+    setCommandType(command);
     
-    if (['click', 'type', 'verify', 'get'].includes(command)) {
-      setCommandType(command);
-      
-      // First try to use the current step's captured data
-      const stepId = testSteps[index].id;
-      
-      // If this step has captured data, use it
-      if (capturedSteps[stepId]) {
-        fetchElementSuggestions(command, input, words, stepId);
-        setShowSuggestions(index);
-      } 
-      // Otherwise, use the last captured step's data if available
-      else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
-        fetchElementSuggestions(command, input, words, lastCapturedStepId);
-        setShowSuggestions(index);
-      } else {
-        setShowSuggestions(false);
-      }
-    } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
-      setCommandType(command);
-      setShowSuggestions(false);
+    // First try to use the current step's captured data
+    const stepId = testSteps[index].id;
+    
+    // If this step has captured data, use it
+    if (capturedSteps[stepId]) {
+      fetchElementSuggestions(command, input, words, stepId);
+      setShowSuggestions(index);
+    } 
+    // Otherwise, use the last captured step's data if available
+    else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
+      fetchElementSuggestions(command, input, words, lastCapturedStepId);
+      setShowSuggestions(index);
     } else {
-      setCommandType("");
       setShowSuggestions(false);
     }
-  };
+  } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
+    setCommandType(command);
+    setShowSuggestions(false);
+  } else {
+    setCommandType("");
+    setShowSuggestions(false);
+  }
+};
   
-  const fetchElementSuggestions = (command, inputValue, words, stepId) => {
-    if (!stepId || !capturedSteps[stepId]) return;
-  
-    const elements = capturedSteps[stepId]?.elements || [];
-    console.log("Available elements:", elements);
-    console.log("Current command:", command);
-  
-    let filtered = [];
-  
-    if (command === "click") {
-      filtered = elements.filter(el => el.interactivity === true && el.type === "icon");
-      if (words.length > 1) {
-        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
-        if (searchTerm) {
-          filtered = filtered.filter(el => 
-            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
-            (el.text && el.text.toLowerCase().includes(searchTerm))
-          );
-        }
-      }
-    } else if (command === "type") {
-      filtered = elements.filter(el => el.type === "text");
+const fetchElementSuggestions = (command, inputValue, words, stepId) => {
+  if (!stepId || !capturedSteps[stepId]) return;
 
-      if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
-        const inIndex = inputValue.toLowerCase().indexOf(" in ");
-        const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+  const elements = capturedSteps[stepId]?.elements || [];
+  console.log("Available elements:", elements);
+  console.log("Current command:", command);
 
-        if (afterInText) {
-          filtered = filtered.filter(el => 
-            (el.name && el.name.toLowerCase().includes(afterInText)) || 
-            (el.text && el.text.toLowerCase().includes(afterInText))
-          );
-        }
-      }
-      // For type command without "in", don't filter elements at all
-    } else if (command === "verify") {
-      filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text);
-      if (words.length > 1) {
-        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
-        if (searchTerm) {
-          filtered = filtered.filter(el => 
-            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
-            (el.text && el.text.toLowerCase().includes(searchTerm))
-          );
-        }
-      }
-    } else if (command === "get") {
-      filtered = elements.filter(el => el.text || el.type === "text" || el.type === "textarea");
-      if (words.length > 1) {
-        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
-        if (searchTerm) {
-          filtered = filtered.filter(el => 
-            (el.name && el.name.toLowerCase().includes(searchTerm)) || 
-            (el.text && el.text.toLowerCase().includes(searchTerm))
-          );
-        }
+  let filtered = [];
+
+  if (command === "click") {
+    filtered = elements.filter(el => el.interactivity === true && el.type === "icon");
+    if (words.length > 1) {
+      const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+      if (searchTerm) {
+        filtered = filtered.filter(el => 
+          (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+          (el.text && el.text.toLowerCase().includes(searchTerm))
+        );
       }
     }
-    
-    filtered = filtered.slice(0, 20);
+  } else if (command === "type") {
+    filtered = elements.filter(el => el.type === "text");
 
-    if (filtered.length === 0 && elements.length > 0) {
-      filtered = elements
-        .filter(el => el.interactivity === true)
-        .slice(0, 5);
+    if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
+      const inIndex = inputValue.toLowerCase().indexOf(" in ");
+      const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+
+      if (afterInText) {
+        filtered = filtered.filter(el => 
+          (el.name && el.name.toLowerCase().includes(afterInText)) || 
+          (el.text && el.text.toLowerCase().includes(afterInText))
+        );
+      }
     }
-    
-    console.log("Filtered elements:", filtered);
-    setCommandSuggestions(filtered);
-  };
-
-  const handleSuggestionClick = (suggestion, index) => {
-    const updatedSteps = [...testSteps];
-    let step = updatedSteps[index];
-    let updatedStepValue = '';
-
-    const sameNameElements = commandSuggestions.filter((el, i) => 
-      commandSuggestions.indexOf(suggestion) > i && 
-      ((el.name && suggestion.name && el.name === suggestion.name) || 
-       (el.text && suggestion.text && el.text === suggestion.text))
-    );
-    const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+    // For type command without "in", don't filter elements at all
+  } else if (command === "verify") {
+    filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text);
+    if (words.length > 1) {
+      const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+      if (searchTerm) {
+        filtered = filtered.filter(el => 
+          (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+          (el.text && el.text.toLowerCase().includes(searchTerm))
+        );
+      }
+    }
+  } else if (command === "get") {
+    filtered = elements.filter(el => el.text || el.type === "text" || el.type === "textarea");
+    if (words.length > 1) {
+      const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+      if (searchTerm) {
+        filtered = filtered.filter(el => 
+          (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+          (el.text && el.text.toLowerCase().includes(searchTerm))
+        );
+      }
+    }
+  }
   
+  filtered = filtered.slice(0, 20);
 
-    console.log("Selected suggestion:", suggestion);
-    console.log("Step ID:", step.id);
-    console.log("Captured steps data:", capturedSteps[step.id]);
+  if (filtered.length === 0 && elements.length > 0) {
+    filtered = elements
+      .filter(el => el.interactivity === true)
+      .slice(0, 5);
+  }
+  
+  console.log("Filtered elements:", filtered);
+  setCommandSuggestions(filtered);
+};
 
-    if (commandType === 'click') {
-      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
-    } else if (commandType === 'type') {
-      const currentText = step.choice;
-      const inIndex = currentText.toLowerCase().indexOf(' in ');
-      if (inIndex !== -1) {
-        const textToType = currentText.substring(5, inIndex).trim();
-        if (textToType) {
-          updatedStepValue = `type ${textToType} in ${suggestion.name || suggestion.text || 'element'}`;
-        } else {
-          updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
-        }
+const handleSuggestionClick = (suggestion, index) => {
+  const updatedSteps = [...testSteps];
+  let step = updatedSteps[index];
+  let updatedStepValue = '';
+
+  const sameNameElements = commandSuggestions.filter((el, i) => 
+    commandSuggestions.indexOf(suggestion) > i && 
+    ((el.name && suggestion.name && el.name === suggestion.name) || 
+     (el.text && suggestion.text && el.text === suggestion.text))
+  );
+  const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+
+
+  console.log("Selected suggestion:", suggestion);
+  console.log("Step ID:", step.id);
+  console.log("Captured steps data:", capturedSteps[step.id]);
+
+  if (commandType === 'click') {
+    updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
+  } else if (commandType === 'type') {
+    const currentText = step.choice;
+    const inIndex = currentText.toLowerCase().indexOf(' in ');
+    if (inIndex !== -1) {
+      const textToType = currentText.substring(5, inIndex).trim();
+      if (textToType) {
+        updatedStepValue = `type ${textToType} in ${suggestion.name || suggestion.text || 'element'}`;
       } else {
         updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
-      } 
-    } else if (commandType === 'verify') {
-      updatedStepValue = `verify ${suggestion.text || suggestion.name || 'element'}`;
-    } else if (commandType === 'get') {
-      updatedStepValue = `get ${suggestion.text || suggestion.name || 'element'}`;
-    }
-    
-    step.choice = updatedStepValue;
-    step.selectedElement = suggestion;
-
-    if (suggestion.coordinates) {
-      setCapturedSteps(prev => ({
-        ...prev,
-        [step.id]: {
-          ...prev[step.id] || {},  // Use current data or initialize empty object
-          coordinates: {
-            click_x: suggestion.coordinates.x || 0,
-            click_y: suggestion.coordinates.y || 0
-          }
-        }
-      }));
-    }
-    
-    console.log("Updated step:", step);
-
-    setTestSteps(updatedSteps);
-    setShowSuggestions(false);
-    
-    if (inputRef.current) {
-      inputRef.current.focus();
-      if (commandType === 'type' && updatedStepValue.includes(' in ')) {
-        const typeIndex = updatedStepValue.indexOf('type ') + 5;
-        const inIndex = updatedStepValue.indexOf(' in ');
-        inputRef.current.setSelectionRange(typeIndex, inIndex);
-      } else {
-        const length = updatedStepValue.length;
-        inputRef.current.setSelectionRange(length, length);
       }
+    } else {
+      updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
+    } 
+  } else if (commandType === 'verify') {
+    updatedStepValue = `verify ${suggestion.text || suggestion.name || 'element'}`;
+  } else if (commandType === 'get') {
+    updatedStepValue = `get ${suggestion.text || suggestion.name || 'element'}`;
+  }
+  
+  step.choice = updatedStepValue;
+  step.selectedElement = suggestion;
+
+  if (suggestion.coordinates) {
+    setCapturedSteps(prev => ({
+      ...prev,
+      [step.id]: {
+        ...prev[step.id] || {},  // Use current data or initialize empty object
+        coordinates: {
+          click_x: suggestion.coordinates.x || 0,
+          click_y: suggestion.coordinates.y || 0
+        }
+      }
+    }));
+  }
+  
+  console.log("Updated step:", step);
+
+  setTestSteps(updatedSteps);
+  setShowSuggestions(false);
+  
+  if (inputRef.current) {
+    inputRef.current.focus();
+    if (commandType === 'type' && updatedStepValue.includes(' in ')) {
+      const typeIndex = updatedStepValue.indexOf('type ') + 5;
+      const inIndex = updatedStepValue.indexOf(' in ');
+      inputRef.current.setSelectionRange(typeIndex, inIndex);
+    } else {
+      const length = updatedStepValue.length;
+      inputRef.current.setSelectionRange(length, length);
     }
-  };
+  }
+};
 
   const InstructionsModal = () => {
     if (!showNoteModal) return null;
