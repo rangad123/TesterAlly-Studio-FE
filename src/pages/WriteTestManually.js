@@ -563,10 +563,11 @@ const handleCaptureElement = async (stepId) => {
           </button>
           <h2 className="text-lg font-semibold mb-3">Step Instructions</h2>
           <ul className="list-disc list-inside text-sm text-gray-700 space-y-2">
-            <li>Please execute the previous step manually.</li>
-            <li>After clicking the camera, manually open your test page.</li>
-            <li>Please wait a few seconds for the system to respond.</li>
-            <li>Make sure the element is fully visible on screen.</li>
+            <li>Open Testing Project and TesterAlly in separate browsers for better results.</li>
+            <li>Manually complete the previous step.</li>
+            <li>After clicking the camera, manually open your test page. If not opened.</li>
+            <li>Wait a few seconds for the system to respond.</li>
+            <li>Ensure the element is fully visible on the screen.</li>  
           </ul>
         </div>
       </div>
