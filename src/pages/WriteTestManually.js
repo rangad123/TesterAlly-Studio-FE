@@ -287,12 +287,20 @@ const WriteTestManually = () => {
         if (['click', 'type', 'verify', 'get'].includes(command)) {
           setCommandType(command);
           fetchElementSuggestions(command, input, words, stepId);
-          setShowSuggestions(index);
+          setShowSuggestions(index);  // Set to current index, not boolean
         }
       }
+      
+      // Ensure the step is visible in the viewport
+      setTimeout(() => {
+        const stepElement = document.getElementById(`step-${testSteps[index].id}`);
+        if (stepElement) {
+          stepElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 10);
     }
   };
-
+  
   const handleCancelEdit = (index) => {
     if (index === null || index >= testSteps.length) return;
     
@@ -395,7 +403,7 @@ const WriteTestManually = () => {
     const updatedSteps = [...testSteps];
     updatedSteps[index].choice = input;
     setTestSteps(updatedSteps);
-
+  
     const words = input.trim().split(' ');
     const command = words[0].toLowerCase();
     
@@ -408,12 +416,12 @@ const WriteTestManually = () => {
       // If this step has captured data, use it
       if (capturedSteps[stepId]) {
         fetchElementSuggestions(command, input, words, stepId);
-        setShowSuggestions(index);
+        setShowSuggestions(index);  // Set showSuggestions to current index
       } 
       // Otherwise, use the last captured step's data if available
       else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
         fetchElementSuggestions(command, input, words, lastCapturedStepId);
-        setShowSuggestions(index);
+        setShowSuggestions(index);  // Set showSuggestions to current index
       } else {
         setShowSuggestions(false);
       }
@@ -496,14 +504,14 @@ const WriteTestManually = () => {
     const updatedSteps = [...testSteps];
     let step = updatedSteps[index];
     let updatedStepValue = '';
-
+  
     const sameNameElements = commandSuggestions.filter((el, i) => 
       commandSuggestions.indexOf(suggestion) > i && 
       ((el.name && suggestion.name && el.name === suggestion.name) || 
        (el.text && suggestion.text && el.text === suggestion.text))
     );
     const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
-
+  
     if (commandType === 'click') {
       updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
     } else if (commandType === 'type') {
@@ -527,7 +535,7 @@ const WriteTestManually = () => {
     
     step.choice = updatedStepValue;
     step.selectedElement = suggestion;
-
+  
     if (suggestion.coordinates) {
       setCapturedSteps(prev => ({
         ...prev,
@@ -540,21 +548,24 @@ const WriteTestManually = () => {
         }
       }));
     }
-
+  
     setTestSteps(updatedSteps);
     setShowSuggestions(false);
     
-    if (inputRef.current) {
-      inputRef.current.focus();
-      if (commandType === 'type' && updatedStepValue.includes(' in ')) {
-        const typeIndex = updatedStepValue.indexOf('type ') + 5;
-        const inIndex = updatedStepValue.indexOf(' in ');
-        inputRef.current.setSelectionRange(typeIndex, inIndex);
-      } else {
-        const length = updatedStepValue.length;
-        inputRef.current.setSelectionRange(length, length);
+    // Add small delay to allow React to update the DOM before focusing
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (commandType === 'type' && updatedStepValue.includes(' in ')) {
+          const typeIndex = updatedStepValue.indexOf('type ') + 5;
+          const inIndex = updatedStepValue.indexOf(' in ');
+          inputRef.current.setSelectionRange(typeIndex, inIndex);
+        } else {
+          const length = updatedStepValue.length;
+          inputRef.current.setSelectionRange(length, length);
+        }
       }
-    }
+    }, 10);
   };
 
   const toggleScreenshotMinimize = (stepId) => {
@@ -616,9 +627,10 @@ const WriteTestManually = () => {
 
             {testSteps.map((step, index) => (
               <div 
-                key={index}
-                className="relative mb-6"
-              >
+              id={`step-${step.id}`}
+              key={index}
+              className="relative mb-6"
+            >
                 <div 
                   className="flex items-center gap-4 bg-white p-4 rounded-lg border border-gray-200"
                   onDoubleClick={() => handleDoubleClick(index)}
@@ -641,28 +653,67 @@ const WriteTestManually = () => {
                       {step.choice}
                     </div>
                   ) : (
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        ref={showSuggestions === index ? inputRef : null}
-                        type="text"
-                        className="w-full border border-gray-300 rounded-md p-2"
-                        value={step.choice}
-                        onChange={(e) => handleCommandInputChange(e, index)}
-                        placeholder="Enter test step description"
-                        autoFocus={editingStep === index}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (e.shiftKey) {
-                              handleSaveStep(index);
-                            } else {
-                              handleSaveAndAddStep();
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={editingStep === index ? inputRef : null}
+                          type="text"
+                          className="w-full border border-gray-300 rounded-md p-2"
+                          value={step.choice}
+                          onChange={(e) => handleCommandInputChange(e, index)}
+                          placeholder="Enter test step description"
+                          autoFocus={editingStep === index}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (e.shiftKey) {
+                                handleSaveStep(index);
+                              } else {
+                                handleSaveAndAddStep();
+                              }
+                            } else if (e.key === 'Escape') {
+                              handleCancelEdit(index);
                             }
-                          } else if (e.key === 'Escape') {
-                            handleCancelEdit(index);
-                          }
-                        }}
-                      />
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Element suggestions dropdown - positioned directly below the input */}
+                      {showSuggestions === index && commandSuggestions.length > 0 && (
+                        <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
+                          {commandSuggestions.map((element, idx) => {
+                            const sameNameElements = commandSuggestions.filter((el, i) => 
+                              i < idx && 
+                              ((el.name && element.name && el.name === element.name) || 
+                              (el.text && element.text && el.text === element.text))
+                            );
+                            const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+                            
+                            return (
+                              <div 
+                                key={idx}
+                                onClick={() => handleSuggestionClick(element, index)}
+                                className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                              >
+                                <div className={`w-4 h-4 rounded-full ${
+                                  commandType === 'click' ? 'bg-blue-100' : 
+                                  commandType === 'type' ? 'bg-green-100' : 
+                                  commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                                }`}></div>
+                                <span>
+                                  {element.name || element.text || element.id || 'Element ' + (idx + 1)}
+                                  {position}
+                                </span>
+                                {element.text && (
+                                  <span className="text-xs text-gray-500 truncate max-w-xs">
+                                    "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -770,6 +821,12 @@ const WriteTestManually = () => {
             
             {/* Element suggestions dropdown */}
             {showSuggestions !== false && commandSuggestions.length > 0 && (
+              <div className="fixed z-50" style={{
+                top: inputRef.current?.getBoundingClientRect().bottom + window.scrollY,
+                left: inputRef.current?.getBoundingClientRect().left + window.scrollX,
+                maxWidth: inputRef.current?.offsetWidth,
+                width: inputRef.current?.offsetWidth
+              }}>
               <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20 relative">
                 {commandSuggestions.map((element, idx) => {
                   const sameNameElements = commandSuggestions.filter((el, i) => 
@@ -802,6 +859,7 @@ const WriteTestManually = () => {
                     </div>
                   );
                 })}
+              </div>
               </div>
             )}
 
