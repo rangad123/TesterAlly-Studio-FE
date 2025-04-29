@@ -1,8 +1,37 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Camera, Check, Info, Save, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 
 const WriteTestManually = () => {
+
+  const storeInSessionStorage = (stepId, data) => {
+    try {
+      // Store coordinates and elements for the specific step
+      const sessionKey = `captured_step_${stepId}`;
+      sessionStorage.setItem(sessionKey, JSON.stringify(data));
+      
+      // Update the list of all captured step IDs
+      const existingStepIds = JSON.parse(sessionStorage.getItem('captured_step_ids') || '[]');
+      if (!existingStepIds.includes(stepId)) {
+        existingStepIds.push(stepId);
+        sessionStorage.setItem('captured_step_ids', JSON.stringify(existingStepIds));
+      }
+    } catch (err) {
+      console.error("Error storing data in session storage:", err);
+    }
+  };
+  
+  const getFromSessionStorage = (stepId) => {
+    try {
+      const sessionKey = `captured_step_${stepId}`;
+      const data = sessionStorage.getItem(sessionKey);
+      return data ? JSON.parse(data) : null;
+    } catch (err) {
+      console.error("Error retrieving data from session storage:", err);
+      return null;
+    }
+  };
+  
   const [testSteps, setTestSteps] = useState([]);
   const [testCaseInfo, setTestCaseInfo] = useState({
     name: '',
@@ -23,9 +52,10 @@ const WriteTestManually = () => {
   const [commandSuggestions, setCommandSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [commandType, setCommandType] = useState("");
-  const [tempStepValue, setTempStepValue] = useState("");
+  const [ , setTempStepValue] = useState("");
   const [originalStepValues, setOriginalStepValues] = useState({});
   const [lastCapturedStepId, setLastCapturedStepId] = useState(null);
+  const [originalCaptureIds, setOriginalCaptureIds] = useState({});
   
   const inputRef = useRef(null);
 
@@ -277,17 +307,27 @@ const WriteTestManually = () => {
       setEditingStep(index);
       setTempStepValue(testSteps[index].choice);
       
-      // Show suggestions if this step has captured data
-      const stepId = testSteps[index].id;
-      if (capturedSteps[stepId]) {
-        const input = testSteps[index].choice;
-        const words = input.trim().split(' ');
-        const command = words[0].toLowerCase();
+      // Show suggestions based on input
+      const input = testSteps[index].choice;
+      const words = input.trim().split(' ');
+      const command = words[0].toLowerCase();
+      
+      if (['click', 'type', 'verify', 'get'].includes(command)) {
+        setCommandType(command);
         
-        if (['click', 'type', 'verify', 'get'].includes(command)) {
-          setCommandType(command);
+        const stepId = testSteps[index].id;
+        
+        // First check if this step has its own captured data
+        if (capturedSteps[stepId]) {
+          console.log("Using captured data for current step:", stepId);
           fetchElementSuggestions(command, input, words, stepId);
-          setShowSuggestions(index);  // Set to current index, not boolean
+          setShowSuggestions(index);
+        } 
+        // Otherwise, use the last captured step's data
+        else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
+          console.log("Using last captured step data:", lastCapturedStepId);
+          fetchElementSuggestions(command, input, words, lastCapturedStepId);
+          setShowSuggestions(index);
         }
       }
       
@@ -299,25 +339,45 @@ const WriteTestManually = () => {
         }
       }, 10);
     }
-  };
+  };  
   
   const handleCancelEdit = (index) => {
     if (index === null || index >= testSteps.length) return;
-    
+  
     const updatedSteps = [...testSteps];
-
+  
     // If it's a new step with no saved data, delete it
     if (!updatedSteps[index].isSaved && !originalStepValues[index]) {
       handleDeleteStep(index);
       return;
     }
-
+  
     // If it's an edited existing step, restore original value
     if (originalStepValues[index]) {
       updatedSteps[index].choice = originalStepValues[index];
       updatedSteps[index].isSaved = true; 
-      setTestSteps(updatedSteps);
-
+  
+      // Check and remove empty unsaved last step
+      const lastStepIndex = updatedSteps.length - 1;
+      const lastStep = updatedSteps[lastStepIndex];
+  
+      const shouldRemoveLastStep = 
+        lastStepIndex !== index &&
+        lastStep && 
+        !lastStep.isSaved && 
+        lastStep.choice.trim() === "";
+  
+      const finalSteps = shouldRemoveLastStep
+        ? updatedSteps.filter((_, idx) => idx !== lastStepIndex)
+        : updatedSteps;
+  
+      // Renumber steps
+      finalSteps.forEach((step, idx) => {
+        step.stepNumber = idx + 1;
+      });
+  
+      setTestSteps(finalSteps);
+  
       // Clean up original values
       setOriginalStepValues(prev => {
         const newValues = {...prev};
@@ -325,18 +385,18 @@ const WriteTestManually = () => {
         return newValues;
       });
     }
-    
+  
     setEditingStep(null);
     setShowSuggestions(false);
     setCommandSuggestions([]);
-  };
+  };  
 
   const handleCaptureElement = async (stepId) => {
     setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
     
     try {
       const user_id = localStorage.getItem("userId");
-
+  
       const requestBody = {
         user_id: user_id,
       };
@@ -348,23 +408,44 @@ const WriteTestManually = () => {
         },
         body: JSON.stringify(requestBody),
       });
-
+  
       if (!response.ok) {
         throw new Error('Failed to capture element');
       }
-
+  
       const data = await response.json();
-
+  
+      // Fix for coordinates - ensure they're properly formatted
+      const coordinates = {
+        click_x: data.coordinates?.x || data.coordinates?.click_x || 0,
+        click_y: data.coordinates?.y || data.coordinates?.click_y || 0
+      };
+  
+      const capturedData = {
+        coordinates: coordinates,
+        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
+        timestamp: new Date().toISOString(),
+        elements: data.omniparser_data?.elements || []
+      };
+  
+      // Mark this step as the original capturer of this screenshot
+      setOriginalCaptureIds(prev => ({
+        ...prev, 
+        [stepId]: stepId // This step captured its own screenshot
+      }));
+  
+      // Store in both state and session storage
       setCapturedSteps(prev => ({
         ...prev,
-        [stepId]: {
-          coordinates: data.coordinates || {},
-          screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
-          timestamp: new Date().toISOString(),
-          elements: data.omniparser_data?.elements || []
-        }
+        [stepId]: capturedData
       }));
-
+  
+      // Store in session storage with original capture info
+      storeInSessionStorage(stepId, {
+        ...capturedData,
+        originalCaptureId: stepId
+      });
+  
       setLastCapturedStepId(stepId);
       
     } catch (error) {
@@ -373,6 +454,51 @@ const WriteTestManually = () => {
       setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
     }
   };
+
+  useEffect(() => {
+    try {
+      // Load all captured step IDs
+      const capturedStepIds = JSON.parse(sessionStorage.getItem('captured_step_ids') || '[]');
+      
+      // Load each captured step data
+      const loadedCapturedSteps = {};
+      const loadedOriginalIds = {};
+      
+      capturedStepIds.forEach(stepId => {
+        const stepData = getFromSessionStorage(stepId);
+        if (stepData) {
+          loadedCapturedSteps[stepId] = stepData;
+          
+          // Track original capture IDs
+          if (stepData.originalCaptureId) {
+            loadedOriginalIds[stepId] = stepData.originalCaptureId;
+          } else {
+            loadedOriginalIds[stepId] = stepId; // Default to self if not specified
+          }
+        }
+      });
+  
+      // If we have data, update the state
+      if (Object.keys(loadedCapturedSteps).length > 0) {
+        setCapturedSteps(prev => ({
+          ...prev,
+          ...loadedCapturedSteps
+        }));
+        
+        setOriginalCaptureIds(prev => ({
+          ...prev,
+          ...loadedOriginalIds
+        }));
+        
+        // Set the last captured step ID to the most recent one
+        if (capturedStepIds.length > 0) {
+          setLastCapturedStepId(capturedStepIds[capturedStepIds.length - 1]);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading captured steps from session storage:", err);
+    }
+  }, []);
 
   const handleDeleteStep = (index) => {
     // If this is the step currently being edited, clear editing state
@@ -413,17 +539,21 @@ const WriteTestManually = () => {
       // First try to use the current step's captured data
       const stepId = testSteps[index].id;
       
-      // If this step has captured data, use it
+      // Check if this step has its own captured data
       if (capturedSteps[stepId]) {
+        console.log("Using captured data for current step:", stepId);
         fetchElementSuggestions(command, input, words, stepId);
-        setShowSuggestions(index);  // Set showSuggestions to current index
+        setShowSuggestions(index);
       } 
-      // Otherwise, use the last captured step's data if available
+      // Otherwise, use the last captured step's data
       else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
+        console.log("Using last captured step data:", lastCapturedStepId);
         fetchElementSuggestions(command, input, words, lastCapturedStepId);
-        setShowSuggestions(index);  // Set showSuggestions to current index
+        setShowSuggestions(index);
       } else {
+        console.log("No captured data available");
         setShowSuggestions(false);
+        setCommandSuggestions([]);
       }
     } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
       setCommandType(command);
@@ -436,12 +566,36 @@ const WriteTestManually = () => {
   
   const fetchElementSuggestions = (command, inputValue, words, stepId) => {
     if (!stepId || !capturedSteps[stepId]) return;
-
+  
     const elements = capturedSteps[stepId]?.elements || [];
     let filtered = [];
-
+  
+    // Process the elements and ensure coordinates are available
     if (command === "click") {
-      filtered = elements.filter(el => el.interactivity === true && el.type === "icon");
+      filtered = elements.filter(el => el.interactivity === true && el.type === "icon")
+        .map(el => {
+          // Fix: Ensure coordinates are processed correctly
+          let coordinates;
+          
+          if (el.click_point && Array.isArray(el.click_point)) {
+            coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
+          } else if (el.coordinates) {
+            if (Array.isArray(el.coordinates)) {
+              coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
+            } else {
+              coordinates = [
+                parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
+                parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
+              ];
+            }
+          }
+          
+          return {
+            ...el,
+            click_point: coordinates || [0, 0]
+          };
+        });
+        
       if (words.length > 1) {
         const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
         if (searchTerm) {
@@ -452,12 +606,31 @@ const WriteTestManually = () => {
         }
       }
     } else if (command === "type") {
-      filtered = elements.filter(el => el.type === "text");
-
+      filtered = elements.filter(el => el.type === "text")
+        .map(el => {
+          // Fix: Ensure coordinates are processed correctly
+          let coordinates;
+          
+          if (el.click_point && Array.isArray(el.click_point)) {
+            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+          } else if (el.coordinates) {
+            if (Array.isArray(el.coordinates)) {
+              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+            } else {
+              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+            }
+          }
+          
+          return {
+            ...el,
+            click_point: coordinates || [0, 0]
+          };
+        });
+  
       if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
         const inIndex = inputValue.toLowerCase().indexOf(" in ");
         const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
-
+  
         if (afterInText) {
           filtered = filtered.filter(el => 
             (el.name && el.name.toLowerCase().includes(afterInText)) || 
@@ -466,7 +639,27 @@ const WriteTestManually = () => {
         }
       }
     } else if (command === "verify") {
-      filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text);
+      filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text)
+        .map(el => {
+          // Fix: Ensure coordinates are processed correctly
+          let coordinates;
+          
+          if (el.click_point && Array.isArray(el.click_point)) {
+            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+          } else if (el.coordinates) {
+            if (Array.isArray(el.coordinates)) {
+              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+            } else {
+              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+            }
+          }
+          
+          return {
+            ...el,
+            click_point: coordinates || [0, 0]
+          };
+        });
+        
       if (words.length > 1) {
         const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
         if (searchTerm) {
@@ -477,7 +670,27 @@ const WriteTestManually = () => {
         }
       }
     } else if (command === "get") {
-      filtered = elements.filter(el => el.text || el.type === "text" || el.type === "textarea");
+      filtered = elements.filter(el => el.text || el.type === "text" || el.type === "textarea")
+        .map(el => {
+          // Fix: Ensure coordinates are processed correctly
+          let coordinates;
+          
+          if (el.click_point && Array.isArray(el.click_point)) {
+            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+          } else if (el.coordinates) {
+            if (Array.isArray(el.coordinates)) {
+              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+            } else {
+              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+            }
+          }
+          
+          return {
+            ...el,
+            click_point: coordinates || [0, 0]
+          };
+        });
+        
       if (words.length > 1) {
         const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
         if (searchTerm) {
@@ -490,12 +703,34 @@ const WriteTestManually = () => {
     }
     
     filtered = filtered.slice(0, 20);
-
+  
     if (filtered.length === 0 && elements.length > 0) {
       filtered = elements
         .filter(el => el.interactivity === true)
+        .map(el => {
+          // Fix: Ensure coordinates are processed correctly
+          let coordinates;
+          
+          if (el.click_point && Array.isArray(el.click_point)) {
+            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+          } else if (el.coordinates) {
+            if (Array.isArray(el.coordinates)) {
+              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+            } else {
+              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+            }
+          }
+          
+          return {
+            ...el,
+            click_point: coordinates || [0, 0]
+          };
+        })
         .slice(0, 5);
     }
+    
+    // Add debugging to display the coordinates
+    console.log("Filtered elements with coordinates:", filtered);
     
     setCommandSuggestions(filtered);
   };
@@ -536,17 +771,78 @@ const WriteTestManually = () => {
     step.choice = updatedStepValue;
     step.selectedElement = suggestion;
   
-    if (suggestion.coordinates) {
-      setCapturedSteps(prev => ({
-        ...prev,
-        [step.id]: {
-          ...prev[step.id] || {},
-          coordinates: {
-            click_x: suggestion.coordinates.x || 0,
-            click_y: suggestion.coordinates.y || 0
+    // Process coordinates from the suggestion - Fix for NaN values
+    let coordinates = null;
+    
+    // Fix for coordinates - ensure they are properly extracted
+    if (suggestion.click_point && Array.isArray(suggestion.click_point)) {
+      coordinates = {
+        click_x: parseFloat(suggestion.click_point[0]) || 0,
+        click_y: parseFloat(suggestion.click_point[1]) || 0
+      };
+    } else if (suggestion.coordinates) {
+      if (Array.isArray(suggestion.coordinates)) {
+        coordinates = {
+          click_x: parseFloat(suggestion.coordinates[0]) || 0,
+          click_y: parseFloat(suggestion.coordinates[1]) || 0
+        };
+      } else {
+        coordinates = {
+          click_x: parseFloat(suggestion.coordinates.x || suggestion.coordinates.click_x || 0),
+          click_y: parseFloat(suggestion.coordinates.y || suggestion.coordinates.click_y || 0)
+        };
+      }
+    }
+  
+    // Store coordinates in the step's own capturedSteps entry
+    if (coordinates) {
+      // If this step doesn't have its own captured data, create one using data from the last captured step
+      if (!capturedSteps[step.id] && lastCapturedStepId) {
+        const lastCapturedData = capturedSteps[lastCapturedStepId];
+        const originalCapture = originalCaptureIds[lastCapturedStepId] || lastCapturedStepId;
+        
+        setCapturedSteps(prevCapturedSteps => ({
+          ...prevCapturedSteps,
+          [step.id]: {
+            ...lastCapturedData,
+            coordinates: coordinates,
+            elements: lastCapturedData.elements || [],
+            timestamp: new Date().toISOString()
           }
-        }
-      }));
+        }));
+        
+        // Track that this step is using data from another step's capture
+        setOriginalCaptureIds(prev => ({
+          ...prev,
+          [step.id]: originalCapture
+        }));
+        
+        // Also update session storage
+        const newStepData = {
+          ...lastCapturedData,
+          coordinates: coordinates,
+          timestamp: new Date().toISOString(),
+          originalCaptureId: originalCapture
+        };
+        storeInSessionStorage(step.id, newStepData);
+      } else {
+        // Just update the coordinates for this step's existing data
+        setCapturedSteps(prevCapturedSteps => ({
+          ...prevCapturedSteps,
+          [step.id]: {
+            ...prevCapturedSteps[step.id] || {},
+            coordinates: coordinates
+          }
+        }));
+        
+        // Also update session storage
+        const currentStepData = capturedSteps[step.id] || {};
+        const updatedData = {
+          ...currentStepData,
+          coordinates: coordinates
+        };
+        storeInSessionStorage(step.id, updatedData);
+      }
     }
   
     setTestSteps(updatedSteps);
@@ -566,7 +862,7 @@ const WriteTestManually = () => {
         }
       }
     }, 10);
-  };
+  };  
 
   const toggleScreenshotMinimize = (stepId) => {
     setMinimizedScreenshots(prev => ({
@@ -677,8 +973,6 @@ const WriteTestManually = () => {
                           }}
                         />
                       </div>
-                      
-                      {/* Element suggestions dropdown - positioned directly below the input */}
                       {showSuggestions === index && commandSuggestions.length > 0 && (
                         <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
                           {commandSuggestions.map((element, idx) => {
@@ -688,6 +982,20 @@ const WriteTestManually = () => {
                               (el.text && element.text && el.text === element.text))
                             );
                             const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+                            
+                            // Fix for coordinates display
+                            let coordinatesDisplay = "";
+                            if (element.click_point && Array.isArray(element.click_point)) {
+                              coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+                            } else if (element.coordinates) {
+                              if (Array.isArray(element.coordinates)) {
+                                coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+                              } else {
+                                const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                                const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                                coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                              }
+                            }
                             
                             return (
                               <div 
@@ -700,15 +1008,26 @@ const WriteTestManually = () => {
                                   commandType === 'type' ? 'bg-green-100' : 
                                   commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
                                 }`}></div>
-                                <span>
-                                  {element.name || element.text || element.id || 'Element ' + (idx + 1)}
-                                  {position}
-                                </span>
-                                {element.text && (
-                                  <span className="text-xs text-gray-500 truncate max-w-xs">
-                                    "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {element.name || element.text || element.id || 'Element ' + (idx + 1)}
+                                    {position}
                                   </span>
-                                )}
+                                  
+                                  <div className="flex items-center gap-2 text-xs">
+                                    {coordinatesDisplay && (
+                                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                                        {coordinatesDisplay}
+                                      </span>
+                                    )}
+                                    
+                                    {element.text && (
+                                      <span className="text-gray-500 truncate max-w-xs">
+                                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
@@ -754,13 +1073,19 @@ const WriteTestManually = () => {
                             ? 'bg-green-50 text-green-600 hover:bg-green-100' 
                             : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
                         } rounded-md transition-colors`}
-                        title={capturedSteps[step.id] ? "Screenshot Captured" : "Capture Element"}
+                        title={capturedSteps[step.id] ? "Recapture Element" : "Capture Element"}
                         disabled={captureLoading[step.id]}
                       >
                         {captureLoading[step.id] ? (
                           <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                         ) : (
-                          capturedSteps[step.id] ? <Check className="w-4 h-4" /> : <Camera className="w-4 h-4" />
+                          capturedSteps[step.id] ? (
+                            <div className="flex items-center">
+                              <RotateCw className="w-3.5 h-3.5" />
+                            </div>
+                          ) : (
+                            <Camera className="w-4 h-4" />
+                          )
                         )}
                       </button>
                       
@@ -781,7 +1106,7 @@ const WriteTestManually = () => {
                   )}
                 </div>
                 
-                {capturedSteps[step.id] && capturedSteps[step.id].screenshot && (
+                {capturedSteps[step.id] && capturedSteps[step.id].screenshot && originalCaptureIds[step.id] === step.id && (
                   <div className="mt-2 w-full flex justify-center">
                     <div className="max-w-md w-full">
                       <div className={`border border-gray-200 rounded-lg overflow-hidden transition-all duration-300 ${minimizedScreenshots[step.id] ? 'max-h-12' : ''}`}>
@@ -818,50 +1143,6 @@ const WriteTestManually = () => {
                 )}
               </div>
             ))}
-            
-            {/* Element suggestions dropdown */}
-            {showSuggestions !== false && commandSuggestions.length > 0 && (
-              <div className="fixed z-50" style={{
-                top: inputRef.current?.getBoundingClientRect().bottom + window.scrollY,
-                left: inputRef.current?.getBoundingClientRect().left + window.scrollX,
-                maxWidth: inputRef.current?.offsetWidth,
-                width: inputRef.current?.offsetWidth
-              }}>
-              <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20 relative">
-                {commandSuggestions.map((element, idx) => {
-                  const sameNameElements = commandSuggestions.filter((el, i) => 
-                    i < idx && 
-                    ((el.name && element.name && el.name === element.name) || 
-                    (el.text && element.text && el.text === element.text))
-                  );
-                  const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
-                  
-                  return (
-                    <div 
-                      key={idx}
-                      onClick={() => handleSuggestionClick(element, showSuggestions)}
-                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                    >
-                      <div className={`w-4 h-4 rounded-full ${
-                        commandType === 'click' ? 'bg-blue-100' : 
-                        commandType === 'type' ? 'bg-green-100' : 
-                        commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                      }`}></div>
-                      <span>
-                        {element.name || element.text || element.id || 'Element ' + (idx + 1)}
-                        {position}
-                      </span>
-                      {element.text && (
-                        <span className="text-xs text-gray-500 truncate max-w-xs">
-                          "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              </div>
-            )}
 
            {/* Only show Add Step button when there are no steps OR all steps are saved */}
             {(testSteps.length === 0 || !testSteps.some(step => !step.isSaved)) && (
