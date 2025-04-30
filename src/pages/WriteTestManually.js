@@ -18,6 +18,8 @@ const WriteTestManually = () => {
       }
     } catch (err) {
       console.error("Error storing data in session storage:", err);
+    } finally{
+      setHasSessionData(true);
     }
   };
   
@@ -56,6 +58,12 @@ const WriteTestManually = () => {
   const [originalStepValues, setOriginalStepValues] = useState({});
   const [lastCapturedStepId, setLastCapturedStepId] = useState(null);
   const [originalCaptureIds, setOriginalCaptureIds] = useState({});
+  const [browserTabs, setBrowserTabs] = useState([]);
+  const [showBrowserTabsModal, setShowBrowserTabsModal] = useState(false);
+  const [tabsLoading, setTabsLoading] = useState(false);
+  const [currentStepId, setCurrentStepId] = useState(null);
+  const [ , setCurrentStepNumber] = useState(null);
+  const [hasSessionData, setHasSessionData] = useState(false);
   
   const inputRef = useRef(null);
 
@@ -96,6 +104,47 @@ const WriteTestManually = () => {
   
     setTestCaseInfo(info);
   }, [location, navigate]);
+
+  const checkSessionData = () => {
+    try {
+      const capturedStepIds = JSON.parse(sessionStorage.getItem('captured_step_ids') || '[]');
+      return capturedStepIds.length > 0;
+    } catch (err) {
+      console.error("Error checking session storage data:", err);
+      return false;
+    }
+  };
+  
+  const clearAllSessionData = () => {
+    try {
+      // Get all captured step IDs
+      const capturedStepIds = JSON.parse(sessionStorage.getItem('captured_step_ids') || '[]');
+      
+      // Clear each step's data
+      capturedStepIds.forEach(stepId => {
+        const sessionKey = `captured_step_${stepId}`;
+        sessionStorage.removeItem(sessionKey);
+      });
+      
+      // Clear the list of captured step IDs
+      sessionStorage.removeItem('captured_step_ids');
+      
+      // Reset captured steps in state
+      setCapturedSteps({});
+      setOriginalCaptureIds({});
+      setLastCapturedStepId(null);
+      setHasSessionData(false);
+      
+      alert("All captured data has been cleared");
+    } catch (err) {
+      console.error("Error clearing session storage data:", err);
+      alert("Failed to clear data");
+    }
+  };
+  
+  useEffect(() => {
+    setHasSessionData(checkSessionData());
+  }, []);
 
   const handleCreateTestCase = async () => {
     setIsLoading(true);
@@ -170,6 +219,107 @@ const WriteTestManually = () => {
       alert(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCaptureElement = async (stepId) => {
+    setTabsLoading(true);
+    setCurrentStepId(stepId);
+    setCurrentStepNumber(testSteps.find(step => step.id === stepId)?.stepNumber);
+    
+    try {
+      // Fetch browser tabs instead of immediately capturing
+      const response = await fetch('http://127.0.0.1:8000/automation/get_browser_tabs/', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to get browser tabs');
+      }
+  
+      const data = await response.json();
+      console.log("Browser tabs response:", data);
+      
+      // Set browser tabs and show modal
+      setBrowserTabs(data.browser_tabs || []);
+      setShowBrowserTabsModal(true);
+    } catch (error) {
+      console.error('Browser tabs fetch error:', error);
+      alert("Failed to fetch browser tabs. Please try again.");
+    } finally {
+      setTabsLoading(false);
+    }
+  };
+  
+  const handleTabSelection = async (tabTitle) => {
+    setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
+    setShowBrowserTabsModal(false);
+    
+    try {
+      const user_id = localStorage.getItem("userId");
+      
+      const requestBody = {
+        tab_title: tabTitle,
+        user_id: user_id,
+      };
+      
+      console.log("Request body for /process_browser_tab/:", requestBody);
+      
+      const response = await fetch('http://127.0.0.1:8000/automation/process_browser_tab/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to process browser tab');
+      }
+      
+      const data = await response.json();
+      
+      // Fix for coordinates - ensure they're properly formatted
+      const coordinates = {
+        click_x: data.coordinates?.x || data.coordinates?.click_x || 0,
+        click_y: data.coordinates?.y || data.coordinates?.click_y || 0
+      };
+      
+      const capturedData = {
+        coordinates: coordinates,
+        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
+        timestamp: new Date().toISOString(),
+        elements: data.omniparser_data?.elements || []
+      };
+  
+      // Mark this step as the original capturer of this screenshot
+      setOriginalCaptureIds(prev => ({
+        ...prev, 
+        [currentStepId]: currentStepId // This step captured its own screenshot
+      }));
+  
+      // Store in both state and session storage
+      setCapturedSteps(prev => ({
+        ...prev,
+        [currentStepId]: capturedData
+      }));
+  
+      // Store in session storage with original capture info
+      storeInSessionStorage(currentStepId, {
+        ...capturedData,
+        originalCaptureId: currentStepId
+      });
+  
+      setLastCapturedStepId(currentStepId);
+      
+    } catch (error) {
+      alert("Failed to process browser tab. Please try again.");
+      console.error('Tab processing error:', error);
+    } finally {
+      setCaptureLoading(prev => ({ ...prev, [currentStepId]: false }));
     }
   };
 
@@ -390,71 +540,7 @@ const WriteTestManually = () => {
     setShowSuggestions(false);
     setCommandSuggestions([]);
   };  
-
-  const handleCaptureElement = async (stepId) => {
-    setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
-    
-    try {
-      const user_id = localStorage.getItem("userId");
   
-      const requestBody = {
-        user_id: user_id,
-      };
-      
-      const response = await fetch('http://127.0.0.1:8000/automation/insert_screen/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to capture element');
-      }
-  
-      const data = await response.json();
-  
-      // Fix for coordinates - ensure they're properly formatted
-      const coordinates = {
-        click_x: data.coordinates?.x || data.coordinates?.click_x || 0,
-        click_y: data.coordinates?.y || data.coordinates?.click_y || 0
-      };
-  
-      const capturedData = {
-        coordinates: coordinates,
-        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
-        timestamp: new Date().toISOString(),
-        elements: data.omniparser_data?.elements || []
-      };
-  
-      // Mark this step as the original capturer of this screenshot
-      setOriginalCaptureIds(prev => ({
-        ...prev, 
-        [stepId]: stepId // This step captured its own screenshot
-      }));
-  
-      // Store in both state and session storage
-      setCapturedSteps(prev => ({
-        ...prev,
-        [stepId]: capturedData
-      }));
-  
-      // Store in session storage with original capture info
-      storeInSessionStorage(stepId, {
-        ...capturedData,
-        originalCaptureId: stepId
-      });
-  
-      setLastCapturedStepId(stepId);
-      
-    } catch (error) {
-      alert("Failed to capture element. Please try again.");
-    } finally {
-      setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
-    }
-  };
-
   useEffect(() => {
     try {
       // Load all captured step IDs
@@ -896,11 +982,75 @@ const WriteTestManually = () => {
     );
   };
 
+  const BrowserTabsModal = () => {
+    if (!showBrowserTabsModal) return null;
+    
+    const formatTabTitle = (title) => {
+      // Extract only the main part of the title, removing the browser name
+      const mainTitle = title.split(' - ')[0];
+      return mainTitle.length > 30 ? mainTitle.substring(0, 27) + '...' : mainTitle;
+    };
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Select Browser Tab</h2>
+            <button 
+              onClick={() => setShowBrowserTabsModal(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          {tabsLoading ? (
+            <div className="flex items-center justify-center p-4">
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+              <span>Loading browser tabs...</span>
+            </div>
+          ) : (
+            <>
+              {browserTabs.length === 0 ? (
+                <p className="text-center text-gray-600 py-4">No browser tabs found</p>
+              ) : (
+                <ul className="space-y-2">
+                  {browserTabs.map((tab, index) => (
+                    <li 
+                      key={index}
+                      className={`p-3 border rounded-md cursor-pointer hover:bg-blue-50 transition-colors ${tab.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
+                      onClick={() => handleTabSelection(tab.title)}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{formatTabTitle(tab.title)}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {tab.active ? 'Active tab' : 'Inactive tab'} • {tab.width}×{tab.height}
+                          </p>
+                        </div>
+                        {tab.active && (
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
         <div className="p-6">
           <div className="bg-white shadow rounded-lg p-6">
+            {/* Update this section in your JSX where the buttons are */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Write Test Manually</h2>
               <div className="flex items-center gap-3">
@@ -911,6 +1061,15 @@ const WriteTestManually = () => {
                 >
                   <Info className="w-4 h-4" />
                 </button>
+                {hasSessionData && (
+                  <button
+                    className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
+                    onClick={clearAllSessionData}
+                    title="Clear all captured data"
+                  >
+                    Clear
+                  </button>
+                )}
                 <button
                   className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
                   onClick={handleCreateTestCase}
@@ -1180,6 +1339,7 @@ const WriteTestManually = () => {
         </div>
       )}
       <InstructionsModal />
+      <BrowserTabsModal />
     </div>
   );
 };
