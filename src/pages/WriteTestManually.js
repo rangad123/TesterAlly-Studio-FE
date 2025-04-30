@@ -1050,7 +1050,6 @@ const WriteTestManually = () => {
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
         <div className="p-6">
           <div className="bg-white shadow rounded-lg p-6">
-            {/* Update this section in your JSX where the buttons are */}
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Write Test Manually</h2>
               <div className="flex items-center gap-3">
