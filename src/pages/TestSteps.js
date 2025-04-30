@@ -204,9 +204,9 @@ const TestSteps = () => {
     fetchSteps,
     apiBaseUrl,
     hoveredStep,
-    setHoveredStep,
     isExecuting,
-    executionResults
+    executionResults,
+    setHoveredStep
   });
 
   const handleViewExecutionScreenshot = (screenshot) => {
@@ -266,57 +266,60 @@ const TestSteps = () => {
   const startEditing = (step) => {
     setEditingStep(step.id);
     setEditValue(step.step_description);
+    
+    // Important: Clear any previous suggestions first
+    addStepComponent.clearSuggestions();
+    
+    // Small delay to ensure state is updated before requesting suggestions
+    setTimeout(() => {
+      const words = step.step_description.trim().split(' ');
+      const command = words[0].toLowerCase();
+      
+      if (['click', 'type', 'verify', 'get'].includes(command)) {
+        // This triggers the suggestion system
+        addStepComponent.handleEditCommandInput(step.id, step.step_description, command);
+      }
+    }, 100);
   };
-
+  
   const handleUpdateStep = async (stepId) => {
-    if (!editValue.trim()) {
-      setError("Step description cannot be empty");
-      return;
-    }
     setUpdatingStepId(stepId);
-
+  
     try {
       const step = steps.find(s => s.id === stepId);
-      if (!step) {
-        throw new Error("Step not found");
-      }
-
-      const updateData = {
-        step_number: step.step_number,
-        step_description: editValue.trim()
-      };
-
+      if (!step) return;
+  
+      // Find the step to update
       const response = await fetch(`${apiBaseUrl}/teststeps/${stepId}/`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testcase: testCaseId,
+          step_number: step.step_number,
+          step_description: editValue
+        })
       });
-
+  
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update step");
+        throw new Error("Failed to update step");
       }
-
+  
+      // Refresh steps to show updated data
       await fetchSteps();
       setEditingStep(null);
-      setEditValue("");
-      setError(null);
-    } catch (err) {
-      setError("Failed to update step. Please try again.");
-      console.error("Error updating step:", err);
+      addStepComponent.clearSuggestions();
+    } catch (error) {
+      console.error("Error updating step:", error);
     } finally {
-      setUpdatingStepId(null); 
+      setUpdatingStepId(null);
     }
   };
 
   const cancelEdit = () => {
     setEditingStep(null);
     setEditValue("");
-    setError(null);
+    addStepComponent.clearSuggestions();
   };
-  
 
   const handleRunSteps = async () => {
     // If no steps are selected, select all steps
@@ -730,7 +733,6 @@ const handleStepSelection = (stepId) => {
   );
 };
 
-
 const selectAllSteps = () => {
   if (selectedSteps.length === steps.length) {
     setSelectedSteps([]);
@@ -929,7 +931,7 @@ const selectAllSteps = () => {
           </div>
 
           <div className="space-y-3 ">
-          {steps.map((step) => (
+          {steps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
                 className="relative flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 transition-all duration-200"
@@ -948,40 +950,68 @@ const selectAllSteps = () => {
                 <span className="min-w-[60px] font-medium">#{step.step_number}</span>
                 
                 {editingStep === step.id ? (
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1 p-2 border border-gray-300 rounded-md"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleUpdateStep(step.id);
-                        } else if (e.key === 'Escape') {
-                          cancelEdit();
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => handleUpdateStep(step.id)}
-                      disabled={updatingStepId === step.id}
-                      className="p-2 text-green-600 hover:text-green-700"
-                    >
-                      {updatingStepId === step.id ? (
-                        <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <Save className="w-4 h-4" />
-                      )}
-                    </button>
+                <div className="flex-1 flex items-center gap-2 relative">
+                  <input
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      setEditValue(newValue);
+                      
+                      const words = newValue.trim().split(' ');
+                      const command = words[0].toLowerCase();
+                      
+                      console.log("Edit input changed:", newValue, "Command:", command);
+                      
+                      if (['click', 'type', 'verify', 'get'].includes(command)) {
+                        addStepComponent.handleEditCommandInput(step.id, newValue, command);
+                      }
+                    }}
+                    className="flex-1 p-2 border border-gray-300 rounded-md"
+                    autoFocus
+                    data-step-id={step.id}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleUpdateStep(step.id);
+                      } else if (e.key === 'Escape') {
+                        cancelEdit();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => handleUpdateStep(step.id)}
+                    disabled={updatingStepId === step.id}
+                    className="p-2 text-green-600 hover:text-green-700"
+                  >
+                    {updatingStepId === step.id ? (
+                      <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md flex items-center">
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Updating...
+                      </div>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                    )}
+                  </button>
 
-                    <button
-                      onClick={cancelEdit}
-                      className="p-2 text-gray-600 hover:text-gray-700"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="p-2 text-gray-600 hover:text-gray-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                  
+                  {/* This is the critical part - it must be positioned correctly */}
+                  <div className="absolute w-full left-0 top-full z-50">
+                    {addStepComponent.renderEditSuggestions(step.id, setEditValue)}
                   </div>
+                </div>
                 ) : (
                   <>
                     <div 
@@ -1070,7 +1100,7 @@ const selectAllSteps = () => {
       ) : (
         renderTestCaseInfo()
       )}
-
+          <addStepComponent.BrowserTabsModal />
           <addStepComponent.ScreenshotModal />
           <addStepComponent.InstructionsModal />
         </div>

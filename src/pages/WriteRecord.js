@@ -512,7 +512,6 @@ const getLastClickCoordinates = (steps) => {
     }
   };
 
-
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;
     
@@ -632,67 +631,85 @@ const getLastClickCoordinates = (steps) => {
     }, 100);
   };
 
-const handleSuggestionClick = (suggestion) => {
-  let updatedStep = '';
-  
-  if (commandType === 'click') {
-    updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-  } else if (commandType === 'type') {
-    const inIndex = newStep.toLowerCase().indexOf(' in ');
-    if (inIndex !== -1) {
-      const textToType = newStep.substring(5, inIndex).trim();
-      if (textToType) {
-        updatedStep = `type ${textToType} in ${suggestion.displayName || suggestion.name}`;
+  const handleSuggestionClick = (suggestion) => {
+    let updatedStep = '';
+    
+    if (commandType === 'click') {
+      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+    } else if (commandType === 'type') {
+      // Get the text the user has already typed (if any)
+      // Look for any text after "type " at the beginning of newStep
+      let userText = '';
+      
+      if (newStep.toLowerCase().startsWith('type ')) {
+        const inIndex = newStep.toLowerCase().indexOf(' in ');
+        if (inIndex !== -1) {
+          // If " in " exists, extract text between "type " and " in "
+          userText = newStep.substring(5, inIndex).trim();
+        } else {
+          // If " in " doesn't exist, extract all text after "type "
+          userText = newStep.substring(5).trim();
+        }
+      }
+      
+      // Use the user's text if available, otherwise use placeholder
+      if (userText) {
+        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
       } else {
         updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
       }
-    } else {
-      updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-    } 
-  } else if (commandType === 'verify') {
-    updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-
-    setNewStep(updatedStep);
-    setSelectedElement(suggestion);
-    setShowSuggestions(false);  
-
-    const textToVerify = suggestion.displayName || suggestion.name;
-    const matchingElements = [suggestion]; 
-    
-    setVerificationModal({
-      isOpen: true,
-      textToVerify,
-      matchingElements,
-      selectedElement: suggestion
-    });
-    
-    return;  
-  } else if (commandType === 'get') {
-    updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+    } else if (commandType === 'verify') {
+      updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
+  
+      setNewStep(updatedStep);
+      setSelectedElement(suggestion);
+      setShowSuggestions(false);  
+  
+      const textToVerify = suggestion.displayName || suggestion.name;
+      const matchingElements = [suggestion]; 
+      
+      setVerificationModal({
+        isOpen: true,
+        textToVerify,
+        matchingElements,
+        selectedElement: suggestion
+      });
+      
+      return;  
+    } else if (commandType === 'get') {
+      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+      
+      setNewStep(updatedStep);
+      setSelectedElement(suggestion);
+      setShowSuggestions(false);
+      
+      return;
+    }
     
     setNewStep(updatedStep);
     setSelectedElement(suggestion);
     setShowSuggestions(false);
     
-    return;
-  }
-  
-  setNewStep(updatedStep);
-  setSelectedElement(suggestion);
-  setShowSuggestions(false);
-  
-  if (inputRef.current) {
-    inputRef.current.focus();
-    if (commandType === 'type' && updatedStep.includes(' in ')) {
-      const typeIndex = updatedStep.indexOf('type ') + 5;
-      const inIndex = updatedStep.indexOf(' in ');
-      inputRef.current.setSelectionRange(typeIndex, inIndex);
-    } else {
-      const length = updatedStep.length;
-      inputRef.current.setSelectionRange(length, length);
+    if (inputRef.current) {
+      inputRef.current.focus();
+      if (commandType === 'type' && updatedStep.includes(' in ')) {
+        // Position cursor after "type " but before " in " for user to enter text
+        const typeIndex = updatedStep.indexOf('type ') + 5;
+        
+        // If there's no text between "type " and " in ", set cursor right after "type "
+        if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+          inputRef.current.setSelectionRange(typeIndex, typeIndex);
+        } else {
+          // If there's already text, position cursor at the end of the command
+          const length = updatedStep.length;
+          inputRef.current.setSelectionRange(length, length);
+        }
+      } else {
+        const length = updatedStep.length;
+        inputRef.current.setSelectionRange(length, length);
+      }
     }
-  }
-};
+  };
 
 const handleVerificationConfirm = () => {
   const { textToVerify, selectedElement } = verificationModal;
@@ -839,14 +856,12 @@ const createTestCase = async () => {
   }
 };
 
-
   const clearSession = () => {
     sessionStorage.removeItem('latestElementData');
     setElementData(null);
     setTestSteps([]);
     alert('Session data cleared!');
   };
-
 
 const LoadingIndicator = ({ message }) => (
   <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow-md border-l-4 border-purple-500 mb-4 transition-all duration-300">
