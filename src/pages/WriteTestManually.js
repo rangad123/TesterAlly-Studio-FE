@@ -606,7 +606,7 @@ const WriteTestManually = () => {
         }
       }
     } else if (command === "type") {
-      filtered = elements.filter(el => el.type === "text")
+      filtered = elements.filter(el => el.type === "text" || el.type === "icon")
         .map(el => {
           // Fix: Ensure coordinates are processed correctly
           let coordinates;
