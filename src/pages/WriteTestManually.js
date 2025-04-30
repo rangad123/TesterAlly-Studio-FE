@@ -26,8 +26,37 @@ const WriteTestManually = () => {
   const [tempStepValue, setTempStepValue] = useState("");
   const [originalStepValues, setOriginalStepValues] = useState({});
   const [lastCapturedStepId, setLastCapturedStepId] = useState(null);
+  const [availableCapturedStepIds, setAvailableCapturedStepIds] = useState([]);
   
   const inputRef = useRef(null);
+
+  // Effect to store capturedSteps in sessionStorage
+  useEffect(() => {
+    if (Object.keys(capturedSteps).length > 0) {
+      sessionStorage.setItem('capturedSteps', JSON.stringify(capturedSteps));
+      // Update available captured step IDs
+      setAvailableCapturedStepIds(Object.keys(capturedSteps));
+    }
+  }, [capturedSteps]);
+
+  // Effect to load capturedSteps from sessionStorage on component mount
+  useEffect(() => {
+    const storedSteps = sessionStorage.getItem('capturedSteps');
+    if (storedSteps) {
+      try {
+        const parsedSteps = JSON.parse(storedSteps);
+        setCapturedSteps(parsedSteps);
+        // Set available captured step IDs
+        setAvailableCapturedStepIds(Object.keys(parsedSteps));
+        // Set last captured step ID to the most recent one
+        if (Object.keys(parsedSteps).length > 0) {
+          setLastCapturedStepId(Object.keys(parsedSteps)[Object.keys(parsedSteps).length - 1]);
+        }
+      } catch (error) {
+        console.error("Error parsing stored steps:", error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -174,6 +203,7 @@ const WriteTestManually = () => {
     setTestSteps(finalSteps);
     setEditingStep(null);
     setShowSuggestions(false);
+    setCommandSuggestions([]);
 
     // Clean up original values
     setOriginalStepValues(prev => {
@@ -223,6 +253,7 @@ const WriteTestManually = () => {
     
     // Close suggestions
     setShowSuggestions(false);
+    setCommandSuggestions([]);
   };
 
   const handleSaveAndAddStep = () => {
@@ -246,6 +277,7 @@ const WriteTestManually = () => {
     // Clear editing state
     setEditingStep(null);
     setShowSuggestions(false);
+    setCommandSuggestions([]);
     
     // Add new step after the current one
     setTimeout(() => {
@@ -277,19 +309,8 @@ const WriteTestManually = () => {
       setEditingStep(index);
       setTempStepValue(testSteps[index].choice);
       
-      // Show suggestions if this step has captured data
-      const stepId = testSteps[index].id;
-      if (capturedSteps[stepId]) {
-        const input = testSteps[index].choice;
-        const words = input.trim().split(' ');
-        const command = words[0].toLowerCase();
-        
-        if (['click', 'type', 'verify', 'get'].includes(command)) {
-          setCommandType(command);
-          fetchElementSuggestions(command, input, words, stepId);
-          setShowSuggestions(index);  // Set to current index, not boolean
-        }
-      }
+      // Process suggestions based on the current step's content
+      processInputForSuggestions(testSteps[index].choice, index);
       
       // Ensure the step is visible in the viewport
       setTimeout(() => {
@@ -298,6 +319,61 @@ const WriteTestManually = () => {
           stepElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 10);
+    }
+  };
+
+  // Enhanced function to find the best captured step data to use for suggestions
+  const findBestCapturedStepData = (stepId) => {
+    // First priority: Use the current step's data if available
+    if (capturedSteps[stepId]) {
+      return { stepId, data: capturedSteps[stepId] };
+    }
+    
+    // Second priority: Use the last captured step's data
+    if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
+      return { stepId: lastCapturedStepId, data: capturedSteps[lastCapturedStepId] };
+    }
+    
+    // Third priority: Use any available captured step data (newest first)
+    if (availableCapturedStepIds.length > 0) {
+      // Sort by timestamp if available, otherwise use the last one in the array
+      const sortedIds = [...availableCapturedStepIds].sort((a, b) => {
+        const timestampA = capturedSteps[a]?.timestamp || 0;
+        const timestampB = capturedSteps[b]?.timestamp || 0;
+        return new Date(timestampB) - new Date(timestampA);
+      });
+      
+      return { stepId: sortedIds[0], data: capturedSteps[sortedIds[0]] };
+    }
+    
+    return { stepId: null, data: null };
+  };
+
+  // Enhanced function to process input for suggestions
+  const processInputForSuggestions = (input, index) => {
+    if (!input) return;
+    
+    const words = input.trim().split(' ');
+    const command = words[0].toLowerCase();
+    
+    if (['click', 'type', 'verify', 'get'].includes(command)) {
+      setCommandType(command);
+      
+      // Find the best captured step data to use for suggestions
+      const { stepId: bestStepId } = findBestCapturedStepData(testSteps[index]?.id || '');
+      
+      if (bestStepId) {
+        fetchElementSuggestions(command, input, words, bestStepId);
+        setShowSuggestions(index);
+      } else {
+        setShowSuggestions(false);
+      }
+    } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
+      setCommandType(command);
+      setShowSuggestions(false);
+    } else {
+      setCommandType("");
+      setShowSuggestions(false);
     }
   };
   
@@ -366,6 +442,7 @@ const WriteTestManually = () => {
       }));
 
       setLastCapturedStepId(stepId);
+      setAvailableCapturedStepIds(prev => [...prev, stepId]);
       
     } catch (error) {
       alert("Failed to capture element. Please try again.");
@@ -379,6 +456,7 @@ const WriteTestManually = () => {
     if (editingStep === index) {
       setEditingStep(null);
       setShowSuggestions(false);
+      setCommandSuggestions([]);
     }
     
     const updatedSteps = testSteps.filter((_, idx) => idx !== index);
@@ -404,34 +482,7 @@ const WriteTestManually = () => {
     updatedSteps[index].choice = input;
     setTestSteps(updatedSteps);
   
-    const words = input.trim().split(' ');
-    const command = words[0].toLowerCase();
-    
-    if (['click', 'type', 'verify', 'get'].includes(command)) {
-      setCommandType(command);
-      
-      // First try to use the current step's captured data
-      const stepId = testSteps[index].id;
-      
-      // If this step has captured data, use it
-      if (capturedSteps[stepId]) {
-        fetchElementSuggestions(command, input, words, stepId);
-        setShowSuggestions(index);  // Set showSuggestions to current index
-      } 
-      // Otherwise, use the last captured step's data if available
-      else if (lastCapturedStepId && capturedSteps[lastCapturedStepId]) {
-        fetchElementSuggestions(command, input, words, lastCapturedStepId);
-        setShowSuggestions(index);  // Set showSuggestions to current index
-      } else {
-        setShowSuggestions(false);
-      }
-    } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
-      setCommandType(command);
-      setShowSuggestions(false);
-    } else {
-      setCommandType("");
-      setShowSuggestions(false);
-    }
+    processInputForSuggestions(input, index);
   };
   
   const fetchElementSuggestions = (command, inputValue, words, stepId) => {
@@ -522,7 +573,7 @@ const WriteTestManually = () => {
         if (textToType) {
           updatedStepValue = `type ${textToType} in ${suggestion.name || suggestion.text || 'element'}`;
         } else {
-          updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
+            updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
         }
       } else {
         updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
@@ -533,20 +584,27 @@ const WriteTestManually = () => {
       updatedStepValue = `get ${suggestion.text || suggestion.name || 'element'}`;
     }
     
+    // Update the step's choice and selectedElement
     step.choice = updatedStepValue;
     step.selectedElement = suggestion;
   
+    // Associate the element's coordinates with the step
     if (suggestion.coordinates) {
-      setCapturedSteps(prev => ({
-        ...prev,
-        [step.id]: {
-          ...prev[step.id] || {},
-          coordinates: {
-            click_x: suggestion.coordinates.x || 0,
-            click_y: suggestion.coordinates.y || 0
+      setCapturedSteps(prev => {
+        const stepId = step.id;
+        const stepData = prev[stepId] || {};
+        
+        return {
+          ...prev,
+          [stepId]: {
+            ...stepData,
+            coordinates: {
+              click_x: suggestion.coordinates.x || 0,
+              click_y: suggestion.coordinates.y || 0
+            }
           }
-        }
-      }));
+        };
+      });
     }
   
     setTestSteps(updatedSteps);
