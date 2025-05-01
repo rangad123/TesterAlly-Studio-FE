@@ -67,34 +67,6 @@ const WriteTestManually = () => {
   
   const inputRef = useRef(null);
 
-  // Effect to store capturedSteps in sessionStorage
-  useEffect(() => {
-    if (Object.keys(capturedSteps).length > 0) {
-      sessionStorage.setItem('capturedSteps', JSON.stringify(capturedSteps));
-      // Update available captured step IDs
-      setAvailableCapturedStepIds(Object.keys(capturedSteps));
-    }
-  }, [capturedSteps]);
-
-  // Effect to load capturedSteps from sessionStorage on component mount
-  useEffect(() => {
-    const storedSteps = sessionStorage.getItem('capturedSteps');
-    if (storedSteps) {
-      try {
-        const parsedSteps = JSON.parse(storedSteps);
-        setCapturedSteps(parsedSteps);
-        // Set available captured step IDs
-        setAvailableCapturedStepIds(Object.keys(parsedSteps));
-        // Set last captured step ID to the most recent one
-        if (Object.keys(parsedSteps).length > 0) {
-          setLastCapturedStepId(Object.keys(parsedSteps)[Object.keys(parsedSteps).length - 1]);
-        }
-      } catch (error) {
-        console.error("Error parsing stored steps:", error);
-      }
-    }
-  }, []);
-
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -282,7 +254,7 @@ const WriteTestManually = () => {
     }
   };
   
-  const handleTabSelection = async (tabTitle) => {
+  const handleTabSelection = async (tab) => {
     setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
     setShowBrowserTabsModal(false);
     
@@ -290,7 +262,9 @@ const WriteTestManually = () => {
       const user_id = localStorage.getItem("userId");
       
       const requestBody = {
-        tab_title: tabTitle,
+        tab_title: tab.title,
+        hwnd: tab.hwnd,
+        browser_name: tab.browser_name,
         user_id: user_id,
       };
       
@@ -382,7 +356,6 @@ const WriteTestManually = () => {
     setTestSteps(finalSteps);
     setEditingStep(null);
     setShowSuggestions(false);
-    setCommandSuggestions([]);
 
     // Clean up original values
     setOriginalStepValues(prev => {
@@ -432,7 +405,6 @@ const WriteTestManually = () => {
     
     // Close suggestions
     setShowSuggestions(false);
-    setCommandSuggestions([]);
   };
 
   const handleSaveAndAddStep = () => {
@@ -456,7 +428,6 @@ const WriteTestManually = () => {
     // Clear editing state
     setEditingStep(null);
     setShowSuggestions(false);
-    setCommandSuggestions([]);
     
     // Add new step after the current one
     setTimeout(() => {
@@ -571,71 +542,7 @@ const WriteTestManually = () => {
     setShowSuggestions(false);
     setCommandSuggestions([]);
   };  
-
-  const handleCaptureElement = async (stepId) => {
-    setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
-    
-    try {
-      const user_id = localStorage.getItem("userId");
   
-      const requestBody = {
-        user_id: user_id,
-      };
-      
-      const response = await fetch('http://127.0.0.1:8000/automation/insert_screen/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to capture element');
-      }
-  
-      const data = await response.json();
-  
-      // Fix for coordinates - ensure they're properly formatted
-      const coordinates = {
-        click_x: data.coordinates?.x || data.coordinates?.click_x || 0,
-        click_y: data.coordinates?.y || data.coordinates?.click_y || 0
-      };
-  
-      const capturedData = {
-        coordinates: coordinates,
-        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
-        timestamp: new Date().toISOString(),
-        elements: data.omniparser_data?.elements || []
-      };
-  
-      // Mark this step as the original capturer of this screenshot
-      setOriginalCaptureIds(prev => ({
-        ...prev, 
-        [stepId]: stepId // This step captured its own screenshot
-      }));
-  
-      // Store in both state and session storage
-      setCapturedSteps(prev => ({
-        ...prev,
-        [stepId]: capturedData
-      }));
-  
-      // Store in session storage with original capture info
-      storeInSessionStorage(stepId, {
-        ...capturedData,
-        originalCaptureId: stepId
-      });
-  
-      setLastCapturedStepId(stepId);
-      
-    } catch (error) {
-      alert("Failed to capture element. Please try again.");
-    } finally {
-      setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
-    }
-  };
-
   useEffect(() => {
     try {
       // Load all captured step IDs
@@ -686,7 +593,6 @@ const WriteTestManually = () => {
     if (editingStep === index) {
       setEditingStep(null);
       setShowSuggestions(false);
-      setCommandSuggestions([]);
     }
     
     const updatedSteps = testSteps.filter((_, idx) => idx !== index);
@@ -939,7 +845,7 @@ const WriteTestManually = () => {
         if (textToType) {
           updatedStepValue = `type ${textToType} in ${suggestion.name || suggestion.text || 'element'}`;
         } else {
-            updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
+          updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
         }
       } else {
         updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
@@ -950,7 +856,6 @@ const WriteTestManually = () => {
       updatedStepValue = `get ${suggestion.text || suggestion.name || 'element'}`;
     }
     
-    // Update the step's choice and selectedElement
     step.choice = updatedStepValue;
     step.selectedElement = suggestion;
   
@@ -1116,7 +1021,7 @@ const WriteTestManually = () => {
                     <li 
                       key={index}
                       className={`p-3 border rounded-md cursor-pointer hover:bg-blue-50 transition-colors ${tab.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
-                      onClick={() => handleTabSelection(tab.title)}
+                      onClick={() => handleTabSelection(tab)}
                     >
                       <div className="flex justify-between items-center">
                         <div>
