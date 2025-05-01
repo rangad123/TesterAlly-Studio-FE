@@ -289,6 +289,31 @@ const TestSteps = () => {
       const step = steps.find(s => s.id === stepId);
       if (!step) return;
   
+      // Get existing coordinates or use selected element coordinates if available
+      let coordinates = step.step_coordinates || { click_x: 0, click_y: 0 };
+      
+      // If a new element was selected during editing, use its coordinates
+      if (addStepComponent.selectedElement) {
+        if (addStepComponent.selectedElement.click_point && Array.isArray(addStepComponent.selectedElement.click_point)) {
+          coordinates = {
+            click_x: addStepComponent.selectedElement.click_point[0],
+            click_y: addStepComponent.selectedElement.click_point[1]
+          };
+        } else if (addStepComponent.selectedElement.coordinates) {
+          if (Array.isArray(addStepComponent.selectedElement.coordinates)) {
+            coordinates = {
+              click_x: addStepComponent.selectedElement.coordinates[0],
+              click_y: addStepComponent.selectedElement.coordinates[1]
+            };
+          } else {
+            coordinates = {
+              click_x: addStepComponent.selectedElement.coordinates.x || addStepComponent.selectedElement.coordinates.click_x || 0,
+              click_y: addStepComponent.selectedElement.coordinates.y || addStepComponent.selectedElement.coordinates.click_y || 0
+            };
+          }
+        }
+      }
+  
       // Find the step to update
       const response = await fetch(`${apiBaseUrl}/teststeps/${stepId}/`, {
         method: "PUT",
@@ -296,7 +321,8 @@ const TestSteps = () => {
         body: JSON.stringify({
           testcase: testCaseId,
           step_number: step.step_number,
-          step_description: editValue
+          step_description: editValue,
+          step_coordinates: coordinates
         })
       });
   
@@ -345,8 +371,10 @@ const TestSteps = () => {
     const selectedProject = JSON.parse(localStorage.getItem(`selectedProject_${user_id}`) || '{}');
     const projectId = selectedProject.id;
     
-    for (const stepId of stepIds) {
+    for (let i = 0; i < stepIds.length; i++) {
+      const stepId = stepIds[i];
       const step = steps.find(s => s.id === stepId);
+      const isLastStep = i === stepIds.length - 1; // Identify last step
       
       try {
         if (!step) continue;
@@ -360,7 +388,7 @@ const TestSteps = () => {
           [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
         }));
   
-        const result = await executeStep(step, user_id);
+        const result = await executeStep(step, user_id, isLastStep);
   
         console.log(`✅ Finished Step ${step.step_number}:`, result);
   
@@ -375,7 +403,7 @@ const TestSteps = () => {
   
         if (stepId !== stepIds[stepIds.length - 1]) {  
           await new Promise(resolve => {
-            let countdown = 5;
+            let countdown = 2;
             
             const countdownInterval = setInterval(() => {
               setExecutionResults(prev => ({
@@ -445,7 +473,7 @@ const TestSteps = () => {
   };
   
 
-  const executeStep = async (step, user_id) => {
+  const executeStep = async (step, user_id, isLastStep = false) => {
     try {
 
       if (!step || typeof step !== 'object') {
@@ -467,19 +495,20 @@ const TestSteps = () => {
       const stepCoordinates = step.step_coordinates || {};
 
       console.log("Executing step directly:", {
-      step_id: step.id,
-      step_number: step.step_number, 
-      description: stepDescription,
-      coordinates: stepCoordinates
-    });
+        step_id: step.id,
+        step_number: step.step_number, 
+        description: stepDescription,
+        coordinates: stepCoordinates,
+        is_final_step: isLastStep
+      });
       
       if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ command: updatedStepDescription, user_id: user_id }),
+          body: JSON.stringify({ command: updatedStepDescription, user_id: user_id, is_final_step: isLastStep }),
         });
   
         console.log("open url:", updatedStepDescription);
@@ -517,7 +546,7 @@ const TestSteps = () => {
           throw new Error(`No coordinates found for click step: "${stepDescription}"`);
         }
         
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -526,7 +555,8 @@ const TestSteps = () => {
             command: stepDescription,
             user_id: user_id,
             click_x: clickX,
-            click_y: clickY
+            click_y: clickY,
+            is_final_step: isLastStep
           }),
         });
         
@@ -563,7 +593,7 @@ const TestSteps = () => {
         
         const verificationType = stepCoordinates.verification_type || 'text';
         
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -573,7 +603,8 @@ const TestSteps = () => {
             user_id: user_id,
             click_x: clickX,
             click_y: clickY,
-            verification_type: verificationType
+            verification_type: verificationType,
+            is_final_step: isLastStep
           }),
         });
         
@@ -610,7 +641,7 @@ const TestSteps = () => {
           throw new Error(`No coordinates found for get step: "${stepDescription}"`);
         }
         
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -620,7 +651,8 @@ const TestSteps = () => {
             user_id: user_id,
             click_x: clickX,
             click_y: clickY,
-            action_type: 'get'
+            action_type: 'get',
+            is_final_step: isLastStep
           }),
         });
         

@@ -1276,7 +1276,7 @@ const renderEditSuggestions = (stepId, setEditValue) => {
     renderStepContent,
     ScreenshotModal,
     InstructionsModal,
-    BrowserTabsModal, // Add this
+    BrowserTabsModal,
     handleExpandScreenshot,
     showNoteModal,
     expandedScreenshot,
@@ -1291,7 +1291,8 @@ const renderEditSuggestions = (stepId, setEditValue) => {
     handleEditCommandInput,
     clearSuggestions,
     renderEditSuggestions,
-    handleCommandInputChange
+    handleCommandInputChange,
+    selectedElement,
   };
 
 };
