@@ -4,7 +4,7 @@ import CountryInput from "../components/CountryInput";
 import { useState, useEffect } from "react";
 import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
-import "./Login.css";
+import "../pages/Login.css";
 import { useParams } from "react-router-dom";
 
 

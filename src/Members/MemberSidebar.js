@@ -8,7 +8,7 @@ import {
 import { FiSettings } from "react-icons/fi";
 import { MdDashboard, MdAccountCircle } from "react-icons/md";
 import { useNavigate, useLocation } from "react-router-dom";
-import "./Sidebar.css";
+import "../pages/Sidebar.css";
 import MemberSubBar from "./MemberSubBar";
 
 const MemberSidebar = () => {

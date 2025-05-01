@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./CreateTestCases.css";
+import "../pages/CreateTestCases.css";
 import MemberSidebar from "./MemberSidebar";
 
 const MemberTestCases = () => {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";  
 import { useNavigate } from "react-router-dom";
 import UserIcon from "../images/user.png";
-import "./Profile.css";
+import "../pages/Profile.css";
 import MemberSidebar from "./MemberSidebar";
 
 

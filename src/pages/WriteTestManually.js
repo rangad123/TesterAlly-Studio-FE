@@ -1019,7 +1019,7 @@ const WriteTestManually = () => {
                     <li 
                       key={index}
                       className={`p-3 border rounded-md cursor-pointer hover:bg-blue-50 transition-colors ${tab.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
-                      onClick={() => handleTabSelection(tab.title)}
+                      onClick={() => handleTabSelection(tab)}
                     >
                       <div className="flex justify-between items-center">
                         <div>

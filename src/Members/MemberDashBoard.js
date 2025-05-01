@@ -1,6 +1,6 @@
 
 import React from "react";
-import "./style.css";
+import "../pages/style.css";
 import MemberSidebar from "./MemberSidebar";
 
 const MemberDashBoard = () => {
