@@ -198,7 +198,7 @@ export default function Dashboard() {
           About <span className="text-purple-500">TesterAlly</span> AI Agent
         </h2>
         <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 shadow-md">
-          <p className="text-gray-300 leading-relaxed">
+          <p className="text-gray-400 leading-relaxed">
             TesterAlly AI Agent represents the next generation of test automation tools, combining the power of
             artificial intelligence with local execution flexibility. Our agent leverages machine learning to understand your
             application's behavior patterns, identifying potential issues before they impact your users.

@@ -119,7 +119,7 @@ const AddStep = ({
     }
   };
   
-  const handleTabSelection = async (tabTitle) => {
+  const handleTabSelection = async (tab) => {
     setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
     setShowBrowserTabsModal(false);
     
@@ -127,7 +127,9 @@ const AddStep = ({
       const user_id = localStorage.getItem("userId");
       
       const requestBody = {
-        tab_title: tabTitle,
+        tab_title: tab.title,
+        hwnd: tab.hwnd,
+        browser_name: tab.browser_name,
         user_id: user_id,
       };
       
@@ -1060,7 +1062,7 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                     <li 
                       key={index}
                       className={`p-3 border rounded-md cursor-pointer hover:bg-blue-50 transition-colors ${tab.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
-                      onClick={() => handleTabSelection(tab.title)}
+                      onClick={() => handleTabSelection(tab)}
                     >
                       <div className="flex justify-between items-center">
                         <div>

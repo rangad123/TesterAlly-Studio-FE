@@ -254,7 +254,7 @@ const WriteTestManually = () => {
     }
   };
   
-  const handleTabSelection = async (tabTitle) => {
+  const handleTabSelection = async (tab) => {
     setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
     setShowBrowserTabsModal(false);
     
@@ -262,7 +262,9 @@ const WriteTestManually = () => {
       const user_id = localStorage.getItem("userId");
       
       const requestBody = {
-        tab_title: tabTitle,
+        tab_title: tab.title,
+        hwnd: tab.hwnd,
+        browser_name: tab.browser_name,
         user_id: user_id,
       };
       
