@@ -25,7 +25,7 @@ const TestSteps = () => {
   const [hoveredStep, setHoveredStep] = useState(null);
   const [deletingStepId, setDeletingStepId] = useState(null);
   const [updatingStepId, setUpdatingStepId] = useState(null);
-
+  const [showRunInstructions, setShowRunInstructions] = useState(false);
 //  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
@@ -347,15 +347,24 @@ const TestSteps = () => {
     addStepComponent.clearSuggestions();
   };
 
-  const handleRunSteps = async () => {
+  const handleRunSteps = () => {
+    // Just show the instructions modal, don't run tests yet
+    setShowRunInstructions(true);
+    
     // If no steps are selected, select all steps
     if (selectedSteps.length === 0) {
       const allStepIds = steps.map(step => step.id);
       setSelectedSteps(allStepIds);
-      await executeTestSteps(allStepIds);
-    } else {
-      await executeTestSteps(selectedSteps);
     }
+  };
+
+  const handleModalOkClick = async () => {
+    setShowRunInstructions(false);
+    // Now execute the test steps
+    await executeTestSteps(selectedSteps.length > 0 ? selectedSteps : steps.map(step => step.id));
+  };
+  const handleModalCancelClick = () => {
+    setShowRunInstructions(false);
   };
 
   const handleResetExecution = () => {
@@ -686,7 +695,7 @@ const TestSteps = () => {
         
         console.log(`Converting '${isScrollUp ? 'scrollup' : 'scrolldown'}' to '${updatedCommand}'`);
         
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
+        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -935,6 +944,33 @@ const selectAllSteps = () => {
             </button>
           </div> 
         </div>
+
+        {showRunInstructions && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
+              <h3 className="text-lg font-medium mb-2">Test Execution</h3>
+              <p className="mb-4">Your test is now ready to run. The system will execute all selected steps in sequence.</p>
+              <p className="mb-4">
+                For best results, please set Google Chrome as your default browser before starting the test.
+              </p>
+              <p className="mb-4">Click OK to start the test execution or Cancel to return without running.</p>
+              <div className="flex justify-end space-x-2">
+                <button
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  onClick={handleModalCancelClick}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  onClick={handleModalOkClick}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex border-b mb-4">
           <button onClick={() => setActiveTab("testSteps")} className={`px-4 py-2 ${activeTab === "testSteps" ? "border-b-2 border-purple-600" : "text-gray-500"}`}>Test Steps</button>

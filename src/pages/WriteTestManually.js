@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 
 const WriteTestManually = () => {
 
@@ -660,7 +661,7 @@ const WriteTestManually = () => {
   
     // Process the elements and ensure coordinates are available
     if (command === "click") {
-      filtered = elements.filter(el => el.interactivity === true && el.type === "icon")
+      (filtered = elements.filter(el => (el.interactivity === true && el.type === "icon") || el.type === "text"))
         .map(el => {
           // Fix: Ensure coordinates are processed correctly
           let coordinates;
@@ -973,11 +974,13 @@ const WriteTestManually = () => {
           </button>
           <h2 className="text-lg font-semibold mb-3">Step Instructions</h2>
           <ul className="list-disc list-inside text-sm text-gray-700 space-y-2">
-            <li>Open Testing Project and TesterAlly in separate browsers for better results.</li>
-            <li>Manually complete the previous step.</li>
-            <li>After clicking the camera, manually open your test page. If not opened.</li>
-            <li>Wait a few seconds for the system to respond.</li>
-            <li>Ensure the element is fully visible on the screen.</li>  
+            <li>Before adding action commands like <strong>click</strong>, <strong>type</strong>, or <strong>verify</strong>, please capture the test page. Once captured, you can add multiple steps without needing to recapture—unless you're switching to a different test page.</li>
+            <li>Captured screenshots include element data that can be reused in the next steps. If you’ve captured multiple test pages, editing a step will display the data from the most recently captured page.</li>
+            <li>Once you click the camera button, the system will show all active browser tab titles. Please choose the correct test page browser window.</li>
+            <li>After selecting the browser, it will activate and capture the screen. Please wait a few seconds as the system minimizes.</li>
+            <li>During the screenshot capture, avoid switching tabs or opening other pages, as it may cause incorrect capture.</li>
+            <li>Open your Testing Project and TesterAlly in separate browser windows for better results.</li>
+            <li>Ensure the element you want to interact with is fully visible on the screen before capturing.</li>
           </ul>
         </div>
       </div>
@@ -1191,6 +1194,25 @@ const WriteTestManually = () => {
                               </div>
                             );
                           })}
+                        </div>
+                      )}
+                      {showSuggestions === index && commandSuggestions.length === 0 && (
+                        <div className="absolute z-10 bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+                          <div className="p-4 text-center">
+                            <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+                              <AlertCircle className="w-5 h-5 mr-2" />
+                              No element data available
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+                            </p>
+                            <button 
+                              onClick={() => setShowSuggestions(false)}
+                              className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

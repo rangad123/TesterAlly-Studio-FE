@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Clock, X, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSuggestedElements } from './elementSuggestionUtils';
+import { HelpCircle, Link, MousePointer, Info, AlertCircle } from 'lucide-react';
 
 
 const WriteRecord = () => {
@@ -39,7 +40,7 @@ const WriteRecord = () => {
     isOpen: false,
     stepObj: null
   });
-  
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -116,6 +117,10 @@ const WriteRecord = () => {
         return;
     }
 
+    if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
+      return;
+    }
+
     const inputText = newStep.trim().toLowerCase();
     const words = inputText.split(' ');
     const firstWord = words[0];
@@ -179,7 +184,17 @@ const WriteRecord = () => {
         setCommandType('');
         setShowSuggestions(false);
     }
-}, [newStep, elementData, previouslySelectedElements, testSteps]);
+}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement]);
+
+useEffect(() => {
+  if (showSuggestions && suggestions.length > 0) {
+    const dropdownElement = document.querySelector('.suggestions-dropdown');
+    if (dropdownElement) {
+      dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+}, [showSuggestions, suggestions.length]);
+
 
 const fetchTestData = async (projectId) => {
   if (!projectId) return;
@@ -292,6 +307,7 @@ const getLastClickCoordinates = (steps) => {
                 message: data.status || "Page loaded successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_data,
+                debug_images: data.omniparser_data?.debug_images || {}, 
             };
   
         } else if (actionType === 'click' || actionType === 'type') {
@@ -356,6 +372,7 @@ const getLastClickCoordinates = (steps) => {
                 coordinates: data.coordinates || elementData,
                 elementAction: selectedElement,
                 requestBody,
+                debug_images: data.coordinates?.debug_images || {},
             };
         } else if (actionType === 'verify') {
           const selectedElement = stepObj.selectedElement;
@@ -411,6 +428,7 @@ const getLastClickCoordinates = (steps) => {
               verifiedText: data.copied_text || "",
               elementVerified: selectedElement,
               requestBody,
+              debug_images: data.coordinates?.debug_images || {},
           };
         } else if (actionType === 'scrollup' || actionType === 'scrolldown') {
           const requestBody = { 
@@ -447,6 +465,7 @@ const getLastClickCoordinates = (steps) => {
             screenshot: screenshotUrl,
             coordinates: data.coordinates || {},
             requestBody,
+            debug_images: data.coordinates?.debug_images || {},
           };
         } else if (actionType === 'get') {
             const selectedElement = stepObj.selectedElement;
@@ -496,6 +515,7 @@ const getLastClickCoordinates = (steps) => {
               retrievedText: data.copied_text || "",
               elementRetrieved: selectedElement,
               requestBody,
+              debug_images: data.coordinates?.debug_images || {},
             };
           }
 
@@ -519,6 +539,12 @@ const getLastClickCoordinates = (steps) => {
     
     const words = newStep.trim().split(' ');
     const actionType = words[0].toLowerCase();
+
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get'];
+    if (!allowedCommands.includes(actionType)) {
+      alert("Unknown command. Please use: click, type, verify, open, scroll, or get.");
+      return;
+    }
     
     // For verification steps, check if the text exists in cached element data first
     if (actionType === 'verify') {
@@ -632,13 +658,25 @@ const getLastClickCoordinates = (steps) => {
   };
 
   const handleSuggestionClick = (suggestion) => {
+    // Flag to indicate a suggestion was just selected
+    // This will help prevent the useEffect from reopening the dropdown
+    const handleSelection = () => {
+      // Store the selected element ID in previouslySelectedElements
+      setPreviouslySelectedElements(prev => ({
+        ...prev,
+        [suggestion.id]: {
+          timestamp: Date.now(),
+          element: suggestion
+        }
+      }));
+    };
+    
     let updatedStep = '';
     
     if (commandType === 'click') {
       updatedStep = `click ${suggestion.displayName || suggestion.name}`;
     } else if (commandType === 'type') {
       // Get the text the user has already typed (if any)
-      // Look for any text after "type " at the beginning of newStep
       let userText = '';
       
       if (newStep.toLowerCase().startsWith('type ')) {
@@ -661,13 +699,19 @@ const getLastClickCoordinates = (steps) => {
     } else if (commandType === 'verify') {
       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
   
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      setShowSuggestions(false);  
-  
+      // Close suggestions dropdown
+      setShowSuggestions(false);
+      handleSelection();
+      
+      // Set verification modal data
       const textToVerify = suggestion.displayName || suggestion.name;
       const matchingElements = [suggestion]; 
       
+      // Need to update these states together with minimal delay to avoid re-renders
+      setNewStep(updatedStep);
+      setSelectedElement(suggestion);
+      
+      // Show verification modal
       setVerificationModal({
         isOpen: true,
         textToVerify,
@@ -679,36 +723,47 @@ const getLastClickCoordinates = (steps) => {
     } else if (commandType === 'get') {
       updatedStep = `get ${suggestion.displayName || suggestion.name}`;
       
+      // Close suggestions dropdown
+      setShowSuggestions(false);
+      handleSelection();
+      
+      // Update step in one batch to minimize effect triggers
       setNewStep(updatedStep);
       setSelectedElement(suggestion);
-      setShowSuggestions(false);
       
       return;
     }
     
+    // Immediately close suggestions dropdown and disable its reopening
+    setShowSuggestions(false);
+    handleSelection();
+    
+    // Batching state updates to minimize effect re-runs
     setNewStep(updatedStep);
     setSelectedElement(suggestion);
-    setShowSuggestions(false);
     
-    if (inputRef.current) {
-      inputRef.current.focus();
-      if (commandType === 'type' && updatedStep.includes(' in ')) {
-        // Position cursor after "type " but before " in " for user to enter text
-        const typeIndex = updatedStep.indexOf('type ') + 5;
-        
-        // If there's no text between "type " and " in ", set cursor right after "type "
-        if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
-          inputRef.current.setSelectionRange(typeIndex, typeIndex);
+    // Focus input after state updates
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (commandType === 'type' && updatedStep.includes(' in ')) {
+          // Position cursor after "type " but before " in " for user to enter text
+          const typeIndex = updatedStep.indexOf('type ') + 5;
+          
+          // If there's no text between "type " and " in ", set cursor right after "type "
+          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+            inputRef.current.setSelectionRange(typeIndex, typeIndex);
+          } else {
+            // If there's already text, position cursor at the end of the command
+            const length = updatedStep.length;
+            inputRef.current.setSelectionRange(length, length);
+          }
         } else {
-          // If there's already text, position cursor at the end of the command
           const length = updatedStep.length;
           inputRef.current.setSelectionRange(length, length);
         }
-      } else {
-        const length = updatedStep.length;
-        inputRef.current.setSelectionRange(length, length);
       }
-    }
+    }, 0);
   };
 
 const handleVerificationConfirm = () => {
@@ -991,128 +1046,329 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
 };
 
 const SuggestionsDropdown = () => {
-  if (!showSuggestions || suggestions.length === 0) return null;
+  if (!showSuggestions) return null;
+
+  const shouldShowNoDataMessage =
+    suggestions.length === 0 &&
+    newStep?.trim() !== '' &&
+    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+  
+  if (shouldShowNoDataMessage) {
+    return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+        <div className="p-4 text-center">
+          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            No element data available
+          </div>
+          <p className="text-sm text-gray-700">
+            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+          </p>
+          <button 
+            onClick={() => setShowSuggestions(false)}
+            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   
   return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn">
-          <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-              <h4 className="font-medium text-purple-800 flex items-center">
-                  {commandType === 'click' ? (
-                      <>
-                          <span className="mr-2">🖱️</span> Click on an element:
-                      </>
-                  ) : commandType === 'type' ? (
-                      <>
-                          <span className="mr-2">⌨️</span> Select where to type:
-                      </>
-                  ) : commandType === 'verify' ? (
-                      <>
-                          <span className="mr-2">✓</span> Verify text on page:
-                      </>
-                  ) : commandType === 'get' ? (
-                      <>
-                          <span className="mr-2">📄</span> Get text from page:
-                      </>
-                  ) : null}
-              </h4>
-                <p className="text-xs text-gray-600">
-                  Found {suggestions.length} matching elements
-                  {suggestions.some(s => s.isDuplicate) && 
-                    " (highlighted items have duplicate names)"}
-                  {lastClickCoordinates && " (ordered by proximity to last click)"}
-                </p>
-          </div>
-          <ul className="divide-y divide-gray-100">
-              {suggestions.map((suggestion, index) => (
-                  <li 
-                    key={`${suggestion.id}-${index}`}
-                    className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-                      suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-                      suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-                      suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-                      suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-                      suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-                      suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-                      suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-                    }`}
-                    tabIndex={0}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                              handleSuggestionClick(suggestion);
-                          } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                              e.preventDefault();
-                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
-                          } else if (e.key === 'ArrowUp') {
-                              e.preventDefault();
-                              if (index > 0) {
-                                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                              } else {
-                                  inputRef.current.focus();
-                              }
-                          } else if (e.key === 'Escape') {
-                              setShowSuggestions(false);
-                              inputRef.current.focus();
-                          }
-                      }}
-                  >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">
-                          {suggestion.displayName || suggestion.name}
-                          {suggestion.usageInfo && (
-                            <span className={`ml-2 text-xs font-semibold ${
-                              suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                              suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                              suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                              'text-green-600'
-                            }`}>
-                              ({suggestion.usageInfo})
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            suggestion.type === 'button' || suggestion.tag === 'button' 
-                                ? 'bg-blue-100 text-blue-700' 
-                                : suggestion.type === 'input' || suggestion.tag === 'input'
-                                ? 'bg-green-100 text-green-700'
-                                : suggestion.type === 'link' || suggestion.tag === 'a'
-                                ? 'bg-purple-100 text-purple-700'
-                                : suggestion.type === 'text'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {suggestion.type || suggestion.tag || "Element"}
-                          </span>
-                          
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-                          <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-                          {suggestion.isDuplicate && !suggestion.usageInfo && (
-                              <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                                  Multiple matches
-                              </span>
-                          )}
-                          {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                  Near last click
-                              </span>
-                          )}
-                      </div>
-                      
-                      {/* Extra details to help distinguish elements */}
-                      {suggestion.text && (
-                          <div className="text-xs text-gray-500 mt-1 truncate">
-                              Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-                          </div>
-                      )}
-                  </li>
-              ))}
-          </ul>
+    <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
+      <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+        <h4 className="font-medium text-purple-800 flex items-center">
+          {commandType === 'click' ? (
+            <>
+              <span className="mr-2">🖱️</span> Click on an element:
+            </>
+          ) : commandType === 'type' ? (
+            <>
+              <span className="mr-2">⌨️</span> Select where to type:
+            </>
+          ) : commandType === 'verify' ? (
+            <>
+              <span className="mr-2">✓</span> Verify text on page:
+            </>
+          ) : commandType === 'get' ? (
+            <>
+              <span className="mr-2">📄</span> Get text from page:
+            </>
+          ) : null}
+        </h4>
+        <p className="text-xs text-gray-600">
+          Found {suggestions.length} matching elements
+          {suggestions.some(s => s.isDuplicate) && 
+            " (highlighted items have duplicate names)"}
+          {lastClickCoordinates && " (ordered by proximity to last click)"}
+        </p>
       </div>
+      <ul className="divide-y divide-gray-100">
+        {suggestions.map((suggestion, index) => (
+          <li 
+            key={`${suggestion.id}-${index}`}
+            className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+            }`}
+            tabIndex={0}
+            onClick={() => handleSuggestionClick(suggestion)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSuggestionClick(suggestion);
+              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                e.preventDefault();
+                document.querySelectorAll('.suggestion-item')[index + 1].focus();
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (index > 0) {
+                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                } else {
+                  inputRef.current.focus();
+                }
+              } else if (e.key === 'Escape') {
+                setShowSuggestions(false);
+                inputRef.current.focus();
+              }
+            }}
+          >
+            <div className="flex justify-between items-center">
+              <span className="font-medium">
+                {suggestion.displayName || suggestion.name}
+                {suggestion.usageInfo && (
+                  <span className={`ml-2 text-xs font-semibold ${
+                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+                    'text-green-600'
+                  }`}>
+                    ({suggestion.usageInfo})
+                  </span>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  suggestion.type === 'button' || suggestion.tag === 'button' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : suggestion.type === 'input' || suggestion.tag === 'input'
+                      ? 'bg-green-100 text-green-700'
+                      : suggestion.type === 'link' || suggestion.tag === 'a'
+                      ? 'bg-purple-100 text-purple-700'
+                      : suggestion.type === 'text'
+                      ? 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {suggestion.type || suggestion.tag || "Element"}
+                </span>
+              </div>
+            </div>
+            
+            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+              {suggestion.isDuplicate && !suggestion.usageInfo && (
+                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                  Multiple matches
+                </span>
+              )}
+              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  Near last click
+                </span>
+              )}
+            </div>
+            
+            {/* Extra details to help distinguish elements */}
+            {suggestion.text && (
+              <div className="text-xs text-gray-500 mt-1 truncate">
+                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
+};
+
+const InstructionModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-800">Test Execution Instructions</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-full">
+                <Link className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800">Getting Started</h4>
+                <p className="text-sm text-gray-600">Enter a URL in the command box (e.g., "open https://example.com") to begin testing.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="bg-purple-100 p-2 rounded-full">
+                <MousePointer className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800">Adding Commands</h4>
+                <p className="text-sm text-gray-600">Once a page is loaded, you can add commands like "click login" or "type hello in username".</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800">Verification</h4>
+                <p className="text-sm text-gray-600">Use commands like "verify text welcome" to validate page content.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-3">
+              <div className="bg-yellow-100 p-2 rounded-full">
+                <Info className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-800">Automatic Minimization</h4>
+                <p className="text-sm text-gray-600">The test panel will automatically minimize during page loads and expand when ready for new commands.</p>
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={onClose}
+            className="mt-6 w-full py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors duration-200"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DebugImagesViewer = ({ debugImages }) => { 
+  const [selectedImage, setSelectedImage] = useState('detected_browser_ui'); 
+  const [expandedImage, setExpandedImage] = useState(null); 
+   
+  // Early return if no debug images
+  if (!debugImages || Object.keys(debugImages).length === 0) { 
+    return null; 
+  } 
+ 
+  const handleImageClick = (imageKey) => { 
+    setExpandedImage({ 
+      src: getImageSrc(imageKey, debugImages[imageKey]), 
+      alt: imageKey 
+    }); 
+  }; 
+ 
+  const closeExpandedImage = () => { 
+    setExpandedImage(null); 
+  }; 
+
+  const getImageSrc = (key, value) => {
+    let imageUrl = '';
+  
+
+    if (typeof value === 'string' && value.startsWith('/')) {
+      imageUrl = `http://127.0.0.1:8000${value}`;
+    } else if (typeof value === 'string' && value.startsWith('data:')) {
+      imageUrl = value;
+    } else if (typeof value === 'string') {
+      imageUrl = `data:image/png;base64,${value}`;
+    }
+
+//    console.log(`Debug Image - Key: ${key}, URL: ${imageUrl}`);
+  
+    return imageUrl;
+  };  
+ 
+  return ( 
+    <div className="mt-3 border border-gray-200 rounded-lg"> 
+      <div className="p-2 bg-gray-100 border-b border-gray-200 rounded-t-lg"> 
+        <h4 className="text-sm font-medium">Debug Images</h4> 
+        <div className="flex flex-wrap gap-1 mt-1"> 
+          {Object.keys(debugImages).map((key) => ( 
+            <button 
+              key={key} 
+              onClick={() => setSelectedImage(key)} 
+              className={`px-2 py-1 text-xs rounded-md ${ 
+                selectedImage === key 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+              }`} 
+            > 
+              {key.split('_').join(' ')} 
+            </button> 
+          ))} 
+        </div> 
+      </div> 
+      <div className="p-2"> 
+        {debugImages[selectedImage] && ( 
+          <div className="relative"> 
+            <img 
+              src={getImageSrc(selectedImage, debugImages[selectedImage])}
+              alt={selectedImage} 
+              className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity" 
+              onClick={() => handleImageClick(selectedImage)} 
+            /> 
+            <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-xs"> 
+              {selectedImage.split('_').join(' ')} 
+            </div> 
+          </div> 
+        )} 
+      </div> 
+ 
+      {/* Modal for expanded image */} 
+      {expandedImage && ( 
+        <div  
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" 
+          onClick={closeExpandedImage} 
+        > 
+          <div  
+            className="relative max-w-4xl max-h-[90vh] w-full overflow-hidden" 
+            onClick={(e) => e.stopPropagation()} 
+          > 
+            <button  
+              className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70 transition-opacity z-10" 
+              onClick={closeExpandedImage} 
+            > 
+              <X className="w-5 h-5" /> 
+            </button> 
+            <img  
+              src={expandedImage.src}  
+              alt={expandedImage.alt}  
+              className="w-full h-auto max-h-[90vh] object-contain rounded-lg"  
+            /> 
+            <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm"> 
+              {expandedImage.alt.split('_').join(' ')} 
+            </div> 
+          </div> 
+        </div> 
+      )} 
+    </div> 
+  ); 
 };
 
   return ( 
@@ -1264,9 +1520,16 @@ const SuggestionsDropdown = () => {
 
             {/* Right Panel - Test Execution Timeline */}
             <div className="w-full lg:w-1/2 flex flex-col bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-800">Test Execution Timeline</h2>
-              </div>
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">Test Execution Timeline</h2>
+              <button 
+                onClick={() => setInstructionModalOpen(true)}
+                className="p-1 rounded-full hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors duration-200"
+                title="View Instructions"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </button>
+            </div>
               
               <div ref={previewRef} className="flex-1 p-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
                 <div className="space-y-5">
@@ -1288,6 +1551,7 @@ const SuggestionsDropdown = () => {
                           </div>
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
+{/*
                         {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
                             <img
@@ -1299,6 +1563,21 @@ const SuggestionsDropdown = () => {
                             <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-xs">
                               Screenshot {index + 1}
                             </div>
+                          </div>
+                        )}
+*/}
+                        {step.status === 'complete' && (
+                          <div className="mt-3">
+                            {/* Debug Images - handle both response structures */}
+                            {/* For "open" commands */}
+                            {step.omniparser_data?.debug_images && Object.keys(step.omniparser_data.debug_images).length > 0 && (
+                              <DebugImagesViewer debugImages={step.omniparser_data.debug_images} />
+                            )}
+                            
+                            {/* For other commands (click, type, verify) */}
+                            {step.coordinates?.debug_images && Object.keys(step.coordinates.debug_images).length > 0 && (
+                              <DebugImagesViewer debugImages={step.coordinates.debug_images} />
+                            )}
                           </div>
                         )}
 
@@ -1423,6 +1702,10 @@ const SuggestionsDropdown = () => {
                   onClose={() => setSecondaryVerification({isOpen: false, stepObj: null})}
                   onConfirm={handleFinalVerificationConfirm}
                   stepObj={secondaryVerification.stepObj}
+                />
+                <InstructionModal 
+                  isOpen={instructionModalOpen}
+                  onClose={() => setInstructionModalOpen(false)}
                 />
               </div>
             </div>

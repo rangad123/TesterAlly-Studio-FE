@@ -952,11 +952,12 @@ const renderEditSuggestions = (stepId, setEditValue) => {
           </button>
           <h2 className="text-lg font-semibold mb-3">Step Instructions</h2>
           <ul className="list-disc list-inside text-sm text-gray-700 space-y-2">
-            <li>Open Testing Project and TesterAlly in separate browsers for better results.</li>
-            <li>Manually complete the previous step.</li>
-            <li>After clicking the camera, manually open your test page. If not opened.</li>
-            <li>Wait a few seconds for the system to respond.</li>
-            <li>Ensure the element is fully visible on the screen.</li>  
+            <li>When you try to add a new step or edit an existing step, please capture the test page first.</li>
+            <li>Once you click the camera button, the system will show all active browser tab titles. Please choose the correct test page browser window.</li>
+            <li>After selecting the browser, it will activate and capture the screen. Please wait a few seconds as the system minimizes.</li>
+            <li>During the screenshot capture, avoid switching tabs or opening other pages, as it may cause incorrect capture.</li>
+            <li>Open your Testing Project and TesterAlly in separate browser windows for better results.</li>
+            <li>Ensure the element you want to interact with is fully visible on the screen before capturing.</li>
           </ul>
         </div>
       </div>

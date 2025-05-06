@@ -40,7 +40,7 @@ export const scoreElement = (element, searchTerm, commandType, previousState = {
   
   // Boost score based on element type for click commands
   if (commandType === 'click') {
-    if (element.interactivity === true) {
+    if (element.interactivity === true || elementType === 'text'){
       score += 15;  
     }
   } 
