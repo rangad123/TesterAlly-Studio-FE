@@ -291,8 +291,11 @@ const getLastClickCoordinates = (steps) => {
             console.log("Response:", data);
   
             if (data.omniparser_data && data.omniparser_data.elements) {
-                setElementData(data.omniparser_data);
-                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+              setElementData(data.omniparser_data);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+              setSuggestions(data.omniparser_data.elements); // ✅ Make sure you are setting suggestions here
+            } else {
+                setSuggestions([]); // ✅ Clear suggestions if no element data
             }
   
             const screenshotUrl = data.screenshot
@@ -1267,6 +1270,7 @@ const InstructionModal = ({ isOpen, onClose }) => {
   );
 };
 
+/*
 const DebugImagesViewer = ({ debugImages }) => { 
   const [selectedImage, setSelectedImage] = useState('detected_browser_ui'); 
   const [expandedImage, setExpandedImage] = useState(null); 
@@ -1340,7 +1344,6 @@ const DebugImagesViewer = ({ debugImages }) => {
         )} 
       </div> 
  
-      {/* Modal for expanded image */} 
       {expandedImage && ( 
         <div  
           className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" 
@@ -1370,6 +1373,7 @@ const DebugImagesViewer = ({ debugImages }) => {
     </div> 
   ); 
 };
+*/
 
   return ( 
     <div className="flex flex-col min-h-screen">
@@ -1551,7 +1555,7 @@ const DebugImagesViewer = ({ debugImages }) => {
                           </div>
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
-{/*
+
                         {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
                             <img
@@ -1565,22 +1569,18 @@ const DebugImagesViewer = ({ debugImages }) => {
                             </div>
                           </div>
                         )}
-*/}
+{/*
                         {step.status === 'complete' && (
                           <div className="mt-3">
-                            {/* Debug Images - handle both response structures */}
-                            {/* For "open" commands */}
                             {step.omniparser_data?.debug_images && Object.keys(step.omniparser_data.debug_images).length > 0 && (
                               <DebugImagesViewer debugImages={step.omniparser_data.debug_images} />
                             )}
-                            
-                            {/* For other commands (click, type, verify) */}
                             {step.coordinates?.debug_images && Object.keys(step.coordinates.debug_images).length > 0 && (
                               <DebugImagesViewer debugImages={step.coordinates.debug_images} />
                             )}
                           </div>
                         )}
-
+*/}
                         {step.message && (
                           <p className="text-xs text-gray-600 mt-1">
                             <span className="font-medium">Status:</span> {step.message}
