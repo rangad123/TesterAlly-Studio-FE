@@ -85,27 +85,67 @@ const TestSuites = () => {
       if (!selectedProject?.id) return;
   
       try {
-        const testCaseMap = {}; 
-        await Promise.all(
-          testSuites.map(async (suite) => {
-            const names = await Promise.all(
-              suite.testcase.map(async (testCaseId) => {
-                const res = await fetch(`http://127.0.0.1:8000/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`);
-                if (!res.ok) throw new Error("Failed to fetch test case");
+        // Get all unique test case IDs
+        const allTestCaseIds = [];
+        testSuites.forEach(suite => {
+          if (suite.testcase && Array.isArray(suite.testcase)) {
+            suite.testcase.forEach(id => {
+              if (!allTestCaseIds.includes(id)) {
+                allTestCaseIds.push(id);
+              }
+            });
+          }
+        });
+        
+        // Create a map to store test case data
+        const testCaseDataMap = {};
+        
+        // Fetch each test case - we'll use Promise.allSettled to handle failures gracefully
+        const results = await Promise.allSettled(
+          allTestCaseIds.map(async (testCaseId) => {
+            try {
+              const res = await fetch(
+                `http://127.0.0.1:8000/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`
+              );
+              
+              if (res.ok) {
                 const data = await res.json();
-                return data.name; 
-              })
-            );
-            testCaseMap[suite.id] = names;
+                return { id: testCaseId, name: data.name };
+              }
+              return { id: testCaseId, error: true };
+            } catch (error) {
+              console.error(`Error fetching test case ${testCaseId}:`, error);
+              return { id: testCaseId, error: true };
+            }
           })
         );
-  
-        setTestCaseNames(testCaseMap); 
+        
+        // Process results
+        results.forEach(result => {
+          if (result.status === 'fulfilled' && !result.value.error) {
+            testCaseDataMap[result.value.id] = result.value.name;
+          }
+        });
+        
+        // Map test case names to each test suite
+        const testCaseNamesMap = {};
+        testSuites.forEach(suite => {
+          const names = [];
+          if (suite.testcase && Array.isArray(suite.testcase)) {
+            suite.testcase.forEach(id => {
+              if (testCaseDataMap[id]) {
+                names.push(testCaseDataMap[id]);
+              }
+            });
+          }
+          testCaseNamesMap[suite.id] = names;
+        });
+        
+        setTestCaseNames(testCaseNamesMap);
       } catch (error) {
-        console.error("Error fetching test cases:", error);
+        console.error("Error in fetchTestCases:", error);
       }
     };
-  
     fetchTestCases();
   }, [selectedProject, testSuites]);
   

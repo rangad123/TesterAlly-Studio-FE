@@ -6,7 +6,6 @@
   .logo-img {
     height: 2.5rem;
     width: 2.5rem;
-    border-radius: 40%;
     transition: transform 0.3s ease-in-out; 
   }
   
