@@ -129,7 +129,6 @@ const TestSteps = () => {
     }
   };
 
-
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -165,8 +164,6 @@ const TestSteps = () => {
     }
   }, [testCaseId, testCaseName, navigate]); 
 
-
-
   const fetchSteps = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -199,6 +196,28 @@ const TestSteps = () => {
     }
   }, [testCaseId, apiBaseUrl]);
 
+  const handleWaitConfirmation = (waitCommand, requestData) => {
+    if (editingStep) {
+      // Update the editValue when editing a step
+      setEditValue(waitCommand);
+      // Close the modal
+      addStepComponent.handleWaitConfirm(waitCommand, requestData);
+      // Automatically update the step
+      handleUpdateStep(editingStep);
+    } else {
+      // Let the AddStep component handle new steps
+      addStepComponent.handleWaitConfirm(waitCommand, requestData);
+    }
+  };
+
+  const resetEditState = () => {
+    setEditingStep(null);
+  }
+
+  const updateEditValue = (newValue) => {
+    setEditValue(newValue);
+  };
+
   const addStepComponent = AddStep({
     testCaseId,
     steps,
@@ -207,7 +226,9 @@ const TestSteps = () => {
     hoveredStep,
     isExecuting,
     executionResults,
-    setHoveredStep
+    setHoveredStep,
+    resetEditState,
+    updateEditValue
   });
 
   const handleViewExecutionScreenshot = (screenshot) => {
@@ -276,7 +297,7 @@ const TestSteps = () => {
       const words = step.step_description.trim().split(' ');
       const command = words[0].toLowerCase();
       
-      if (['click', 'type', 'verify', 'get'].includes(command)) {
+      if (['click', 'type', 'verify', 'get', 'wait'].includes(command)) {
         // This triggers the suggestion system
         addStepComponent.handleEditCommandInput(step.id, step.step_description, command);
       }
@@ -285,11 +306,11 @@ const TestSteps = () => {
   
   const handleUpdateStep = async (stepId) => {
     setUpdatingStepId(stepId);
-  
+
     try {
       const step = steps.find(s => s.id === stepId);
       if (!step) return;
-  
+
       // Get existing coordinates or use selected element coordinates if available
       let coordinates = step.step_coordinates || { click_x: 0, click_y: 0 };
       
@@ -314,23 +335,25 @@ const TestSteps = () => {
           }
         }
       }
-  
-      // Find the step to update
+
+      // Make sure we're using the full wait command, not just "wait"
+      const stepDescription = editValue;
+
       const response = await fetch(`${apiBaseUrl}/teststeps/${stepId}/`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           testcase: testCaseId,
           step_number: step.step_number,
-          step_description: editValue,
+          step_description: stepDescription,
           step_coordinates: coordinates
         })
       });
-  
+
       if (!response.ok) {
         throw new Error("Failed to update step");
       }
-  
+
       // Refresh steps to show updated data
       await fetchSteps();
       setEditingStep(null);
@@ -512,6 +535,90 @@ const TestSteps = () => {
         coordinates: stepCoordinates,
         is_final_step: isLastStep
       });
+
+      if (actionType === 'wait') {
+        let requestData = {
+          user_id: user_id,
+          command: stepDescription,
+          is_final_step: isLastStep
+        };
+        
+        // Parse wait command type
+        if (stepDescription.includes('until URL contains')) {
+          // Extract the URL text to wait for
+          const urlText = stepDescription.match(/until URL contains "(.*?)"/i);
+          if (urlText && urlText[1]) {
+            requestData = {
+              ...requestData,
+              condition: "url_match",
+              text: urlText[1],
+              timeout: 10000, 
+              poll_interval: 500,
+              is_final_step: isLastStep,
+              check_address_bar: true,
+              debug: true
+            };
+          }
+        } else if (stepDescription.includes('until text') && stepDescription.includes('appears')) {
+          // Extract the text to wait for
+          const textMatch = stepDescription.match(/until text "(.*?)"/i);
+          if (textMatch && textMatch[1]) {
+            requestData = {
+              ...requestData,
+              condition: "text_match",
+              text: textMatch[1],
+              timeout: 10000, 
+              poll_interval: 500,
+              is_final_step: isLastStep,
+              debug: true
+            };
+          }
+        } else {
+          // Simple static wait
+          const timeMatch = stepDescription.match(/wait (\d+) seconds/i);
+          if (timeMatch && timeMatch[1]) {
+            const timeout = parseInt(timeMatch[1]) * 1000;
+            requestData = {
+              ...requestData,
+              timeout: timeout,
+              is_final_step: isLastStep,
+              debug: true
+            };
+          }
+        }
+        
+        console.log("Wait command:", stepDescription);
+        console.log("Request data:", requestData);
+        
+        const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to execute wait command');
+        }
+
+        const data = await response.json();
+        console.log("Wait response:", data);
+        
+        const screenshotUrl = data.screenshot_url
+          ? `http://127.0.0.1:8000${data.screenshot_url}`
+          : `/api/placeholder/800/300?text=Wait_Completed`;
+
+        console.log("Screenshot URL:", screenshotUrl);
+        
+        return {
+          status: 'complete',
+          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+          message: data.status || "Wait command executed successfully",
+          screenshot: screenshotUrl,
+          coordinates: stepCoordinates,
+        };
+      }
       
       if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
         const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
@@ -1047,7 +1154,7 @@ const selectAllSteps = () => {
                       
                       console.log("Edit input changed:", newValue, "Command:", command);
                       
-                      if (['click', 'type', 'verify', 'get'].includes(command)) {
+                      if (['click', 'type', 'verify', 'get', 'wait'].includes(command)) {
                         addStepComponent.handleEditCommandInput(step.id, newValue, command);
                       }
                     }}
@@ -1117,8 +1224,12 @@ const selectAllSteps = () => {
                           ) : executionResults[step.id].status === 'complete' ? (
                             <div>
                               <div className="flex items-center">
-                                <span className="mr-2">✓</span> 
-                                Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}
+                                <span className="mr-2">✓</span>
+                                {executionResults[step.id].message === 'timeout' ? (
+                                  <span className="text-yellow-700">Executed, but the condition was <strong>not met</strong> (timeout)</span>
+                                ) : (
+                                  <span className="text-green-700">Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}</span>
+                                )}
                               </div>
                               {/* Countdown display */}
                               {executionResults[step.id].countdown !== undefined && (
@@ -1187,6 +1298,7 @@ const selectAllSteps = () => {
           <addStepComponent.BrowserTabsModal />
           <addStepComponent.ScreenshotModal />
           <addStepComponent.InstructionsModal />
+          <addStepComponent.WaitModal onWaitConfirm={handleWaitConfirmation} />
         </div>
       </div>
     </div>

@@ -65,7 +65,7 @@ const WriteTestManually = () => {
   const [currentStepId, setCurrentStepId] = useState(null);
   const [ , setCurrentStepNumber] = useState(null);
   const [hasSessionData, setHasSessionData] = useState(false);
-  
+  const [showWaitModal, setShowWaitModal] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -644,14 +644,41 @@ const WriteTestManually = () => {
         setShowSuggestions(false);
         setCommandSuggestions([]);
       }
-    } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
+    } else if (['scrollup', 'scrolldown', 'open', 'wait'].includes(command)) {
       setCommandType(command);
       setShowSuggestions(false);
+
+      if (command === 'wait' && words.length === 1) {
+        
+        setCurrentStepId(testSteps[index].id);
+        setCurrentStepNumber(index);
+        setShowWaitModal(true);
+      }
     } else {
       setCommandType("");
       setShowSuggestions(false);
     }
   };
+
+  const handleWaitConfirm = (waitCommand, requestData) => {
+  if (!currentStepId) return;
+  
+  // Find the step index
+  const stepIndex = testSteps.findIndex(step => step.id === currentStepId);
+  if (stepIndex === -1) return;
+  
+  // Update the step with the wait command
+  const updatedSteps = [...testSteps];
+  updatedSteps[stepIndex].choice = waitCommand;
+  updatedSteps[stepIndex].waitData = requestData;
+  
+  // If this is a new step being edited, mark it as saved
+  if (editingStep === stepIndex) {
+    handleSaveStep(stepIndex);
+  } else {
+    setTestSteps(updatedSteps);
+  }
+};
   
   const fetchElementSuggestions = (command, inputValue, words, stepId) => {
     if (!stepId || !capturedSteps[stepId]) return;
@@ -1050,6 +1077,157 @@ const WriteTestManually = () => {
     );
   };
 
+  const WaitModal = ({ isOpen, onClose, onConfirm }) => {
+    const [waitCondition, setWaitCondition] = useState('static_wait');
+    const [waitTimeout, setWaitTimeout] = useState(5);
+    const [waitText, setWaitText] = useState('');
+    const [pollInterval, setPollInterval] = useState(500);
+    
+    // Reset form when modal opens
+    useEffect(() => {
+      if (isOpen) {
+        setWaitCondition('static_wait');
+        setWaitTimeout(5);
+        setWaitText('');
+        setPollInterval(500);
+      }
+    }, [isOpen]);
+  
+    const handleConfirm = () => {
+      const userid = localStorage.getItem("user_id");
+      const timeoutMs = waitTimeout * 1000;
+      
+      let waitCommand = '';
+      let requestData = {};
+      
+      if (waitCondition === 'static_wait') {
+        waitCommand = `wait ${waitTimeout} seconds`;
+        requestData = {
+          user_id: userid,
+          timeout: timeoutMs,
+          debug: true
+        };
+      } else if (waitCondition === 'text_match') {
+        waitCommand = `wait until text "${waitText}" appears`;
+        requestData = {
+          user_id: userid,
+          condition: "text_match",
+          text: waitText,
+          timeout: timeoutMs,
+          poll_interval: pollInterval,
+          debug: true
+        };
+      } else if (waitCondition === 'url_match') {
+        waitCommand = `wait until URL contains "${waitText}"`;
+        requestData = {
+          user_id: userid,
+          condition: "url_match",
+          text: waitText,
+          timeout: timeoutMs,
+          poll_interval: pollInterval,
+          debug: true
+        };
+      }
+      
+      // Close the modal first
+      onClose();
+      
+      // Then call onConfirm
+      onConfirm(waitCommand, requestData);
+    };
+  
+    const handleClose = () => {
+      onClose();
+    };
+  
+    // Don't render anything if the modal is not open
+    if (!isOpen) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
+        <div className="bg-white p-6 rounded-lg w-96" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">Configure Wait Command</h3>
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-500">
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Wait Condition</label>
+            <select 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={waitCondition}
+              onChange={(e) => setWaitCondition(e.target.value)}
+            >
+              <option value="static_wait">Wait for a specific time</option>
+              <option value="text_match">Wait until specific text appears</option>
+              <option value="url_match">Wait until URL contains page</option>
+            </select>
+          </div>
+  
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              {waitCondition === 'static_wait' ? 'Wait Time (seconds)' : 'Timeout (seconds)'}
+            </label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={waitTimeout}
+              onChange={(e) => setWaitTimeout(Number(e.target.value))}
+              min="1"
+            />
+          </div>
+  
+          {waitCondition !== 'static_wait' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                {waitCondition === 'text_match' ? 'Text to Wait For' : 'URL Contains Page to Wait For'}
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={waitText}
+                onChange={(e) => setWaitText(e.target.value)}
+                placeholder={waitCondition === 'text_match' ? 'e.g. Dashboard' : 'e.g. signup page'}
+              />
+            </div>
+          )}
+  
+          {waitCondition !== 'static_wait' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Poll Interval (ms)</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={pollInterval}
+                onChange={(e) => setPollInterval(Number(e.target.value))}
+                min="100"
+                step="100"
+              />
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-2">
+            <button 
+              onClick={handleClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleConfirm}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={waitCondition !== 'static_wait' && !waitText.trim()}
+            >
+              Add Step
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1363,6 +1541,11 @@ const WriteTestManually = () => {
       )}
       <InstructionsModal />
       <BrowserTabsModal />
+      <WaitModal 
+        isOpen={showWaitModal}
+        onClose={() => setShowWaitModal(false)}
+        onConfirm={handleWaitConfirm}
+      />
     </div>
   );
 };

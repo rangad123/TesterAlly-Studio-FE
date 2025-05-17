@@ -41,6 +41,10 @@ const WriteRecord = () => {
     stepObj: null
   });
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+  const [waitModalOpen, setWaitModalOpen] = useState(false);
+  const [stepWaitData, setStepWaitData] = useState(null);
+  const [pendingWaitStep, setPendingWaitStep] = useState(false);
+
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -110,6 +114,11 @@ const WriteRecord = () => {
     }
   }, []);
 
+  useEffect(() => {
+  if (newStep?.trim().toLowerCase() === 'wait') {
+    setWaitModalOpen(true);
+  }
+}, [newStep]);
 
   useEffect(() => {
     if (!newStep) {
@@ -128,6 +137,11 @@ const WriteRecord = () => {
     // Check if the command is a click or type command
     if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
         setCommandType(firstWord);
+
+        if (firstWord === 'wait') {
+            setShowSuggestions(false);
+            return;
+        }
         
         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
             setSuggestions([]);
@@ -254,7 +268,6 @@ const getLastClickCoordinates = (steps) => {
 
         console.log("Updated Step Description:", updatedStepDescription); 
         
-      
         const stepIndex = testSteps.length;
         if (actionType === 'scrollup' || actionType === 'scrolldown') {
           setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${actionType === 'scrollup' ? 'up' : 'down'}, please wait...`);
@@ -268,10 +281,61 @@ const getLastClickCoordinates = (steps) => {
           setLoadingMessage(`Step ${stepIndex + 1}: Verifying element, please wait...`);
         } else if (actionType === 'get') {
           setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
+        } else if (actionType === 'wait') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Waiting, please be patient...`);
         } else {
           setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
         }
 
+        if (actionType === 'wait') {
+
+          const hasElementData = elementData && elementData.elements && elementData.elements.length > 0;
+          const hasStoredElementData = sessionStorage.getItem('latestElementData');
+          
+          if (!hasElementData && !hasStoredElementData) {
+            alert("Please open a browser first before using the wait command.");
+            setIsProcessing(false);
+            setLoadingMessage('');
+            // Return undefined explicitly to indicate that execution was aborted
+            return undefined;
+          }
+
+          const waitRequestData = stepObj.waitRequestData || {
+              timeout: 5000, 
+              debug: true
+          };
+          
+          console.log("Wait Request Data:", waitRequestData);
+            
+          const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  ...waitRequestData,
+                  user_id: user_id
+              }),
+          });
+          
+          if (!response.ok) {
+              throw new Error('Failed to execute wait command');
+          }
+          
+          const data = await response.json();
+          console.log("Wait Response:", data);
+          
+          const screenshotUrl = data.screenshot_url
+              ? `http://127.0.0.1:8000${data.screenshot_url}`
+              : `/api/placeholder/800/300?text=Wait_Completed`;
+
+            console.log("Screenshot URL:", screenshotUrl);
+              
+          return {
+              status: data.status === 'success' ? 'complete' : 'error',
+              duration: waitRequestData.timeout ? `00:${Math.floor(waitRequestData.timeout / 1000).toString().padStart(2, '0')}` : '00:05',
+              message: data.message || "Wait completed successfully",
+              screenshot: screenshotUrl,
+          };
+        }
   
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
@@ -543,13 +607,20 @@ const getLastClickCoordinates = (steps) => {
     const words = newStep.trim().split(' ');
     const actionType = words[0].toLowerCase();
 
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get'];
+    // Add 'wait' to the list of allowed commands
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait'];
     if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, type, verify, open, scroll, or get.");
+      alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
       return;
     }
     
-    // For verification steps, check if the text exists in cached element data first
+    // If it's a wait command but no configuration has been done yet, show the wait modal
+    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
+      setWaitModalOpen(true);
+      return;
+    }
+    
+    // Existing verification logic
     if (actionType === 'verify') {
       const textToVerify = words.slice(1).join(' ');
       
@@ -571,7 +642,7 @@ const getLastClickCoordinates = (steps) => {
       }
     }
     
-    
+    // For commands that require element selection
     if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
       alert("Please select an element from the suggestions before adding this step.");
       return;
@@ -584,15 +655,22 @@ const getLastClickCoordinates = (steps) => {
       duration: '00:00',
       screenshot: null,
       selectedElement: selectedElement,
-      verificationType: selectedElement?.verificationType || 'text'
+      verificationType: selectedElement?.verificationType || 'text',
+      waitRequestData: stepWaitData || null
     };
     
     setSelectedElement(null);
+    setStepWaitData(null);
     
     setTestSteps(prev => [...prev, newStepObj]);
     setNewStep('');
     
     const executionResult = await executeStep(newStepObj);
+
+      if (executionResult === undefined) {
+        setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
+        return;
+      }
     
     // After successful execution, update the previouslySelectedElements
     if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
@@ -629,16 +707,15 @@ const getLastClickCoordinates = (steps) => {
       }
     }
     
-    // Update test step with execution result, paying special attention to verification results
     setTestSteps(prev => prev.map(step => 
       step.id === newStepObj.id ? {
         ...step,
         ...executionResult,
         elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
         elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-        // For verification steps, include the verification result details
-        verificationResult: executionResult.verificationResult,
-        verifiedText: executionResult.verifiedText
+        waitCondition: executionResult.waitCondition,
+        waitText: executionResult.waitText,
+        waitTimeout: executionResult.waitTimeout
       } : step
     ));
     
@@ -659,6 +736,22 @@ const getLastClickCoordinates = (steps) => {
       }
     }, 100);
   };
+
+
+useEffect(() => {
+  if (pendingWaitStep && newStep.includes('wait')) {
+    addTestStep();
+    setPendingWaitStep(false); 
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [newStep, pendingWaitStep]);
+
+const handleWaitConfirm = (waitCommand, waitRequestData) => {
+  setStepWaitData(waitRequestData);
+  setNewStep(waitCommand);
+  setWaitModalOpen(false);
+};
+
 
   const handleSuggestionClick = (suggestion) => {
     // Flag to indicate a suggestion was just selected
@@ -1270,6 +1363,161 @@ const InstructionModal = ({ isOpen, onClose }) => {
   );
 };
 
+const WaitModal = ({ isOpen, onClose, onConfirm }) => {
+  const [waitCondition, setWaitCondition] = useState('static_wait');
+  const [waitTimeout, setWaitTimeout] = useState(5);
+  const [waitText, setWaitText] = useState('');
+  const [pollInterval, setPollInterval] = useState(500);
+  
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setWaitCondition('static_wait');
+      setWaitTimeout(5);
+      setWaitText('');
+      setPollInterval(500);
+    }
+  }, [isOpen]);
+
+  const handleConfirm = () => {
+    const userid = localStorage.getItem("user_id");
+    const timeoutMs = waitTimeout * 1000;
+    
+    let waitCommand = '';
+    let requestData = {};
+    
+    if (waitCondition === 'static_wait') {
+      waitCommand = `wait ${waitTimeout} seconds`;
+      requestData = {
+        user_id: userid,
+        timeout: timeoutMs,
+        is_final_step: true,
+        debug: true
+      };
+    } else if (waitCondition === 'text_match') {
+      waitCommand = `wait until text "${waitText}" appears`;
+      requestData = {
+        user_id: userid,
+        condition: "text_match",
+        text: waitText,
+        timeout: timeoutMs,
+        poll_interval: pollInterval,
+        is_final_step: true,
+        debug: true
+      };
+    } else if (waitCondition === 'url_match') {
+      waitCommand = `wait until URL contains "${waitText}"`;
+      requestData = {
+        user_id: userid,
+        condition: "url_match",
+        text: waitText,
+        timeout: timeoutMs,
+        poll_interval: pollInterval,
+        check_address_bar: true,
+        is_final_step: true,
+        debug: true
+      };
+    }
+    
+    // Close the modal first
+    onClose();
+    
+    // Then call onConfirm
+    onConfirm(waitCommand, requestData);
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  // Don't render anything if the modal is not open
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
+      <div className="bg-white p-6 rounded-lg w-96" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Configure Wait Command</h3>
+          <button onClick={handleClose} className="text-gray-400 hover:text-gray-500">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">Wait Condition</label>
+          <select 
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={waitCondition}
+            onChange={(e) => setWaitCondition(e.target.value)}
+          >
+            <option value="static_wait">Wait for a specific time</option>
+            <option value="text_match">Wait until specific text appears</option>
+            <option value="url_match">Wait until URL contains page</option>
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">
+            {waitCondition === 'static_wait' ? 'Wait Time (seconds)' : 'Timeout (seconds)'}
+          </label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            value={waitTimeout}
+            onChange={(e) => setWaitTimeout(Number(e.target.value))}
+            min="1"
+          />
+        </div>
+
+        {waitCondition !== 'static_wait' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              {waitCondition === 'text_match' ? 'Text to Wait For' : 'URL Contains Page to Wait For'}
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={waitText}
+              onChange={(e) => setWaitText(e.target.value)}
+              placeholder={waitCondition === 'text_match' ? 'e.g. Dashboard' : 'e.g. signup page'}
+            />
+          </div>
+        )}
+
+        {waitCondition !== 'static_wait' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Poll Interval (ms)</label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={pollInterval}
+              onChange={(e) => setPollInterval(Number(e.target.value))}
+              min="100"
+              step="100"
+            />
+          </div>
+        )}
+        
+        <div className="flex justify-end space-x-2">
+          <button 
+            onClick={handleClose}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleConfirm}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            disabled={waitCondition !== 'static_wait' && !waitText.trim()}
+          >
+            Add Step
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /*
 const DebugImagesViewer = ({ debugImages }) => { 
   const [selectedImage, setSelectedImage] = useState('detected_browser_ui'); 
@@ -1556,6 +1804,28 @@ const DebugImagesViewer = ({ debugImages }) => {
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
 
+                        {/* {step.description.toLowerCase().startsWith('wait') && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            {step.waitCondition === 'static_wait' ? (
+                              <span>Static wait for {step.waitTimeout / 1000}s</span>
+                            ) : step.waitCondition === 'text_match' ? (
+                              <span>Waiting for text: "{step.waitText}"</span>
+                            ) : step.waitCondition === 'url_match' ? (
+                              <span>Waiting for URL containing: "{step.waitText}"</span>
+                            ) : (
+                              <span>Waiting...</span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {step.message && (
+                          <div className={`text-sm ${
+                            step.status === 'error' ? 'text-red-600' : 'text-gray-500'
+                          }`}>
+                            {step.message}
+                          </div>
+                        )}  */}
+
                         {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
                             <img
@@ -1706,6 +1976,11 @@ const DebugImagesViewer = ({ debugImages }) => {
                 <InstructionModal 
                   isOpen={instructionModalOpen}
                   onClose={() => setInstructionModalOpen(false)}
+                />
+                <WaitModal
+                  isOpen={waitModalOpen}
+                  onClose={() => setWaitModalOpen(false)}
+                  onConfirm={handleWaitConfirm}
                 />
               </div>
             </div>

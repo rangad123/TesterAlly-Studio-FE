@@ -10,6 +10,8 @@ const AddStep = ({
   hoveredStep, 
   isExecuting,
   executionResults,
+  resetEditState, 
+  updateEditValue,
   setHoveredStep 
 }) => {
     
@@ -36,6 +38,7 @@ const AddStep = ({
   const [tabsLoading, setTabsLoading] = useState(false);
   const [currentStepId, setCurrentStepId] = useState(null);
   const [ , setCurrentStepNumber] = useState(null);
+  const [showWaitModal, setShowWaitModal] = useState(false);
   
   const inputRef = useRef(null);
 
@@ -192,68 +195,61 @@ const AddStep = ({
     }
   };
   
-  const handleCommandInputChange = (e) => {
-    const input = e.target.value;
-    
-    // Check if this is for edit mode
-    if (e.target.hasAttribute('data-step-id')) {
-      const stepId = e.target.getAttribute('data-step-id');
-      setEditingStepId(stepId);
-      console.log(`Editing step: ${stepId} with input: ${input}`);
-    } else {
-      setNewInsertedStepValue(input);
-      console.log(`New step input: ${input}`);
-    }
-  
-    const words = input.trim().split(' ');
-    const command = words[0].toLowerCase();
-    
-    // Set command type based on first word
-    if (['click', 'type', 'verify', 'get'].includes(command)) {
-      setCommandType(command);
-      console.log(`Command type set to: ${command}`);
-      
-      // Always fetch suggestions regardless of whether it's edit or insert mode
-      fetchElementSuggestions(command, input, words);
-      setShowSuggestions(true);
-    } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
-      setCommandType(command);
-      setShowSuggestions(false);
-    } else {
-      setCommandType("");
-      setShowSuggestions(false);
-    }
-  };
-  
-  const handleEditCommandInput = (stepId, stepDescription, commandType) => {
-    console.log(`Setting up edit suggestions for step ${stepId}`);
-    console.log(`Command: ${commandType}, Full text: ${stepDescription}`);
-    
-    // Set the editing step ID and command type explicitly
+const handleCommandInputChange = (e) => {
+  const input = e.target.value;
+  const isEditMode = e.target.hasAttribute('data-step-id');
+
+  if (isEditMode) {
+    const stepId = e.target.getAttribute('data-step-id');
     setEditingStepId(stepId);
-    setCommandType(commandType);
-    setShowSuggestions(true); // Force show suggestions
-    
-    // Find the step data
-    const step = steps.find(s => s.id === stepId);
-    if (!step) {
-      console.log(`Step ${stepId} not found`);
-      return;
-    }
-    
-    // Process the step description to extract the command
-    const words = stepDescription.trim().split(' ');
-    
-    if (['click', 'type', 'verify', 'get'].includes(commandType)) {
-      // This important - force show suggestions
-      setShowSuggestions(true);
-      console.log("Show suggestions set to TRUE");
-      
-      // Fetch element suggestions immediately
-      fetchElementSuggestions(commandType, stepDescription, words);
-      console.log(`Fetching suggestions for edit step ${stepId} with command ${commandType}`);
-    }
-  };  
+    console.log(`Editing step: ${stepId} with input: ${input}`);
+  } else {
+    setNewInsertedStepValue(input);
+    console.log(`New step input: ${input}`);
+  }
+
+  const words = input.trim().split(' ');
+  const command = words[0].toLowerCase();
+
+  if (['click', 'type', 'verify', 'get'].includes(command)) {
+    setCommandType(command);
+    fetchElementSuggestions(command, input, words);
+    setShowSuggestions(true);
+
+  } else if (['scrollup', 'scrolldown', 'open'].includes(command)) {
+    setCommandType(command);
+    setShowSuggestions(false);
+
+  } else if (command === 'wait') {
+    setCommandType('wait');
+    setShowWaitModal(true)
+    setShowSuggestions(false);
+
+  } else {
+    setCommandType("");
+    setShowSuggestions(false);
+  }
+};
+  
+const handleEditCommandInput = (stepId, stepDescription, commandType) => {
+  setEditingStepId(stepId);
+  setCommandType(commandType);
+
+  console.log("edit command",commandType)
+
+  const step = steps.find(s => s.id === stepId);
+  if (!step) return;
+
+  const words = stepDescription.trim().split(' ');
+
+  if (['click', 'type', 'verify', 'get'].includes(commandType)) {
+    setShowSuggestions(true);
+    fetchElementSuggestions(commandType, stepDescription, words);
+
+  } else if (commandType === 'wait') {
+    setShowWaitModal(true);
+  }
+};
 
   const fetchElementSuggestions = (command, inputValue, words) => {
 
@@ -507,7 +503,10 @@ const AddStep = ({
     }
   };
 
-const handleInsertStep = async (afterStepNumber) => {
+const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => {
+
+  const stepDescription = waitCommandOverride || newInsertedStepValue.trim();
+
   if (!newInsertedStepValue.trim()) {
     setError("Step description cannot be empty");
     return;
@@ -547,7 +546,7 @@ const handleInsertStep = async (afterStepNumber) => {
     const payload = {
       testcase_id: parseInt(testCaseId),
       step_number: newStepNumber,
-      step_description: newInsertedStepValue.trim(),
+      step_description: stepDescription,
       step_coordinates: coordinates,
       teststep_result: "not_executed"
     };
@@ -1089,6 +1088,265 @@ const renderEditSuggestions = (stepId, setEditValue) => {
     );
   };
 
+  const handleWaitConfirm = async (waitCommand, requestData) => {
+    
+    if (insertingAfterStep !== null) {
+
+      setNewInsertedStepValue(waitCommand);
+      handleInsertStep(insertingAfterStep, waitCommand);
+
+    } else if (editingStepId) {
+      updateEditValue(waitCommand);
+
+      try {
+        // Find the step being edited
+        const stepToEdit = steps.find(s => s.id === editingStepId);
+        if (!stepToEdit) {
+          throw new Error("Step not found");
+        }
+        
+        // Prepare the update payload
+        const payload = {
+          testcase: testCaseId,
+          step_number: stepToEdit.step_number,
+          step_description: waitCommand
+        };
+        
+        // Make API call to update the step
+        const response = await fetch(`${apiBaseUrl}/teststeps/${editingStepId}/`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to update step");
+        }
+        
+        // Refresh steps list
+        await fetchSteps();
+        
+        setEditingStepId(null);
+        setError(null);
+        resetEditState();
+        
+      } catch (err) {
+        setError("Failed to update step. Please try again.");
+        console.error("Error updating step:", err);
+      }
+    }
+
+    setShowWaitModal(false);
+  };
+
+  const WaitModalWrapper = () => (
+    <WaitModal 
+      isOpen={showWaitModal}
+      onClose={() => setShowWaitModal(false)}
+      onConfirm={handleWaitConfirm}
+    />
+  );
+
+  const WaitModal = ({ isOpen, onClose, onConfirm }) => {
+    const [waitCondition, setWaitCondition] = useState('static_wait');
+    const [waitTimeout, setWaitTimeout] = useState(5);
+    const [waitText, setWaitText] = useState('');
+    const [pollInterval, setPollInterval] = useState(500);
+    
+    useEffect(() => {
+      if (isOpen) {
+      
+        const parseExistingCommand = () => {
+          if (editingStepId) {
+            // Find the step from outside the effect
+            const currentSteps = steps || [];
+            const step = currentSteps.find(s => s.id === editingStepId);
+            
+            if (step && step.step_description) {
+              const description = step.step_description.toLowerCase();
+              
+              if (description.includes('wait until text')) {
+                setWaitCondition('text_match');
+                const textMatch = description.match(/wait until text "([^"]+)"/);
+                if (textMatch && textMatch[1]) {
+                  setWaitText(textMatch[1]);
+                }
+                
+                // Try to parse timeout if present
+                const timeoutMatch = description.match(/timeout (\d+)/);
+                if (timeoutMatch && timeoutMatch[1]) {
+                  setWaitTimeout(parseInt(timeoutMatch[1]) / 1000);
+                }
+              } else if (description.includes('wait until url')) {
+                setWaitCondition('url_match');
+                const urlMatch = description.match(/wait until url contains "([^"]+)"/);
+                if (urlMatch && urlMatch[1]) {
+                  setWaitText(urlMatch[1]);
+                }
+                
+                // Try to parse timeout if present
+                const timeoutMatch = description.match(/timeout (\d+)/);
+                if (timeoutMatch && timeoutMatch[1]) {
+                  setWaitTimeout(parseInt(timeoutMatch[1]) / 1000);
+                }
+              } else {
+                // Default to static wait
+                setWaitCondition('static_wait');
+                const secondsMatch = description.match(/wait (\d+) seconds/);
+                if (secondsMatch && secondsMatch[1]) {
+                  setWaitTimeout(parseInt(secondsMatch[1]));
+                }
+              }
+            }
+          } else {
+            // Reset for new step
+            setWaitCondition('static_wait');
+            setWaitTimeout(5);
+            setWaitText('');
+            setPollInterval(500);
+          }
+        };
+        
+        parseExistingCommand();
+      }
+    }, [isOpen]); 
+
+
+    const handleConfirm = () => {
+      const userid = localStorage.getItem("user_id");
+      const timeoutMs = waitTimeout * 1000;
+      
+      let waitCommand = '';
+      let requestData = {};
+      
+      if (waitCondition === 'static_wait') {
+        waitCommand = `wait ${waitTimeout} seconds`;
+        requestData = {
+          user_id: userid,
+          timeout: timeoutMs,
+          debug: true
+        };
+      } else if (waitCondition === 'text_match') {
+        waitCommand = `wait until text "${waitText}" appears`;
+        requestData = {
+          user_id: userid,
+          condition: "text_match",
+          text: waitText,
+          timeout: timeoutMs,
+          poll_interval: pollInterval,
+          debug: true
+        };
+      } else if (waitCondition === 'url_match') {
+        waitCommand = `wait until URL contains "${waitText}"`;
+        requestData = {
+          user_id: userid,
+          condition: "url_match",
+          text: waitText,
+          timeout: timeoutMs,
+          poll_interval: pollInterval,
+          debug: true
+        };
+      }
+      
+      // Close the modal first
+      onClose();
+      
+      onConfirm(waitCommand, requestData);
+    };
+
+    const handleClose = () => {
+      onClose();
+    };
+    
+    // Don't render anything if the modal is not open
+    if (!isOpen) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
+        <div className="bg-white p-6 rounded-lg w-96" onClick={(e) => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">Configure Wait Command</h3>
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-500">
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Wait Condition</label>
+            <select 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={waitCondition}
+              onChange={(e) => setWaitCondition(e.target.value)}
+            >
+              <option value="static_wait">Wait for a specific time</option>
+              <option value="text_match">Wait until specific text appears</option>
+              <option value="url_match">Wait until URL contains page</option>
+            </select>
+          </div>
+  
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              {waitCondition === 'static_wait' ? 'Wait Time (seconds)' : 'Timeout (seconds)'}
+            </label>
+            <input
+              type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              value={waitTimeout}
+              onChange={(e) => setWaitTimeout(Number(e.target.value))}
+              min="1"
+            />
+          </div>
+  
+          {waitCondition !== 'static_wait' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                {waitCondition === 'text_match' ? 'Text to Wait For' : 'URL Contains Page to Wait For'}
+              </label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={waitText}
+                onChange={(e) => setWaitText(e.target.value)}
+                placeholder={waitCondition === 'text_match' ? 'e.g. Dashboard' : 'e.g. signup page'}
+              />
+            </div>
+          )}
+  
+          {waitCondition !== 'static_wait' && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Poll Interval (ms)</label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                value={pollInterval}
+                onChange={(e) => setPollInterval(Number(e.target.value))}
+                min="100"
+                step="100"
+              />
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-2">
+            <button 
+              onClick={handleClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleConfirm}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={waitCondition !== 'static_wait' && !waitText.trim()}
+            >
+              Add Step
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderStepContent = (step) => {
     // Get the original capture ID for this step (if any)
     const originalCaptureId = originalCaptureIds[step.id];
@@ -1294,7 +1552,10 @@ const renderEditSuggestions = (stepId, setEditValue) => {
     renderEditSuggestions,
     handleCommandInputChange,
     selectedElement,
+    handleWaitConfirm,
+    WaitModal: WaitModalWrapper, 
   };
+
 
 };
 
