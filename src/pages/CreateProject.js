@@ -37,13 +37,13 @@ const CreateProject = ({ onProjectCreated }) => {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
+          `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`
         );
         if (!response.ok) {
           throw new Error("Failed to fetch user projects");
         }
-        const projects = await response.json();
-        setUserProjects(projects);
+        const data = await response.json();
+        setUserProjects(data.projects);
       } catch (error) {
         console.error("Error fetching user projects:", error);
       } finally {
@@ -61,7 +61,7 @@ const CreateProject = ({ onProjectCreated }) => {
     if (!projectName.trim()) {
       newErrors.projectName = "Project Name is required!";
       isValid = false;
-    } else if (userProjects.some((project) => project.name === projectName.trim())) {
+    } else if (userProjects.some((project) => project.project_name === projectName.trim())) {
       newErrors.projectName = "Project name already exists. Please choose a different name.";
       isValid = false;
     }
@@ -84,13 +84,14 @@ const CreateProject = ({ onProjectCreated }) => {
   
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
+        `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch user projects");
       }
-      const projects = await response.json();
-      setUserProjects(projects);
+      const data = await response.json();
+      console.log(data)
+      setUserProjects(data.projects);
     } catch (error) {
       console.error("Error fetching user projects:", error);
     } finally {
@@ -114,7 +115,7 @@ const CreateProject = ({ onProjectCreated }) => {
   
     const projectData = {
       user_id: parseInt(userId),
-      name: projectName,
+      project_name: projectName,
       description: description || "No description provided",
       project_type: projectType,
     };
@@ -123,7 +124,7 @@ const CreateProject = ({ onProjectCreated }) => {
   
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/projects/",
+        "http://127.0.0.1:8000/integrate/project/",
         {
           method: "POST",
           headers: {
@@ -143,7 +144,7 @@ const CreateProject = ({ onProjectCreated }) => {
       setUserProjects((prevProjects) => [...prevProjects, createdProject]);
   
       alert("Project Created Successfully");
-      
+      window.dispatchEvent(new CustomEvent("projectCreated", { detail: createdProject }));
       fetchProjects();
   
       navigate("/projects-list");

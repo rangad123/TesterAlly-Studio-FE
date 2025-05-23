@@ -14,11 +14,11 @@ const CreateTestSuite = () => {
   const [selectedTestCases, setSelectedTestCases] = useState([]);
   const [isAddingTestCase, setIsAddingTestCase] = useState(false);
   const [isLoadingTestCases, setIsLoadingTestCases] = useState(false);
+  const [existingTestSuites, setExistingTestSuites] = useState([]);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-
     const userId = localStorage.getItem("userId");
     if (!userId) {
       navigate("/login");
@@ -30,7 +30,10 @@ const CreateTestSuite = () => {
     
     if (savedProject) {
       try {
-        setSelectedProject(JSON.parse(savedProject));
+        const project = JSON.parse(savedProject);
+        setSelectedProject(project);
+       
+        fetchExistingTestSuites(project.id);
       } catch (err) {
         console.error("Error parsing saved project:", err);
         localStorage.removeItem(savedProjectKey);
@@ -41,6 +44,10 @@ const CreateTestSuite = () => {
       const project = event.detail;
       setSelectedProject(project);
       localStorage.setItem(savedProjectKey, JSON.stringify(project));
+      
+      if (project?.id) {
+        fetchExistingTestSuites(project.id);
+      }
     };
 
     window.addEventListener("projectChanged", handleProjectChange);
@@ -52,17 +59,46 @@ const CreateTestSuite = () => {
 
   useEffect(() => {
     if (selectedProject) {
-      
       setTestCases([]);
       setSelectedTestCases([]);
       setIsAddingTestCase(false);
     }
   }, [selectedProject]);
   
+  const fetchExistingTestSuites = async (projectId) => {
+    if (!projectId) return;
+    
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/testsuites/?project_id=${projectId}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setExistingTestSuites(data);
+      } else {
+        console.error("Failed to fetch existing test suites");
+      }
+    } catch (error) {
+      console.error("Error fetching existing test suites:", error);
+    }
+  };
+
+  const checkTestSuiteName = (name) => {
+    if (!name.trim() || !existingTestSuites.length) return false;
+    
+    return existingTestSuites.some(
+      suite => suite.title.toLowerCase() === name.trim().toLowerCase()
+    );
+  };
+  
   const validateForm = () => {
     const newErrors = {};
+    
     if (!title.trim()) {
       newErrors.title = "Title of the test suite is required.";
+    } else if (checkTestSuiteName(title)) {
+      newErrors.title = "A test suite with this name already exists. Please use a different name.";
     }
 
     if (!selectedProject?.id) {
@@ -118,7 +154,6 @@ const CreateTestSuite = () => {
     console.log("Selected Test Cases:", selectedTestCases);
 
     try {
-
       const payload = {
         title,
         description,
@@ -138,10 +173,9 @@ const CreateTestSuite = () => {
         body: JSON.stringify(payload),
       });
 
-      const responseData = await response.json();
-      console.log("API Response:", responseData);
-
       if (response.ok) {
+        const responseData = await response.json();
+        console.log("API Response:", responseData);
         alert("Test Suite Created Successfully");
         setTitle("");
         setDescription("");

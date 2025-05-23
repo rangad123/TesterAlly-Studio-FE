@@ -35,7 +35,7 @@ const ProjectListDetails = () => {
   
     try {
       const deleteResponse = await fetch(
-        `http://127.0.0.1:8000/api/projects/${projectId}/?user_id=${userId}`,
+        `http://127.0.0.1:8000/integrate/project/${projectId}/?user_id=${userId}`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },

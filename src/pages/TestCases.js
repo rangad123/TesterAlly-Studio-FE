@@ -51,19 +51,19 @@ const TestCases = () => {
 
   useEffect(() => {
     const fetchTestCaseMetadata = async () => {
-      if (!selectedProject?.id) return;
+      if (!selectedProject || !selectedProject.project_name) return;
 
       try {
 
         const typesResponse = await fetch(
-          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.project_name}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const typesData = await typesResponse.json();
         setTestCaseTypes(typesData);
 
         const prioritiesResponse = await fetch(
-          `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.project_name}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const prioritiesData = await prioritiesResponse.json();
@@ -79,18 +79,19 @@ const TestCases = () => {
 
   useEffect(() => {
     const fetchTestCases = async () => {
+      const userId = localStorage.getItem("userId");
       setLoading(true);
       setError(null);
       setTestCases([]);
 
-      if (!selectedProject?.id) {
+      if (!selectedProject || !selectedProject.project_name){
         setLoading(false);
         return;
       }
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -104,11 +105,15 @@ const TestCases = () => {
         }
 
         const data = await response.json();
+        console.log("testcases response:", data);
 
-        console.log("testcases",data)
-        setTestCases(data.map(testCase => ({
+        if (!Array.isArray(data.testcases)) {
+          throw new Error("Invalid response format: 'testcases' not found or not an array");
+        }
+
+        setTestCases(data.testcases.map(testCase => ({
           ...testCase,
-          project_name: selectedProject.name
+          project_name: selectedProject.project_name
         })));
       } catch (error) {
         console.error("Error fetching test cases:", error);
@@ -121,10 +126,10 @@ const TestCases = () => {
     fetchTestCases();
   }, [selectedProject]);
 
-  const fetchTestSteps = async (testCaseId) => {
+  const fetchTestSteps = async (userId, projectName, testcaseName) => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/teststeps/?testcase_id=${testCaseId}`
+        `http://127.0.0.1:8000/integrate/teststep/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`
       );
       if (!response.ok) {
         throw new Error('Failed to fetch test steps');
@@ -139,21 +144,9 @@ const TestCases = () => {
   };
 
   const filteredTestCases = testCases.filter((testCase) =>
-    testCase.name.toLowerCase().includes(searchTerm.toLowerCase())
+    testCase.testcase_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  /*
-  const handleEdit = async (testCase) => {
-    setEditingTestCase({
-      id: testCase.id,
-      name: testCase.name,
-      type: testCase.testcase_type || "",
-      priority: testCase.testcase_priority || "",
-    });
-    await fetchTestSteps(testCase.id);
-    setActiveTab('details');
-  };
-*/
   const handleUpdateStep = async (stepId) => {
     if (!editStepValue.trim()) {
       setError("Step description cannot be empty");
@@ -258,26 +251,54 @@ const TestCases = () => {
     }
   };
 
-  const handleRowClick = (testCase) => {
-    navigate(`/test-cases/${testCase.id}/steps`, {
-      state: {
-        testCaseName: testCase.name,
-        testCaseId: testCase.id,
-        projectId: selectedProject.id
-      }
-    });
+const handleRowClick = (testCase) => {
+  
+  const targetPath = `/test-cases/${encodeURIComponent(testCase.testcase_name)}/steps`;
+  console.log("5. Target path:", targetPath);
+  
+  const stateData = {
+    testCaseName: testCase.testcase_name,
+    testCaseId: testCase.id || testCase.testcase_name,
+    projectName: selectedProject.project_name,
   };
+  console.log("6. State data:", stateData);
+  
+  try {
+    navigate(targetPath, { state: stateData });
+    console.log("7. Navigation called successfully");
+  } catch (error) {
+    console.error("8. Navigation error:", error);
+  }
+  
+};
 
-  const handleCopy = async (testCaseId) => {
+
+  const handleCopy = async (testCaseName) => {
     try {
       setLoading(true);
-      const testCaseToCopy = testCases.find(tc => tc.id === testCaseId);
+      const userId = localStorage.getItem("userId");
+      const testCaseToCopy = testCases.find(tc => tc.testcase_name === testCaseName);
       if (!testCaseToCopy) throw new Error("Test case not found");
+
+      // Generate a unique copy name outside the loop
+      const generateUniqueCopyName = (baseName, existingNames) => {
+        let copyName = `${baseName} (copy)`;
+        let count = 1;
+        while (existingNames.includes(copyName)) {
+          count++;
+          copyName = `${baseName} (copy ${count})`;
+        }
+        return copyName;
+      };
+
+      const existingNames = testCases.map(tc => tc.testcase_name);
+      const copyName = generateUniqueCopyName(testCaseToCopy.testcase_name, existingNames);
   
       // 1. Create new test case
       const createTestCaseRequest = {
-        project_id: selectedProject.id,
-        name: testCaseToCopy.name,
+        user_id: parseInt(userId),
+        project_name: selectedProject.project_name,
+        testcase_name: copyName,
         testcase_type: testCaseToCopy.testcase_type,
         testcase_priority: testCaseToCopy.testcase_priority
       };
@@ -285,7 +306,7 @@ const TestCases = () => {
       console.log("Request: Create test case", createTestCaseRequest);
   
       const newTestCaseResponse = await fetch(
-        `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/integrate/testcase/`,
         {
           method: "POST",
           headers: {
@@ -307,9 +328,9 @@ const TestCases = () => {
       console.log("Created copied test case:", newTestCase);
   
       // 2. Get existing steps
-      console.log(`Request: Fetch steps for testCaseId ${testCaseId}`);
+      console.log(`Request: Fetch steps for testCaseId ${testCaseName}`);
       const stepsResponse = await fetch(
-        `http://127.0.0.1:8000/api/teststeps/?testcase_id=${testCaseId}`
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`
       );
   
       console.log("Response: Fetch steps", stepsResponse);
@@ -370,7 +391,7 @@ const TestCases = () => {
   
       setTestCases(updatedData.map(testCase => ({
         ...testCase,
-        project_name: selectedProject.name
+        project_name: selectedProject.project_name
       })));
   
       setError(null);
@@ -382,27 +403,34 @@ const TestCases = () => {
     }
   };
 
-  const handleDelete = async (testCaseId) => {
+  const handleDelete = async (testCaseName) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this test case?");
     if (!confirmDelete) return;
 
     setLoading(true);
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`,
-        {
+      const requestBody = {
+        user_id: localStorage.getItem("userId"),
+        project_name: selectedProject.project_name,
+        testcase_name: testCaseName
+      };
+
+      console.log("Request Body:", requestBody);
+
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
-        }
-      );
+          body: JSON.stringify(requestBody),
+        });
+
 
       if (!response.ok) {
         throw new Error("Failed to delete test case");
       }
 
-      setTestCases((prevTestCases) => prevTestCases.filter((testCase) => testCase.id !== testCaseId));
+      setTestCases((prevTestCases) => prevTestCases.filter((testCase) => testCase.testcase_name !== testCaseName));
     } catch (error) {
       console.error("Error deleting test case:", error);
       setError("Failed to delete test case");
@@ -662,7 +690,7 @@ const TestCases = () => {
                       <tr key={testCase.id} className="hover:bg-gray-50">
                         
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer hover:text-purple-600" onClick={() => handleRowClick(testCase)} >
-                          {testCase.name}
+                          {testCase.testcase_name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {testCase.testcase_type}
@@ -689,7 +717,7 @@ const TestCases = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); 
-                              handleCopy(testCase.id);
+                              handleCopy(testCase.testcase_name);
                             }}
                             className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200 ml-2"
                           >
@@ -699,7 +727,7 @@ const TestCases = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); 
-                              handleDelete(testCase.id);
+                              handleDelete(testCase.testcase_name);
                             }}
                             className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200 ml-2"
                           >

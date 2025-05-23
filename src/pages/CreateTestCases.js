@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "./CreateTestCases.css";
 
 const CreateTestCases = () => {
-  const [name, setName] = useState("");
+  const [testcase_name, setTestcaseName] = useState("");
   const [testCaseType, setTestCaseType] = useState("");
   const [testCasePriority, setTestCasePriority] = useState("");
   const [errors, setErrors] = useState({ name: "", url: "", type: "", priority: "" });
@@ -43,7 +43,7 @@ const CreateTestCases = () => {
     const newErrors = {};
     let isValid = true;
 
-    if (!name.trim()) {
+    if (!testcase_name.trim()) {
       newErrors.name = "Test Case Name is required!";
       isValid = false;
     }
@@ -62,42 +62,78 @@ const CreateTestCases = () => {
     return isValid;
   };
 
-  const handleNextClick = () => {
+  const handleNextClick = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
     if (!validateFields()) return;
-    setShowModal(true);
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${encodeURIComponent(testcase_name)}`,
+        {
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to check existing test cases");
+      }
+
+      const data = await response.json();
+      const existingTestCases = data.testcases || [];
+
+      console.log("existingTestCases:", existingTestCases);
+
+      if (
+        Array.isArray(existingTestCases) &&
+        existingTestCases.some(
+          (tc) => tc.testcase_name.toLowerCase() === testcase_name.toLowerCase()
+        )
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          testcase_name: "A test case with this name already exists. Please use a different name.",
+        }));
+        return;
+      }
+
+      // If name is unique, show the modal
+      setShowModal(true);
+    } catch (error) {
+      console.error("Error checking test case name:", error);
+      alert("Error checking test case name. Please try again.");
+    }
   };
 
+
   const handleOptionClick = (option) => {
-    const route = option === "write" ? "/writemanually-test" : "/write-manually";
+    const route = option === "write" ? "/gitwritemanually-test" : "/write-manually";
     navigate(route, {
       state: {
         testCaseInfo: {
-          name,
+          testcase_name,
           testcase_type: testCaseType,
           testcase_priority: testCasePriority,
-          projectId: selectedProject.id
+          projectId: selectedProject.project_name
         }
       }
     });
   };
-  
-  
 
   const handleCancel = () => {
     navigate("/dashboard-user");
   };
 
-
   useEffect(() => {
     const fetchTestCaseTypes = async () => {
-      if (!selectedProject?.id) {
+      if (!selectedProject?.project_name) {
         return;
       }
       setError(null);
   
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-types/?project_name=${selectedProject?.project_name}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -123,14 +159,14 @@ const CreateTestCases = () => {
   
   useEffect(() => {
     const fetchPriorities = async () => {
-      if (!selectedProject?.id) {
+      if (!selectedProject?.project_name) {
         return;
       }
       setError(null);
   
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-priorities/?project_name=${selectedProject.project_name}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -179,9 +215,9 @@ const CreateTestCases = () => {
                   </label>
                   <input
                     type="text"
-                    value={name}
+                    value={testcase_name}
                     onChange={(e) => {
-                      setName(e.target.value);
+                      setTestcaseName(e.target.value);
                       setErrors((prev) => ({ ...prev, name: "" }));
                     }}
                     placeholder="Enter test case name"

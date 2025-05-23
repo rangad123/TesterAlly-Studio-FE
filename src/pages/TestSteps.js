@@ -7,7 +7,7 @@ import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw }
 const TestSteps = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testCaseName, testCaseId } = location.state || {};
+  const { testCaseId, testCaseName, projectName } = location.state || {};
   const [steps, setSteps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -33,10 +33,11 @@ const TestSteps = () => {
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
 
-  const fetchTestCase = useCallback(async () => {
+  const fetchTestCase = useCallback(async (testcaseName, projectName) => {
     try {
+      const userId = localStorage.getItem("userId");
       const response = await fetch(
-        `${apiBaseUrl}/testcases/${testCaseId}/?project_id=${location.state.projectId}`
+        `http://127.0.0.1:8000/integrate/teststep/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`
       );
       if (!response.ok) throw new Error("Failed to fetch test case");
       const data = await response.json();
@@ -45,7 +46,7 @@ const TestSteps = () => {
       console.error("Error fetching test case:", err);
       setError("Failed to fetch test case details");
     }
-  }, [testCaseId, location.state.projectId]);
+  }, []);
 
   const fetchTestCaseMetadata = useCallback(async () => {
     try {
@@ -164,37 +165,24 @@ const TestSteps = () => {
     }
   }, [testCaseId, testCaseName, navigate]); 
 
-  const fetchSteps = useCallback(async () => {
+  const fetchSteps = useCallback(async (testcaseName, projectName) => {
+    const userId = localStorage.getItem("userId");
+
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${apiBaseUrl}/teststeps/?testcase_id=${testCaseId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch test steps');
-      }
+      const response = await fetch(`http://127.0.0.1:8000/integrate/teststep/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`);
+      if (!response.ok) throw new Error('Failed to fetch test steps');
       const data = await response.json();
-      const sortedData = data.sort((a, b) => a.step_number - b.step_number);
-      console.log("Test Step Response:", sortedData);
-  
-      setSteps(sortedData);
-      
-      if (sortedData.length > 0) {
-        const latestStepWithCoordinates = [...sortedData].reverse().find(step => 
-          step.step_coordinates && Object.keys(step.step_coordinates).length > 0
-        );
-
-        if (latestStepWithCoordinates) {
-//          setElementData(latestStepWithCoordinates.step_coordinates);
-//          sessionStorage.setItem('latestElementData', JSON.stringify(latestStepWithCoordinates.step_coordinates));
-        }
-      }
+      console.log("Test Step Response:", data.steps);
+      setSteps(data.steps); // Use the 'steps' array from API response
     } catch (err) {
       setError(err.message);
       console.error("Error fetching steps:", err);
     } finally {
       setLoading(false);
     }
-  }, [testCaseId, apiBaseUrl]);
+  }, []);
 
   const handleWaitConfirmation = (waitCommand, requestData) => {
     if (editingStep) {
@@ -236,12 +224,10 @@ const TestSteps = () => {
   };
 
   useEffect(() => {
-    if (!testCaseId) {
-      navigate("/test-cases");
-      return;
+    if (testCaseName && projectName ) {
+      fetchSteps(testCaseName, projectName);
     }
-    fetchSteps();
-  }, [testCaseId, navigate, fetchSteps]);
+  }, [testCaseName, projectName, fetchSteps]);
 
   const handleDeleteStep = async (stepId) => {
     if (!window.confirm("Are you sure you want to delete this step?")) return;
@@ -1123,7 +1109,7 @@ const selectAllSteps = () => {
 
           <div className="space-y-3 ">
           {steps.map((step, index) => (
-            <React.Fragment key={step.id}>
+            <React.Fragment key={step.step_number}>
               <div
                 className="relative flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 transition-all duration-200"
                 onMouseEnter={() => setHoveredStep(step.id)}

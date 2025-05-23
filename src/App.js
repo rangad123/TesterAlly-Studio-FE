@@ -352,6 +352,9 @@ import TestAutomationControl from "./pages/TestExecution";
 import Agent from "./pages/Agent";
 import Reports from "./pages/Reports";
 import WriteTestManually from "./pages/WriteTestManually";
+import SchedulerPage from "./pages/SchedulerPage";
+import GitHub from "./pages/GitHub";
+import GitCreate from "./pages/GitCreate";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -877,7 +880,7 @@ const App = () => {
                 }
               />
               <Route
-                path="test-cases/:testCaseId/steps"
+                path="/test-cases/:testCaseId/steps"
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
@@ -902,6 +905,33 @@ const App = () => {
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <Requirement />
                   </PrivateRoute>
+                }
+              />
+              <Route
+                path="scheduler"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <SchedulerPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="gitwritemanually-test"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <GitCreate />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="github"
+                exact
+                element={
+                  
+                    <GitHub />
+                  
                 }
               />
               <Route

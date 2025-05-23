@@ -12,7 +12,7 @@ import {
   Tag,
 } from "lucide-react";
 
-const ProjectDetails = () => {
+const ProjectDetails = ({ project_name }) => {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,94 +29,92 @@ const ProjectDetails = () => {
     "Data Analysis",
   ];
 
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      return;
-    }
+useEffect(() => {
+  const userId = localStorage.getItem("userId");
+  if (!userId) return;
 
-    const savedProjectKey = `selectedProject_${userId}`;
-    const savedProject = localStorage.getItem(savedProjectKey);
+  const savedProjectKey = `selectedProject_${userId}`;
+  const savedProject = localStorage.getItem(savedProjectKey);
 
-    console.log("selected project", savedProject);
-
-    if (savedProject) {
-      try {
-        const project = JSON.parse(savedProject);
-        setSelectedProject(project);
-        fetchTestCases(project.id);
-        fetchTestSuites(project.id);
-      } catch (error) {
-        console.error("Error parsing saved project:", error);
-        navigate("/dashboard-user");
-      }
-    }
-
-    setLoading(false);
-
-    const handleProjectChange = (event) => {
-      const newProject = event.detail;
-
-      if (newProject) {
-        setSelectedProject(newProject);
-        localStorage.setItem("selectedProject", JSON.stringify(newProject));
-        fetchTestCases(newProject.id);
-        fetchTestSuites(newProject.id);
-      }
-    };
-
-    window.addEventListener("projectChanged", handleProjectChange);
-    return () =>
-      window.removeEventListener("projectChanged", handleProjectChange);
-  }, [navigate]);
-
-  const fetchTestCases = async (projectId) => {
+  const fetchTestCases = async (projectName) => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcases/?project_id=${projectId}`
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectName}`
       );
       const data = await response.json();
-      if (response.ok) {
-        setTestCases(data);
+      console.log(data)
 
-        console.log("Test cases", data);
-      }
+      if (response.ok) setTestCases(Array.isArray(data.testcases) ? data.testcases : []);
     } catch (err) {
       console.error("Error fetching test cases:", err);
     }
   };
 
-  const fetchTestSuites = async (projectId) => {
+  const fetchTestSuites = async (projectName) => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testsuites/?project_id=${projectId}`
+        `http://127.0.0.1:8000/api/testsuites/?project_id=${projectName}`
       );
       const data = await response.json();
-      if (response.ok) {
-        setTestSuites(data);
-
-        console.log("Test suites", data);
-      }
+      if (response.ok) setTestSuites(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching test suites:", err);
     }
   };
 
-  const handleDeleteProject = async (projectId) => {
+  if (savedProject) {
+    try {
+      const project = JSON.parse(savedProject);
+      setSelectedProject(project);
+      fetchTestCases(project.project_name);
+      fetchTestSuites(project.project_name);
+    } catch (error) {
+      console.error("Error parsing saved project:", error);
+      navigate("/dashboard-user");
+    }
+  }
+
+  setLoading(false);
+
+  const handleProjectChange = (event) => {
+    const newProject = event.detail;
+    if (newProject) {
+      setSelectedProject(newProject);
+      localStorage.setItem("selectedProject", JSON.stringify(newProject));
+      fetchTestCases(newProject.project_name);
+      fetchTestSuites(newProject.project_name);
+    }
+  };
+
+  window.addEventListener("projectChanged", handleProjectChange);
+  return () =>
+    window.removeEventListener("projectChanged", handleProjectChange);
+}, [navigate]);
+
+
+  const handleDeleteProject = async (projectName) => {
     if (!window.confirm("Are you sure you want to delete this project?"))
       return;
 
     try {
-      if (!projectId || !userId) {
-        alert(!projectId ? "Invalid project ID." : "Invalid user ID.");
+      if (!projectName || !userId) {
+        alert(!projectName ? "Invalid project Name." : "Invalid user ID.");
         return;
       }
 
+      const requestBody = {
+        user_id: localStorage.getItem("userId"),
+        project_name: selectedProject.project_name,
+      };
+
+      console.log("Request Body:", requestBody);
+
       const deleteResponse = await fetch(
-        `http://127.0.0.1:8000/api/projects/${projectId}/?user_id=${userId}`,
+        "http://127.0.0.1:8000/integrate/project/",
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -127,7 +125,7 @@ const ProjectDetails = () => {
 
         window.dispatchEvent(
           new CustomEvent("projectDeleted", {
-            detail: { projectId },
+            detail: { projectName },
           })
         );
 
@@ -146,7 +144,8 @@ const ProjectDetails = () => {
   };
 
   const handleEditClick = (project) => {
-    setSelectedProject({ ...project, isEditing: true });
+    console.log("Original Project Name:", project.project_name);
+    setSelectedProject({ ...project, isEditing: true, original_project_name: project.project_name });
     setIsEditModalOpen(true);
   };
 
@@ -156,21 +155,31 @@ const ProjectDetails = () => {
   };
 
   const handleChange = (field, value) => {
-    setSelectedProject((prev) => ({ ...prev, [field]: value }));
+    setSelectedProject((prev) => ({
+      ...prev,
+      [field]: value,
+      original_project_name: prev.original_project_name,
+    }));
   };
 
   const handleSave = async () => {
     try {
+      console.log("Selected Project in Save:", selectedProject);
+      const requestBody = {
+        user_id: parseInt(userId),
+        project_name: selectedProject.original_project_name,
+        new_project_name: selectedProject.project_name,
+        new_description: selectedProject.description,
+        new_project_type: selectedProject.project_type,
+      };
+      console.log("Request Body before PUT:", requestBody);
+
       const response = await fetch(
-        `http://127.0.0.1:8000/api/projects/${selectedProject.id}/?user_id=${userId}`,
+        `http://127.0.0.1:8000/integrate/project/`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: selectedProject.name,
-            description: selectedProject.description,
-            project_type: selectedProject.project_type,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -217,8 +226,8 @@ const ProjectDetails = () => {
                 </label>
                 <input
                   type="text"
-                  value={selectedProject.name}
-                  onChange={(e) => handleChange("name", e.target.value)}
+                  value={selectedProject.project_name}
+                  onChange={(e) => handleChange("project_name", e.target.value)}
                   className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                 />
               </div>
@@ -285,7 +294,7 @@ const ProjectDetails = () => {
         <div className="p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">
-              {selectedProject.name}
+              {selectedProject.project_name}
             </h1>
             <div className="flex space-x-2">
               <button
@@ -296,7 +305,7 @@ const ProjectDetails = () => {
                 Edit Project
               </button>
               <button
-                onClick={() => handleDeleteProject(selectedProject.id)}
+                onClick={() => handleDeleteProject(selectedProject.project_name)}
                 className="inline-flex items-center px-4 py-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -381,11 +390,11 @@ const ProjectDetails = () => {
                   <div className="grid gap-4">
                     {testCases.map((testCase) => (
                       <div
-                        key={testCase.id}
+                        // key={testCase.id}
                         className="p-4 border rounded-lg hover:bg-gray-50"
                       >
                         <h4 className="font-medium text-gray-900">
-                          {testCase.name}
+                          {testCase.testcase_name}
                         </h4>
                         <p className="mt-1">
                           <span className="text-gray-900 ">Test Case Type:</span>{" "}

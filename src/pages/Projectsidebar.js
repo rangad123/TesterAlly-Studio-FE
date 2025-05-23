@@ -6,12 +6,15 @@ import {
   FaList,
   FaCog,
   FaFlag,
-  FaFileAlt,
+  // FaFileAlt,
   FaRegFileAlt,
   FaClipboardList,
   FaPlusCircle,
   FaServer,
-  FaChartBar 
+  FaChartBar,
+  FaCalendarAlt,
+  FaCheckSquare,
+  FaDatabase,  
 } from "react-icons/fa";
 import TestEnvironmentModal from "./TestEnvironmentModal";
 
@@ -27,57 +30,58 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
 
 
 
-    const fetchProjects = async () => {
-      const userId = localStorage.getItem("userId");
-      if (!userId) {
-        console.warn("No userId found in localStorage");
-        return;
-      }
-    
-      try {
-        const response = await fetch(
-          `http://127.0.0.1:8000/api/projects/?user_id=${userId}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-    
-        if (response.ok) {
-          const data = await response.json();
-          setProjects(data);
-    
-          const savedProjectKey = `selectedProject_${userId}`;
-          const savedProject = localStorage.getItem(savedProjectKey);
-    
-          if (data.length > 0) {
-            if (savedProject) {
-              const parsedProject = JSON.parse(savedProject);
-              const projectExists = data.some((p) => p.id === parsedProject.id);
-    
-              if (projectExists) {
-                setSelectedProject(parsedProject);
-              } else {
-
-                setSelectedProject(data[0]);
-                localStorage.setItem(savedProjectKey, JSON.stringify(data[0]));
-              }
+  const fetchProjects = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      console.warn("No userId found in localStorage");
+      return;
+    }
+  
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+  
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects); 
+  
+        const savedProjectKey = `selectedProject_${userId}`;
+        const savedProject = localStorage.getItem(savedProjectKey);
+  
+        if (data.projects.length > 0) {
+          if (savedProject) {
+            const parsedProject = JSON.parse(savedProject);
+            const projectExists = data.projects.some((p) => p.project_name === parsedProject.project_name);
+  
+            if (projectExists) {
+              setSelectedProject(parsedProject);
             } else {
-              setSelectedProject(data[0]);
-              localStorage.setItem(savedProjectKey, JSON.stringify(data[0]));
+
+              setSelectedProject(data.projects[0]);
+              localStorage.setItem(savedProjectKey, JSON.stringify(data.projects[0]));
+
             }
           } else {
-            setSelectedProject(null);
-            localStorage.removeItem(savedProjectKey);
+            setSelectedProject(data.projects[0]);
+            localStorage.setItem(savedProjectKey, JSON.stringify(data.projects[0]));
           }
         } else {
-          console.error("Failed to fetch projects:", await response.json());
+          setSelectedProject(null);
+          localStorage.removeItem(savedProjectKey);
         }
-      } catch (error) {
-        console.error("Error fetching projects:", error);
+      } else {
+        console.error("Failed to fetch projects:", await response.json());
       }
-    };
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
 
   useEffect(() => {
     fetchProjects();
@@ -98,9 +102,9 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
       const { projectId } = event.detail;
       fetchProjects(); 
       setProjects((prevProjects) => {
-        const updatedProjects = prevProjects.filter((project) => project.id !== projectId);
+        const updatedProjects = prevProjects.filter((project) => project.project_name !== projectId);
 
-        if (selectedProject && selectedProject.id === projectId) {
+        if (selectedProject && selectedProject.project_name === projectId) {
           setSelectedProject(null);
           const userId = localStorage.getItem("userId");
           if (userId) {
@@ -171,7 +175,6 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
   const projectSettingsItems = [
     { icon: FaInfoCircle, label: "Project Details", path: "/project-details" },
     { icon: FaUsers, label: "Project Members", path: "/project-members" },
-    { icon: FaFileAlt, label: "Test Data", path: "/test-data" },
     { icon: FaList, label: "Requirement Types", path: "/requirement-type" },
     { icon: FaCog, label: "Test Case Types", path: "/testcases-type" },
     { icon: FaFlag, label: "Test Case Priorities", path: "/testcase-Priorities" },
@@ -183,10 +186,16 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
   ];
 
   const menuItems = [
-    { icon: FaFileAlt, label: "Test Cases", path: "/test-cases" },
+    { icon: FaCheckSquare , label: "Test Cases", path: "/test-cases" },
     { icon: FaRegFileAlt, label: "Requirements", path: "/requirement-details" },
     { icon: FaClipboardList, label: "Test Suites", path: "/test-suites" },
     { icon: FaChartBar, label: "Reports", path: "/reports" },
+    { icon: FaDatabase, label: "Test Data", path: "/test-data" },
+    {
+      icon: FaCalendarAlt,
+      label: "Scheduler",
+      path: "/scheduler",  
+    },
     {
       icon: FaCog,
       label: "Project Settings",
@@ -217,7 +226,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
   
 
   const filteredProjects = projects.filter((project) =>
-    project.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    project.project_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (!isVisible) return null;
@@ -249,7 +258,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <span className="text-black truncate">
-              {selectedProject?.name || "Select Project"}
+              {selectedProject?.project_name || "Select Project"}
             </span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -281,12 +290,12 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
 
           <div className="max-h-[200px] overflow-y-auto text-black">
             {filteredProjects.map((project) => (
-              <div
-                key={project.id}
+            <div
+              key={project.project_name}
                 onClick={() => handleProjectSelect(project)}
                 className="p-2 cursor-pointer hover:bg-blue-100"
               >
-                {project.name}
+                {project.project_name}
               </div>
             ))}
           </div>
@@ -381,7 +390,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
           isOpen={isEnvironmentModalOpen}
           onClose={() => setIsEnvironmentModalOpen(false)}
           onExecute={handleTestExecuted}
-          projectId={selectedProject?.id}
+          projectName={selectedProject?.project_name}
         />
       )}
     </div>

@@ -14,14 +14,14 @@ const ProjectList = () => {
       setLoading(true);
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/projects/?user_id=${userId}`
+          `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`
         );
         const data = await response.json();
 
         console.log("Projects", data);
 
         if (response.ok) {
-          setAllProjects(data.reverse());
+          setAllProjects(data.projects.reverse());
         }
       } catch (err) {
         console.error("Error fetching projects:", err);
@@ -64,7 +64,7 @@ const ProjectList = () => {
         onClick={() => handleProjectClick(project)}
       >
         <td className="px-6 py-4 text-sm text-gray-900">
-          <span className="font-medium">{project.name}</span>
+          <span className="font-medium">{project.project_name}</span>
         </td>
         <td className="px-6 py-4 text-sm text-gray-500">
           {project.description || "N/A"}

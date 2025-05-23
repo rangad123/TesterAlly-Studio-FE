@@ -6,7 +6,8 @@ import {
   FaCogs,
   FaUserShield,
   FaUsers,
-  FaFolderOpen
+  FaFolderOpen,
+  FaGithub
 } from "react-icons/fa";
 import { FiSettings } from "react-icons/fi";
 import { MdDashboard, MdAccountCircle } from "react-icons/md";
@@ -25,6 +26,7 @@ const Sidebar = () => {
   const [isProjectSettingsVisible, setIsProjectSettingsVisible] = useState(false);
   const [isTestCasesVisible, setIsTestCasesVisible] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
+  const [isIntegrationVisible, setIsIntegrationVisible] = useState(false);
 
   const sidebarRef = useRef(null);
 
@@ -46,6 +48,7 @@ const Sidebar = () => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         setIsSubSidebarVisible(false);
         setIsSettingsVisible(false);
+        setIsIntegrationVisible(false);
         
         if (window.innerWidth < 640) {
           setIsTestCasesVisible(false);
@@ -77,6 +80,8 @@ const Sidebar = () => {
     setIsSettingsVisible(false); 
     setIsProjectSettingsVisible(false);
     setIsTestCasesVisible(false);
+    setIsIntegrationVisible(false);
+
   };
 
   const toggleSettingsSidebar = () => {
@@ -84,6 +89,8 @@ const Sidebar = () => {
     setIsSubSidebarVisible(false); 
     setIsProjectSettingsVisible(false);
     setIsTestCasesVisible(false);
+    setIsIntegrationVisible(false);
+
   };
 
   const handleNavigateToCreateProject = () => {
@@ -91,18 +98,24 @@ const Sidebar = () => {
     setIsSubSidebarVisible(false);
     setIsProjectSettingsVisible(false);
     setIsTestCasesVisible(false);
+    setIsIntegrationVisible(false);
+
   };
 
   const handleNavigateToCreateTestCases = () => {
     navigate("test-cases/create-testcases");
     setIsSubSidebarVisible(false);
     setIsTestCasesVisible(true);
+    setIsIntegrationVisible(false);
+
   };
 
   const handleNavigateToTestSuite = () => {
     navigate("test-suites/create-testsuite");
     setIsSubSidebarVisible(false);
     setIsTestCasesVisible(true);
+    setIsIntegrationVisible(false);
+
   };
 
   const handleNavigateToProfile = () => {
@@ -111,23 +124,30 @@ const Sidebar = () => {
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
+    setIsIntegrationVisible(false);
   };
 
-/*
-  const handleNavigateToAgent = () => {
-    navigate("/agent");
+  const toggleIntegrationSidebar = () => {
+    setIsIntegrationVisible((prevState) => !prevState);
     setIsSubSidebarVisible(false);
+    setIsSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
-    setIsSettingsVisible(false);
   };
-*/
+
+  const handleNavigateToGithubIntegration = () => {
+    navigate("/github");
+    setIsIntegrationVisible(false);
+  };
+
+
   const handleNavigateToDashboard = () => {
     navigate("/dashboard-user");
     setIsSubSidebarVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
+    setIsIntegrationVisible(false);
   };
 
   const handleNavigateToUserRoles = () => {
@@ -135,6 +155,7 @@ const Sidebar = () => {
     setIsSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
+    setIsIntegrationVisible(false);
   };
 
   const handleNavigateToUsers = () => {
@@ -142,6 +163,8 @@ const Sidebar = () => {
     setIsSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
+    setIsIntegrationVisible(false);
+
   };
 
   const toggleTestCasesSidebar = () => {
@@ -149,6 +172,8 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
     setIsSubSidebarVisible(false);
+    setIsIntegrationVisible(false);
+
   };
 
   const handleProjectList = () => {
@@ -157,6 +182,8 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
     setIsSubSidebarVisible(false);
+    setIsIntegrationVisible(false);
+
 
   };
 
@@ -241,6 +268,17 @@ const Sidebar = () => {
       </div>
     </div>
 
+    {/* Integration Option */}
+    <div
+      className={`sidebar-option ${currentPath === "/github" ? "active" : ""}`}
+      onClick={toggleIntegrationSidebar}
+    >
+      <FaCogs className={`icon project-icon ${currentPath === "/github" ? "active-icon" : ""}`} />
+      <div className="option-name-container">
+        <span className="option-name">Integration</span>
+      </div>
+    </div>
+
     {/* Profile Option */}
     <div
       className={`sidebar-option ${currentPath === "/profile" ? "active" : ""}`}
@@ -251,17 +289,7 @@ const Sidebar = () => {
         <span className="option-name">Profile</span>
       </div>
     </div>
-{/*
-    <div
-      className={`sidebar-option ${currentPath === "/agent" ? "active" : ""}`}
-      onClick={handleNavigateToAgent}
-    >
-      <RiRobot2Fill className={`icon project-icon ${window.location.pathname === "/agent" ? "active-icon" : ""}`}  />
-      <div className="option-name-container">
-        <span className="option-name">Agent</span>
-      </div>
-    </div>
-*/}
+
   </div>
 
       {/* Sub-sidebar: Create Project */}
@@ -299,6 +327,17 @@ const Sidebar = () => {
           </div>
         </div>
       )}
+
+      {isIntegrationVisible && (
+        <div className={`sub-sidebar-settings ${isSidebarOpen ? "aligned-expanded" : "aligned-collapsed"}`}>
+          <div className="sub-sidebar-header">Integration</div>
+          <div className="sub-sidebar-item" onClick={handleNavigateToGithubIntegration}>
+            <FaGithub className="icon" />
+            <span>GitHub Integration</span>
+          </div>
+        </div>
+      )}
+
       
     </div>
   );
