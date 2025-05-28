@@ -142,6 +142,33 @@ const CreateProject = ({ onProjectCreated }) => {
   
       const createdProject = await response.json();
       setUserProjects((prevProjects) => [...prevProjects, createdProject]);
+
+      // const oldApiData = {
+      //   user_id: parseInt(userId),
+      //   name: projectName,
+      //   description: description || "No description provided",
+      //   project_type: projectType,
+      // };
+
+      // try {
+      //   const oldApiResponse = await fetch("http://127.0.0.1:8000/api/projects/", {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify(oldApiData),
+      //   });
+
+      //   if (!oldApiResponse.ok) {
+      //     const oldError = await oldApiResponse.json();
+      //     console.error("Old API Error Response:", oldError);
+
+      //   } else {
+      //     console.log("Old API project stored successfully");
+      //   }
+      // } catch (err) {
+      //   console.error("Error calling old API:", err);
+      // }
   
       alert("Project Created Successfully");
       window.dispatchEvent(new CustomEvent("projectCreated", { detail: createdProject }));

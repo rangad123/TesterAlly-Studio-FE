@@ -162,7 +162,7 @@ const TestData = () => {
         const payload = { url: finalUrl };
 
         response = await fetch(
-          `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
+          `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -176,7 +176,7 @@ const TestData = () => {
         formData.append('type', 'file');
 
         response = await fetch(
-          `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
+          `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
           {
             method: "POST",
             body: formData,
@@ -227,7 +227,7 @@ const TestData = () => {
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
+        `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
         {
           method: "DELETE",
         }

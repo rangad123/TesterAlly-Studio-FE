@@ -33,7 +33,7 @@ const CreateTestSuite = () => {
         const project = JSON.parse(savedProject);
         setSelectedProject(project);
        
-        fetchExistingTestSuites(project.id);
+        fetchExistingTestSuites(project.project_name);
       } catch (err) {
         console.error("Error parsing saved project:", err);
         localStorage.removeItem(savedProjectKey);
@@ -45,8 +45,8 @@ const CreateTestSuite = () => {
       setSelectedProject(project);
       localStorage.setItem(savedProjectKey, JSON.stringify(project));
       
-      if (project?.id) {
-        fetchExistingTestSuites(project.id);
+      if (project?.project_name) {
+        fetchExistingTestSuites(project.project_name);
       }
     };
 
@@ -66,11 +66,12 @@ const CreateTestSuite = () => {
   }, [selectedProject]);
   
   const fetchExistingTestSuites = async (projectId) => {
+    const userId = localStorage.getItem("userId");
     if (!projectId) return;
     
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testsuites/?project_id=${projectId}`
+        `http://127.0.0.1:8000/integrate/testsuite/?user_id=${userId}&project_name=${projectId}`
       );
       
       if (response.ok) {
@@ -101,7 +102,7 @@ const CreateTestSuite = () => {
       newErrors.title = "A test suite with this name already exists. Please use a different name.";
     }
 
-    if (!selectedProject?.id) {
+    if (!selectedProject?.project_name) {
       newErrors.project = "A project must be selected to create a test suite.";
     }
 
@@ -115,27 +116,30 @@ const CreateTestSuite = () => {
   const fetchTestCases = async (projectId) => {
     setIsLoadingTestCases(true);
     console.log("Fetching test cases for project ID:", projectId);
-
+    const userId = localStorage.getItem("userId");
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcases/?project_id=${projectId}`
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`,
       );
       if (response.ok) {
         const data = await response.json();
         console.log("Fetched test cases:", data);
 
-        if (Array.isArray(data)) {
+        if (data.testcases && Array.isArray(data.testcases)) {
+          setTestCases(data.testcases);
+        } else if (Array.isArray(data)) {
           setTestCases(data);
-        } else if (data.testCases && Array.isArray(data.testCases)) {
-          setTestCases(data.testCases);
         } else {
+          console.log("No test cases found or unexpected data structure");
           setTestCases([]);
-        } 
+        }
       } else {
         alert("Failed to fetch test cases.");
+        setTestCases([]);
       }
     } catch (error) {
       alert(`Error fetching test cases: ${error.message}`);
+      setTestCases([]);
     } finally {
       setIsLoadingTestCases(false);
     }
@@ -150,22 +154,24 @@ const CreateTestSuite = () => {
 
     setErrors({});
     setIsLoading(true);
+    const userId = localStorage.getItem("userId");
 
     console.log("Selected Test Cases:", selectedTestCases);
 
     try {
       const payload = {
+        user_id: userId,
         title,
         description,
         pre_requisite: preRequisite,
         labels: labels.split(",").map((label) => label.trim()).filter(Boolean),
-        project_id: selectedProject.id,
-        testcase: selectedTestCases.map(tc => tc.id),
+        project_name: selectedProject.project_name,
+        testcase: selectedTestCases.map(tc => tc.testcase_name),
       };
 
       console.log("Payload:", payload);
 
-      const response = await fetch("http://127.0.0.1:8000/api/testsuites/", {
+      const response = await fetch("http://127.0.0.1:8000/integrate/testsuite/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -199,9 +205,9 @@ const CreateTestSuite = () => {
   };
 
   const handleAddTestCase = () => {
-    if (selectedProject?.id) {
+    if (selectedProject?.project_name) {
       setIsAddingTestCase(true);
-      fetchTestCases(selectedProject.id); 
+      fetchTestCases(selectedProject.project_name); 
     } else {
       alert("No project selected.");
     }
@@ -209,12 +215,12 @@ const CreateTestSuite = () => {
 
   const handleTestCaseSelection = (testCase) => {
     setSelectedTestCases((prev) => {
-      const updated = prev.some((tc) => tc.id === testCase.id)
-        ? prev.filter((tc) => tc.id !== testCase.id)
+      const updated = prev.some((tc) => tc.testcase_name === testCase.testcase_name)
+        ? prev.filter((tc) => tc.testcase_name !== testCase.testcase_name)
         : [...prev, testCase];
   
-      return Array.from(new Set(updated.map((tc) => tc.id))).map((id) =>
-        updated.find((tc) => tc.id === id)
+      return Array.from(new Set(updated.map((tc) => tc.testcase_name))).map((testcase_name) =>
+        updated.find((tc) => tc.testcase_name === testcase_name)
       );
     });
   };  
@@ -339,9 +345,9 @@ const CreateTestSuite = () => {
                       <div className="space-y-2">
                         {testCases.map((testCase) => (
                           <div 
-                            key={testCase.id}
+                            key={testCase.testcase_name}
                             className={`flex items-center p-3 rounded-md cursor-pointer transition-colors
-                              ${selectedTestCases.some(tc => tc.id === testCase.id)
+                              ${selectedTestCases.some(tc => tc.testcase_name === testCase.testcase_name)
                                 ? 'bg-blue-50 border border-blue-200'
                                 : 'hover:bg-gray-50 border border-gray-200'}`}
                             onClick={() => handleTestCaseSelection(testCase)}
@@ -349,10 +355,10 @@ const CreateTestSuite = () => {
                             <input
                               type="checkbox"
                               className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3"
-                              checked={selectedTestCases.some(tc => tc.id === testCase.id)}
+                              checked={selectedTestCases.some(tc => tc.testcase_name === testCase.testcase_name)}
                               onChange={() => handleTestCaseSelection(testCase)}
                             />
-                            <span className="flex-1">{testCase.name}</span>
+                            <span className="flex-1">{testCase.testcase_name}</span>
                           </div>
                         ))}
                       </div>

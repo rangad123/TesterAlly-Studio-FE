@@ -6,8 +6,8 @@ import { Save, X, Edit2, ArrowLeft, Play, RefreshCw } from "lucide-react";
 const TestSuite = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testSuiteId, projectId, testSuite: passedTestSuite } = location.state || {};
-  
+  const { testSuiteName, projectId, testSuite: passedTestSuite } = location.state || {};
+
   const [testSuite, setTestSuite] = useState(passedTestSuite || {});
   const [testCases, setTestCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,6 @@ const TestSuite = () => {
   const [waitBetweenSteps, setWaitBetweenSteps] = useState("1000");
   const [waitBetweenCases, setWaitBetweenCases] = useState("3000");
 
-  const apiBaseUrl = "http://127.0.0.1:8000/api";
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -62,12 +61,14 @@ const TestSuite = () => {
   
 
   const fetchTestSuite = useCallback(async () => {
-    if (!testSuiteId || !projectId) return;
+    if (!testSuiteName || !projectId) return;
+    const userId = localStorage.getItem("userId");
     
     try {
       const response = await fetch(
-        `${apiBaseUrl}/testsuites/${testSuiteId}/?project_id=${projectId}`
+        `http://127.0.0.1:8000/integrate/testsuite/?user_id=${userId}&project_name=${projectId}&title=${testSuiteName}`,
       );
+
       if (!response.ok) throw new Error("Failed to fetch test suite");
       const data = await response.json();
 
@@ -82,24 +83,32 @@ const TestSuite = () => {
       console.error("Error fetching test suite:", err);
       setError("Failed to fetch test suite details");
     }
-  }, [testSuiteId, projectId]);
+  },  [testSuiteName, projectId]);
 
   const fetchTestCases = useCallback(async () => {
     if (!testSuite?.testcase || !projectId) return;
     
     try {
+      const userId = localStorage.getItem("userId");
       const testCasesData = await Promise.all(
-        testSuite.testcase.map(async (testCaseId) => {
+        testSuite.testcase.map(async (testCaseName) => {
           const response = await fetch(
-            `${apiBaseUrl}/testcases/${testCaseId}/?project_id=${projectId}`
+            `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectId}&testcase_name=${testCaseName}`
           );
-          if (!response.ok) throw new Error(`Failed to fetch test case ${testCaseId}`);
-          return await response.json();
+          if (!response.ok) throw new Error(`Failed to fetch test case ${testCaseName}`);
+          const data = await response.json();
+          
+          return {
+            name: data.testcase_name || testCaseName,
+            testcase_type: data.testcase?.testcase_type,
+            testcase_priority: data.testcase?.testcase_priority,
+            steps: data.testcase?.steps || [],
+            ...data
+          };
         })
       );
       setTestCases(testCasesData);
-
-      console.log("Test case Response:", testCasesData)
+      console.log("Processed test cases:", testCasesData);
 
     } catch (err) {
       console.error("Error fetching test cases:", err);
@@ -107,7 +116,7 @@ const TestSuite = () => {
     } finally {
       setLoading(false);
     }
-  }, [testSuite, projectId]);
+  }, [testSuite, projectId]); 
 
   useEffect(() => {
     fetchTestSuite();
@@ -134,19 +143,22 @@ const TestSuite = () => {
       setError("Title and description are required");
       return;
     }
+    const userId = localStorage.getItem("userId");
 
     setLoading(true);
     try {
       const formattedLabels = Array.isArray(editedLabels) ? editedLabels : editedLabels.split(',').map(label => label.trim());
 
       const response = await fetch(
-        `${apiBaseUrl}/testsuites/${testSuiteId}/?project_id=${projectId}`,
+        `http://127.0.0.1:8000/integrate/testsuite/`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            user_id: userId,
+            project_name: projectId,
             title: editedTitle,
             description: editedDescription,
             labels: formattedLabels,
@@ -156,8 +168,9 @@ const TestSuite = () => {
       );
 
       if (!response.ok) throw new Error("Failed to update test suite");
-      
       const updatedTestSuite = await response.json();
+      console.log("edited testsuite:", updatedTestSuite)
+      
       setTestSuite(updatedTestSuite);
       setEditingTestSuite(false);
       setError(null);
@@ -168,24 +181,6 @@ const TestSuite = () => {
       setLoading(false);
     }
   };
-
-/*
-  const handleTestCaseSelection = (testCaseId) => {
-    setSelectedTestCases(prev => 
-      prev.includes(testCaseId)
-        ? prev.filter(id => id !== testCaseId)
-        : [...prev, testCaseId]
-    );
-  };
-
-  const selectAllTestCases = () => {
-    if (selectedTestCases.length === testCases.length) {
-      setSelectedTestCases([]);
-    } else {
-      setSelectedTestCases(testCases.map(tc => tc.id));
-    }
-  };
-*/
 
   const handleOpenExecutionModal = () => {
     setShowExecutionModal(true);
@@ -215,38 +210,11 @@ const handleRunTestSuite = async () => {
     setIsExecuting(false);
     return;
   }
-
-  const initialResults = {};
-  for (const testCase of testCases) {
-    try {
-      const steps = await fetchTestStepDetails(testCase.id);
-      console.log(`Initial steps for test case ${testCase.id}:`, steps);
-      
-      initialResults[testCase.id] = {
-        status: 'pending',
-        name: testCase.name,
-        steps: steps.map(step => ({
-          ...step,
-          status: 'pending',
-          name: step.name || step.step_name || `Step ${step.order || step.step_number || 0}`,
-          description: step.description || step.action || step.details || step.step_description || "",
-          error: null
-        })),
-        total_steps: steps.length,
-        passed_steps: 0
-      };
-    } catch (err) {
-      console.error(`Error setting up execution for test case ${testCase.id}:`, err);
-    }
-  }
   
-  setExecutionResults(initialResults);
-
   const waitStepsMs = parseInt(waitBetweenSteps) || 1000;
   const waitCasesMs = parseInt(waitBetweenCases) || 3000;
   
   try {
-
     if (cancellationRequested) {
       setError("Test execution was cancelled");
       setExecutionInProgress(false);
@@ -255,15 +223,14 @@ const handleRunTestSuite = async () => {
     }
 
     const requestBody = {
-      testsuite_id: testSuiteId,
+      testsuite_title: testSuiteName,
+      project_name: projectId,
       user_id: userId,
       wait_between_steps: waitStepsMs,
       wait_between_cases: waitCasesMs,
     };
 
-    console.log("Request Body:", requestBody);
-
-    const response = await fetch("http://127.0.0.1:8000/automation/run_testsuite/", {
+    const response = await fetch("http://127.0.0.1:8000/integrate/run_testsuite/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -278,7 +245,6 @@ const handleRunTestSuite = async () => {
     const result = await response.json();
     console.log("Execution response:", result);
 
-    // Check if cancellation was requested during API call
     if (cancellationRequested) {
       setError("Test execution was cancelled");
       setExecutionInProgress(false);
@@ -286,100 +252,120 @@ const handleRunTestSuite = async () => {
       return;
     }
 
-    const results = {};
+    const testcases = result.results?.testcases || [];
+    // const summary = result.results?.summary || {};
 
-    result.testcases.forEach(testcase => {
-    
-      console.log(`Testcase ${testcase.testcase_id} data:`, testcase);
-      
-      const testCaseStatus = testcase.summary.status || "unknown";
-      
-      results[testcase.testcase_id] = {
-        status: testCaseStatus === "passed" ? "complete" : 
-                testCaseStatus === "failed" ? "error" : 
-                "pending",
-        name: testcase.testcase_name,
-        duration: `${testcase.summary.execution_time || 0}s`,
-        message: testCaseStatus === "passed" ? 'Test completed successfully' : null,
-        error: testCaseStatus === "failed" ? (testcase.summary.failure_reason || testcase.summary.error || 'Test execution failed') : null,
+    if (testcases.length > 0) {
+      const detailedResults = {};
 
-        steps: (testcase.steps || []).map(step => {
-          console.log("Raw step data from API:", step);
+      testcases.forEach((testcase, index) => {
+        const testcaseName = testcase.testcase_name || testcase.name || `Test-${index + 1}`;
+        const stepSummary = testcase.summary || {};
+        const steps = testcase.steps || [];
 
-          return {
-            ...step,
-            
-            status: step.status || (step.error ? "failed" : step.is_executed ? "passed" : "pending"),
-            
-            name: step.command,
-            
-            description: step.response.status,
-           
-            error: step.error || step.failure_reason || step.error_message || null
-          };
-        }) || initialResults[testcase.testcase_id]?.steps || [],
-        
-        passed_steps: testcase.summary.passed_steps || 0,
-        total_steps: testcase.summary.total_steps || initialResults[testcase.testcase_id]?.steps?.length || 0,
-        screenshot: testcase.summary.screenshot || null
-      };
-    });
-    
-    // Log for debugging
-    console.log("Final execution results:", results);
-    console.log("Test suite summary:", result.summary);
-    console.log("Cancellation flag state:", cancellationRequested);
-    
-    setExecutionResults(results);
-
-    if (result && result.testcases) {
-      const testSuiteResult = {
-        id: Date.now(), 
-        project_id: projectId,
-        testsuite_id: testSuiteId,
-        name: testSuite.title,
-        status: result.summary.status,
-        execution_date: new Date().toISOString(),
-        total_testcases: result.summary.total_cases,
-        passed_testcases: result.summary.passed_cases,
-        failed_testcases: result.summary.total_cases - result.summary.passed_cases,
-        execution_time: result.summary.execution_time || 0
-      };
-      
-      // Get existing test suite results from localStorage
-      const testSuiteResults = JSON.parse(localStorage.getItem('testSuiteResults') || '[]');
-      testSuiteResults.push(testSuiteResult);
-      const latestSuiteResults = testSuiteResults.slice(-10);
-      localStorage.setItem('testSuiteResults', JSON.stringify(latestSuiteResults));
-
-      const testCaseResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
-
-      result.testcases.forEach(testcase => {
-        const testCaseResult = {
-          id: Date.now() + testcase.testcase_id,
-          project_id: projectId,
-          testcase_id: testcase.testcase_id,
-          name: testcase.testcase_name,
-          status: testcase.summary.status === "passed" ? "PASS" : "FAIL",
-          execution_date: new Date().toISOString(),
-          total_steps: testcase.summary.total_steps || 0,
-          passed_steps: testcase.summary.passed_steps || 0,
-          failed_steps: testcase.summary.total_steps - testcase.summary.passed_steps || 0,
-          execution_time: testcase.summary.execution_time || 0
+        detailedResults[testcaseName] = {
+          status: stepSummary.status || 'unknown',
+          summary: {
+            total_steps: stepSummary.total_steps || 0,
+            passed_steps: stepSummary.passed_steps || 0,
+            failed_steps: stepSummary.failed_steps || 0,
+            execution_time: stepSummary.execution_time || 0,
+            status: stepSummary.status || 'unknown'
+          },
+          steps: steps
         };
-        testCaseResults.push(testCaseResult);
       });
-    
-      const latestCaseResults = testCaseResults.slice(-10);
-      localStorage.setItem('testCaseResults', JSON.stringify(latestCaseResults));
+
+      setExecutionResults(detailedResults);
+
+      try {
+        const suiteReportResponse = await fetch("http://127.0.0.1:8000/integrate/suite_report/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            project_name: projectId, 
+            testsuite_name: testSuiteName,
+          }),
+        });
+
+        if (suiteReportResponse.ok) {
+          const suiteReportData = await suiteReportResponse.json();
+          console.log("Suite report response:", suiteReportData);
+        } else {
+          console.error("Failed to fetch test suite report.");
+        }
+      } catch (reportErr) {
+        console.error("Error sending test suite report:", reportErr);
+      }
       
+      try {
+        const testcases = result.results?.testcases || [];
+        const summary = result.results?.summary || {};
+        
+        const testSuiteResult = {
+          id: Date.now(), 
+          project_name: projectId,
+          name: testSuite.title || testSuiteName,
+          status: summary.status || summary.overall_status || 'unknown', // ✅ Fixed
+          execution_date: new Date().toISOString(),
+          total_testcases: summary.total_testcases || testcases.length, // ✅ Fixed
+          passed_testcases: summary.passed_testcases || 0,
+          failed_testcases: (summary.total_testcases || testcases.length) - (summary.passed_testcases || 0), // ✅ Fixed
+          execution_time: summary.execution_time || 0
+        };
+        
+        const testSuiteResults = JSON.parse(localStorage.getItem('testSuiteResults') || '[]');
+        testSuiteResults.push(testSuiteResult);
+        localStorage.setItem('testSuiteResults', JSON.stringify(testSuiteResults.slice(-10)));
+
+        const testCaseResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
+        
+        testcases.forEach((testcase, index) => {
+          const testcaseName = testcase.testcase_name || 
+                              testcase.name || 
+                              `Test-${index + 1}`;
+          
+          const testcaseSummary = testcase.summary || {};
+          
+          const testCaseResult = {
+            id: Date.now() + Math.random() * 1000,
+            project_name: projectId,
+            name: testcaseName,
+            status: testcaseSummary.status === "passed" ? "PASS" : "FAIL",
+            execution_date: new Date().toISOString(),
+            total_steps: testcaseSummary.total_steps || 0,
+            passed_steps: testcaseSummary.passed_steps || 0,
+            failed_steps: (testcaseSummary.total_steps || 0) - (testcaseSummary.passed_steps || 0),
+            execution_time: testcaseSummary.execution_time || 0
+          };
+          testCaseResults.push(testCaseResult);
+        });
+        
+        localStorage.setItem('testCaseResults', JSON.stringify(testCaseResults.slice(-10)));
+        
+      } catch (storageError) {
+        console.error("Error storing results:", storageError);
+      }
     }
-    setTestSuiteSummary({
-      status: result.summary.status,
-      passed_cases: result.summary.passed_cases,
-      total_cases: result.summary.total_cases
-    });
     
+    const apiSummary = result.results?.summary || {};
+    console.log("API Summary received:", apiSummary); // Debug log
+
+    const totalCases = apiSummary.total_testcases || result.results?.testcases?.length || 0;
+    const passedCases = apiSummary.passed_testcases || 0;
+
+    console.log("Parsed values:", { totalCases, passedCases }); // Debug log
+
+    setTestSuiteSummary({
+      status: apiSummary.overall_status || 'unknown',
+      passed_cases: passedCases,
+      total_cases: totalCases,
+      execution_time: apiSummary.execution_time || 0
+    });
+      
   } catch (err) {
     console.error("Error executing test suite:", err);
     setError(`Failed to execute test suite: ${err.message || "Unknown error"}`);
@@ -396,25 +382,6 @@ const handleRunTestSuite = async () => {
     setExecutionResults({});
     setTestSuiteSummary(null);
   };
-
-const fetchTestStepDetails = async (testCaseId) => {
-  try {
-    const response = await fetch(
-      `${apiBaseUrl}/testcases/${testCaseId}/?project_id=${projectId}`
-    );
-    if (!response.ok) throw new Error(`Failed to fetch test case details`);
-    
-    const testCaseData = await response.json();
-    return (testCaseData.steps || []).map(step => ({
-      ...step,
-      name: step.name || step.step_name || `Step ${step.order || step.step_number || 0}`,
-      description: step.description || step.action || step.details || step.step_description || "",
-    }));
-  } catch (err) {
-    console.error(`Error fetching steps for test case ${testCaseId}:`, err);
-    return [];
-  }
-};
 
   const ScreenshotModal = () => {
     if (!expandedScreenshot) return null;
@@ -569,7 +536,7 @@ const fetchTestStepDetails = async (testCaseId) => {
               Edit
             </button>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Title</h3>
@@ -598,6 +565,145 @@ const fetchTestStepDetails = async (testCaseId) => {
       )}
     </div>
   );
+
+  const TestCaseCard = ({ testCase, executionResult }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    return (
+      <div className={`bg-white border rounded-lg overflow-hidden transition-all duration-200 ${
+        executionResult?.status === 'passed' ? 'border-green-400 bg-green-50' : 
+        executionResult?.status === 'failed' ? 'border-red-400 bg-red-50' : 
+        'border-gray-200'
+      }`}>
+        {/* Test Case Header */}
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h3 className="font-medium text-gray-900">{testCase.name}</h3>
+                {executionResult?.status && (
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    executionResult.status === 'passed' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {executionResult.status === 'passed' ? '✅ Passed' : '❌ Failed'}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">
+                Type: {testCase.testcase_type} | Priority: {testCase.testcase_priority}
+              </div>
+              
+              {/* Execution Summary */}
+              {executionResult?.summary && (
+                <div className="flex gap-4 text-xs text-gray-600 mt-2">
+                  <span>Steps: {executionResult.summary.total_steps || 0}</span>
+                  <span>Passed: {executionResult.summary.passed_steps || 0}</span>
+                  <span>Failed: {(executionResult.summary.total_steps || 0) - (executionResult.summary.passed_steps || 0)}</span>
+                  {executionResult.summary.execution_time && (
+                    <span>Time: {executionResult.summary.execution_time}s</span>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Expand/Collapse Button */}
+            {(testCase.steps?.length > 0 || executionResult?.steps?.length > 0) && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-2 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+              >
+                <svg 
+                  className={`w-5 h-5 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Expandable Steps Section */}
+        {isExpanded && (
+          <div className="border-t bg-gray-50">
+            <div className="p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Test Steps</h4>
+              <div className="space-y-2">
+                {(executionResult?.steps || testCase.steps || []).map((step, index) => (
+                  <div 
+                    key={index}
+                    className={`p-3 rounded-md border-l-4 ${
+                      step.teststep_result === "passed" || step.status === "passed"
+                        ? "border-green-400 bg-green-50" 
+                        : step.teststep_result === "failed" || step.status === "failed"
+                        ? "border-red-400 bg-red-50" 
+                        : "border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {(step.teststep_result === "passed" || step.status === "passed") ? (
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        ) : (step.teststep_result === "failed" || step.status === "failed") ? (
+                          <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center">
+                            <span className="text-xs text-gray-600">{index + 1}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900">
+                          {step.step_description || step.description || `Step ${index + 1}`}
+                        </div>
+                        
+                        {step.step_action && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Action: {step.step_action}
+                          </div>
+                        )}
+                        
+                        {step.step_locator && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Locator: {step.step_locator}
+                          </div>
+                        )}
+                        
+                        {step.error && (
+                          <div className="text-xs text-red-600 mt-2 p-2 bg-red-100 rounded">
+                            Error: {step.error}
+                          </div>
+                        )}
+                        
+                        {step.execution_time && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            Execution time: {step.execution_time}s
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
@@ -661,103 +767,25 @@ const fetchTestStepDetails = async (testCaseId) => {
           {activeTab === "testCases" ? (
             <div>
               {loading ? (
-                <div className="p-4 text-center">Loading test cases...</div>
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                  <span className="ml-2 text-gray-600">Loading test cases...</span>
+                </div>
               ) : testCases.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
-                  No test cases in this test suite
+                <div className="text-center p-8 text-gray-500">
+                  <div className="text-lg mb-2">No test cases found</div>
+                  <div className="text-sm">This test suite doesn't contain any test cases yet.</div>
                 </div>
               ) : (
-                <>
-
-                {/*
-                  <div className="flex justify-end mb-4">
-                    <button
-                      onClick={selectAllTestCases}
-                      className="inline-flex items-center text-sm text-gray-600 hover:text-purple-600"
-                      disabled={isExecuting || testCases.length === 0}
-                    >
-                      <CheckSquare className="w-4 h-4 mr-1" />
-                      {selectedTestCases.length === testCases.length && testCases.length > 0 ? 'Unselect All' : 'Select All'}
-                    </button>
-                  </div>
-                  */}
-
-                  <div className="space-y-3">
-                    {testCases.map((testCase) => (
-                      <div
-                        key={testCase.id}
-                        className={`flex items-center gap-4 bg-white border ${
-                          executionResults[testCase.id]?.status === 'running' ? 'border-yellow-400' : 
-                          executionResults[testCase.id]?.status === 'complete' ? 'border-green-400' : 
-                          executionResults[testCase.id]?.status === 'error' ? 'border-red-400' : 'border-gray-200'
-                        } rounded-lg p-4`}
-                      >
-                        {/*
-                        <input
-                          type="checkbox"
-                          checked={selectedTestCases.includes(testCase.id)}
-                          onChange={() => handleTestCaseSelection(testCase.id)}
-                          className="w-4 h-4 text-purple-600 rounded"
-                          disabled={isExecuting || executionInProgress}
-                        />
-                        */}
-
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">{testCase.name}</div>
-                          <div className="text-sm text-gray-500">{testCase.description}</div>
-
-                          {executionResults[testCase.id]?.status === "complete" && (
-                            <div className="mt-2 text-green-600 text-sm font-medium">
-                              ✅ Test case passed successfully
-                            </div>
-                          )}
-                          
-                          {executionResults[testCase.id]?.status === "error" && (
-                            <div className="mt-2 text-red-600 text-sm font-medium">
-                              ❌ Test case failed
-                            </div>
-                          )}
-                          
-                          {executionResults[testCase.id]?.steps?.map((step, index) => (
-                            <div 
-                              key={index} 
-                              className={`text-xs p-1.5 rounded ${
-                                step.status === "passed" ? "bg-green-50 text-green-700" : 
-                                step.status === "failed" ? "bg-red-50 text-red-700" : 
-                                step.status === "running" ? "bg-yellow-50 text-yellow-700" :
-                                "bg-gray-50 text-gray-700"
-                              }`}
-                            >
-                              <div className="flex items-center">
-                                {step.status === "passed" ? (
-                                  <span className="mr-1">✓</span>
-                                ) : step.status === "failed" ? (
-                                  <span className="mr-1">✗</span>
-                                ) : step.status === "running" ? (
-                                  <div className="w-3 h-3 mr-1 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                  <span className="mr-1">•</span>
-                                )}
-                                <span className="font-medium">
-                                  {step.name || `Step ${index + 1}`}
-                                </span>
-                              </div>
-                              <div className="ml-4 mt-1">
-                                {step.description || step.action || step.details || 
-                                (step.status === "passed" ? "Step executed successfully" : 
-                                  step.status === "failed" ? "Step execution failed" : 
-                                  "Awaiting execution")}
-                              </div>
-                              {step.error && <div className="ml-4 mt-1 text-red-600">{step.error}</div>}
-                              {step.execution_time && <div className="ml-4 mt-1 text-gray-500 text-xs">Time: {step.execution_time}s</div>}
-                            </div>
-                          ))}
-
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <div className="space-y-4">
+                  {testCases.map((testCase) => (
+                    <TestCaseCard
+                      key={testCase.testcase_name || testCase.name}
+                      testCase={testCase}
+                      executionResult={executionResults[testCase.testcase_name || testCase.name]}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           ) : (
@@ -767,25 +795,51 @@ const fetchTestStepDetails = async (testCaseId) => {
       </div>
 
       {testSuiteSummary && (
-        <div className="mt-6 p-4 border rounded-lg bg-gray-50">
-          <h3 className="text-lg font-medium mb-2">Test Suite Execution Summary</h3>
-          <div className="grid grid-cols-3 gap-4">
-            <div className={`p-3 rounded-lg ${testSuiteSummary.status === "passed" ? "bg-green-100" : "bg-red-100"}`}>
-              <div className="text-sm text-gray-600">Status</div>
-              <div className={`text-lg font-semibold ${testSuiteSummary.status === "passed" ? "text-green-700" : "text-red-700"}`}>
-                {testSuiteSummary.status === "passed" ? "Passed" : "Failed"}
+        <div className="p-6">
+          <div className="bg-white rounded-lg shadow-sm border max-w-4xl">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Execution Summary</h3>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  testSuiteSummary.status === "passed" 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-red-100 text-red-800"
+                }`}>
+                  {testSuiteSummary.status === "passed" ? "✅ Passed" : "❌ Failed"}
+                </span>
               </div>
-            </div>
-            <div className="p-3 rounded-lg bg-blue-100">
-              <div className="text-sm text-gray-600">Passed Test Cases</div>
-              <div className="text-lg font-semibold text-blue-700">
-                {testSuiteSummary.passed_cases} / {testSuiteSummary.total_cases}
-              </div>
-            </div>
-            <div className="p-3 rounded-lg bg-purple-100">
-              <div className="text-sm text-gray-600">Pass Rate</div>
-              <div className="text-lg font-semibold text-purple-700">
-                {Math.round((testSuiteSummary.passed_cases / testSuiteSummary.total_cases) * 100)}%
+              
+              {/* Compact Row Layout */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-blue-50 p-3 rounded-lg text-center">
+                  <div className="text-xs text-blue-600 font-medium mb-1">Total Cases</div>
+                  <div className="text-xl font-bold text-blue-700">
+                    {testSuiteSummary.total_cases || 0}
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 p-3 rounded-lg text-center">
+                  <div className="text-xs text-green-600 font-medium mb-1">Passed</div>
+                  <div className="text-xl font-bold text-green-700">
+                    {testSuiteSummary.passed_cases || 0}
+                  </div>
+                </div>
+                
+                <div className="bg-red-50 p-3 rounded-lg text-center">
+                  <div className="text-xs text-red-600 font-medium mb-1">Failed</div>
+                  <div className="text-xl font-bold text-red-700">
+                    {(testSuiteSummary.total_cases || 0) - (testSuiteSummary.passed_cases || 0)}
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-3 rounded-lg text-center">
+                  <div className="text-xs text-purple-600 font-medium mb-1">Success Rate</div>
+                  <div className="text-xl font-bold text-purple-700">
+                    {testSuiteSummary.total_cases > 0 
+                      ? Math.round((testSuiteSummary.passed_cases / testSuiteSummary.total_cases) * 100)
+                      : 0}%
+                  </div>
+                </div>
               </div>
             </div>
           </div>

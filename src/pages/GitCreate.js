@@ -156,7 +156,7 @@ const handleCreateTestCase = async () => {
         const selectedSteps = testSteps
         .filter(step => step.isSelected && step.isSaved)
         .map((step, index) => {
-            const stepId = step.id;
+            const stepId = step.step_number;
             
             // Initialize default coordinates
             let coordinates = { click_x: 0, click_y: 0 };

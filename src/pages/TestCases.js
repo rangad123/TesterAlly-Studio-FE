@@ -687,7 +687,7 @@ const handleRowClick = (testCase) => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredTestCases.map((testCase) => (
-                      <tr key={testCase.id} className="hover:bg-gray-50">
+                      <tr key={testCase.testcase_name} className="hover:bg-gray-50">
                         
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer hover:text-purple-600" onClick={() => handleRowClick(testCase)} >
                           {testCase.testcase_name}

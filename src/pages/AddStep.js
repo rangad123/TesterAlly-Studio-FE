@@ -2,8 +2,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Plus, X, Camera, Info, Check } from "lucide-react";
 
-const AddStep = ({ 
-  testCaseId, 
+const AddStep = ({  
+  testCaseName,        
+  projectName, 
   steps, 
   fetchSteps, 
   apiBaseUrl, 
@@ -36,8 +37,7 @@ const AddStep = ({
   const [browserTabs, setBrowserTabs] = useState([]);
   const [showBrowserTabsModal, setShowBrowserTabsModal] = useState(false);
   const [tabsLoading, setTabsLoading] = useState(false);
-  const [currentStepId, setCurrentStepId] = useState(null);
-  const [ , setCurrentStepNumber] = useState(null);
+  const [CurrentStepNumber, setCurrentStepNumber] = useState(null);
   const [showWaitModal, setShowWaitModal] = useState(false);
   
   const inputRef = useRef(null);
@@ -45,13 +45,13 @@ const AddStep = ({
   useEffect(() => {
     const loadCapturedElements = () => {
       try {
-        const storedElements = sessionStorage.getItem(`capturedElements_${testCaseId}`);
+        const storedElements = sessionStorage.getItem(`capturedElements_${testCaseName}`);
         if (storedElements) {
           const parsedElements = JSON.parse(storedElements);
           setAllCapturedElements(parsedElements);
           
           // Also populate capturedSteps with any stored screenshots
-          const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${testCaseId}`);
+          const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${testCaseName}`);
           if (storedScreenshots) {
             const parsedScreenshots = JSON.parse(storedScreenshots);
             setCapturedSteps(parsedScreenshots);
@@ -64,7 +64,7 @@ const AddStep = ({
           }
           
           // Load original capture IDs
-          const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${testCaseId}`);
+          const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${testCaseName}`);
           if (storedOriginalIds) {
             setOriginalCaptureIds(JSON.parse(storedOriginalIds));
           }
@@ -75,23 +75,22 @@ const AddStep = ({
     };
     
     loadCapturedElements();
-  }, [testCaseId]);
+  }, [testCaseName]);
   
   useEffect(() => {
     if (Object.keys(originalCaptureIds).length > 0) {
-      sessionStorage.setItem(`originalCaptureIds_${testCaseId}`, JSON.stringify(originalCaptureIds));
+      sessionStorage.setItem(`originalCaptureIds_${testCaseName}`, JSON.stringify(originalCaptureIds));
     }
-  }, [originalCaptureIds, testCaseId]);
+  }, [originalCaptureIds, testCaseName]);
 
   useEffect(() => {
     if (Object.keys(capturedSteps).length > 0) {
-      sessionStorage.setItem(`capturedScreenshots_${testCaseId}`, JSON.stringify(capturedSteps));
+      sessionStorage.setItem(`capturedScreenshots_${testCaseName}`, JSON.stringify(capturedSteps));
     }
-  }, [capturedSteps, testCaseId]);
+  }, [capturedSteps, testCaseName]);
 
-  const handleCaptureElement = async (stepId, stepNumber) => {
-    setTabsLoading(true);
-    setCurrentStepId(stepId);
+  const handleCaptureElement = async (stepNumber) => {
+    setTabsLoading(true)
     setCurrentStepNumber(stepNumber);
     
     try {
@@ -123,7 +122,7 @@ const AddStep = ({
   };
   
   const handleTabSelection = async (tab) => {
-    setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
+    setCaptureLoading(prev => ({ ...prev, [CurrentStepNumber]: true }));
     setShowBrowserTabsModal(false);
     
     try {
@@ -164,34 +163,34 @@ const AddStep = ({
       // Update capturedSteps
       setCapturedSteps(prev => ({
         ...prev,
-        [currentStepId]: capturedStepData
+        [CurrentStepNumber]: capturedStepData
       }));
       
       // Update allCapturedElements for suggestions
       setAllCapturedElements(prev => ({
         ...prev,
-        [currentStepId]: capturedStepData.elements
+        [CurrentStepNumber]: capturedStepData.elements
       }));
       
       // This is an original capture - set itself as the original
       setOriginalCaptureIds(prev => ({
         ...prev, 
-        [currentStepId]: currentStepId
+        [CurrentStepNumber]: CurrentStepNumber
       }));
       
       // Save the data to session storage
-      sessionStorage.setItem(`capturedScreenshots_${testCaseId}`, 
-        JSON.stringify({...capturedSteps, [currentStepId]: capturedStepData}));
-      sessionStorage.setItem(`capturedElements_${testCaseId}`,
-        JSON.stringify({...allCapturedElements, [currentStepId]: capturedStepData.elements}));
+      sessionStorage.setItem(`capturedScreenshots_${testCaseName}`, 
+        JSON.stringify({...capturedSteps, [CurrentStepNumber]: capturedStepData}));
+      sessionStorage.setItem(`capturedElements_${testCaseName}`,
+        JSON.stringify({...allCapturedElements, [CurrentStepNumber]: capturedStepData.elements}));
       
       // Update last captured step ID
-      setLastCapturedStepId(currentStepId);
+      setLastCapturedStepId(CurrentStepNumber);
     } catch (error) {
       console.error('Tab processing error:', error);
       setError("Failed to process browser tab. Please try again.");
     } finally {
-      setCaptureLoading(prev => ({ ...prev, [currentStepId]: false }));
+      setCaptureLoading(prev => ({ ...prev, [CurrentStepNumber]: false }));
     }
   };
   
@@ -231,167 +230,164 @@ const handleCommandInputChange = (e) => {
   }
 };
   
-const handleEditCommandInput = (stepId, stepDescription, commandType) => {
-  setEditingStepId(stepId);
+const handleEditCommandInput = (stepNumber, stepDescription, commandType) => {
+  // Set the editing step ID to the step_number since that's your identifier
+  setEditingStepId(stepNumber);
   setCommandType(commandType);
 
-  console.log("edit command",commandType)
+  console.log("edit command", commandType, "for step:", stepNumber);
 
-  const step = steps.find(s => s.id === stepId);
-  if (!step) return;
+  const step = steps.find(s => s.step_number === stepNumber);
+  if (!step) {
+    console.log("Step not found:", stepNumber);
+    return;
+  }
 
   const words = stepDescription.trim().split(' ');
 
   if (['click', 'type', 'verify', 'get'].includes(commandType)) {
+    console.log("🔥 Should show suggestions - setting showSuggestions to true");
     setShowSuggestions(true);
-    fetchElementSuggestions(commandType, stepDescription, words);
-
+    fetchElementSuggestions(commandType, stepDescription, words, stepNumber);
   } else if (commandType === 'wait') {
     setShowWaitModal(true);
   }
 };
 
-  const fetchElementSuggestions = (command, inputValue, words) => {
-
-    console.log(`Current editing step ID: ${editingStepId}`);
-
-    const relevantStepNumber = editingStepId 
-      ? steps.find(s => s.id === editingStepId)?.step_number
-      : insertingAfterStep;
-      
-    if (!relevantStepNumber) return;
-    
-    console.log(`Fetching suggestions for ${command} command, step: ${relevantStepNumber}`);
-    
-    // Step 1: Determine which capture data to use
-    let stepId = null;
-    
-    if (editingStepId) {
-      // If editing, try to use the step's own capture data first
-      stepId = editingStepId;
-      console.log("Editing mode - using step ID:", stepId);
-    } else {
-      // If inserting after, find the step we're inserting after
-      const insertAfterStep = steps.find(s => s.step_number === insertingAfterStep);
-      if (insertAfterStep) {
-        stepId = insertAfterStep.id;
-        console.log("Insert mode - using step ID:", stepId);
-      }
-    }
-    
-    // Find the relevant capture data
-    let relevantCaptureStepId = null;
-    let relevantElements = [];
-    
-    if (stepId && capturedSteps[stepId]) {
-      // Case: Step has its own capture
-      relevantCaptureStepId = stepId;
-      console.log("Using elements from current step:", relevantCaptureStepId);
-    } else if (stepId) {
-      // Case: Step doesn't have its own capture, find its reference
-      relevantCaptureStepId = originalCaptureIds[stepId];
-      console.log("Using elements from reference step:", relevantCaptureStepId);
-    }
-/*
-       // If we still don't have a relevant capture
-      if (!relevantCaptureStepId) {
-        const allSteps = [...steps].sort((a, b) => {
-          // First try to find steps with captures
-          const aHasCapture = capturedSteps[a.id] ? 1 : 0;
-          const bHasCapture = capturedSteps[b.id] ? 1 : 0;
-          
-          if (aHasCapture !== bHasCapture) {
-            return bHasCapture - aHasCapture; // Prioritize steps with captures
-          }
-          
-          // Then apply proximity logic - steps closest to the relevant step
-          // (either before or after) are prioritized 
-          return Math.abs(a.step_number - relevantStepNumber) - Math.abs(b.step_number - relevantStepNumber);
-        });
-        
-        // Find the closest step with a capture
-        for (const step of allSteps) {
-          if (capturedSteps[step.id]) {
-            relevantCaptureStepId = step.id;
-            console.log("Using elements from closest step:", relevantCaptureStepId, "step number:", step.step_number);
-            break;
-          }
-        }
-
-        // If that fails, fall back to last captured step
-        if (!relevantCaptureStepId && lastCapturedStepId) {
-          relevantCaptureStepId = lastCapturedStepId;
-          console.log("Fallback: Using last captured step:", relevantCaptureStepId);  
-        }
-      }
-      
-      // Now use only the relevant elements for filtering
-      if (relevantCaptureStepId && allCapturedElements[relevantCaptureStepId]) {
-        relevantElements = allCapturedElements[relevantCaptureStepId];
-      }   
-*/    
-    // If we still don't have a relevant capture, find the last captured step before this one
-    if (!relevantCaptureStepId) {
-      const stepsBeforeInsertion = steps
-        .filter(s => s.step_number <= relevantStepNumber)
-        .sort((a, b) => b.step_number - a.step_number); // Descending order
-        
-      for (const step of stepsBeforeInsertion) {
-        if (capturedSteps[step.id]) {
-          relevantCaptureStepId = step.id;
-          console.log("Using elements from previous step:", relevantCaptureStepId);
-          break;
-        }
-      }
-    }
-    
-    // If we found a relevant step with captured elements, use those
-    if (relevantCaptureStepId && allCapturedElements[relevantCaptureStepId]) {
-      relevantElements = allCapturedElements[relevantCaptureStepId];
-    } else {
-      // Fallback: If no specific step found, use the most recent capture overall
-      console.log("No specific capture found, using last captured data");
-      if (lastCapturedStepId && allCapturedElements[lastCapturedStepId]) {
-        relevantElements = allCapturedElements[lastCapturedStepId];
-      }
-    }
-    
-    // Now use only the relevant elements for filtering
-    let allElements = Array.isArray(relevantElements) ? [...relevantElements] : [];
-    console.log("Using elements for suggestions:", allElements.length);
-    
-    let filtered = [];
+const fetchElementSuggestions = (command, inputValue, words, currentStepNumber = null) => {
+  // Use the passed stepNumber or fall back to editingStepId
+  const relevantStepNumber = currentStepNumber || editingStepId || insertingAfterStep;
   
-    if (command === "click") {
-      filtered = allElements.filter(el => el.interactivity === true)
-        .map(el => {
-          // Normalize coordinates
-          let coordinates;
-          
-          if (el.click_point && Array.isArray(el.click_point)) {
-            coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
-          } else if (el.coordinates) {
-            if (Array.isArray(el.coordinates)) {
-              coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
-            } else {
-              coordinates = [
-                parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
-                parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
-              ];
-            }
+  console.log(`Fetching suggestions for ${command} command, step: ${relevantStepNumber}`);
+  
+  if (!relevantStepNumber) {
+    console.log("No relevant step number found");
+    return;
+  }
+  
+  // Step 1: Determine which capture data to use
+  let stepIdentifier = null;
+  
+  if (currentStepNumber || editingStepId) {
+    // If editing, use the step number as identifier
+    stepIdentifier = currentStepNumber || editingStepId;
+    console.log("Editing mode - using step number:", stepIdentifier);
+  } else {
+    // If inserting after, find the step we're inserting after
+    stepIdentifier = insertingAfterStep;
+    console.log("Insert mode - using step number:", stepIdentifier);
+  }
+  
+  // Find the relevant capture data
+  let relevantCaptureStepId = null;
+  let relevantElements = [];
+  
+  // Since you're using step_number as the identifier, check if this step has capture data
+  if (stepIdentifier && capturedSteps[stepIdentifier]) {
+    // Case: Step has its own capture
+    relevantCaptureStepId = stepIdentifier;
+    console.log("Using elements from current step:", relevantCaptureStepId);
+  } else if (stepIdentifier) {
+    // Case: Step doesn't have its own capture, find its reference
+    relevantCaptureStepId = originalCaptureIds[stepIdentifier];
+    console.log("Using elements from reference step:", relevantCaptureStepId);
+  }
+  
+  // If we still don't have a relevant capture, find the last captured step before this one
+  if (!relevantCaptureStepId) {
+    const stepsBeforeInsertion = steps
+      .filter(s => s.step_number <= relevantStepNumber)
+      .sort((a, b) => b.step_number - a.step_number); // Descending order
+      
+    for (const step of stepsBeforeInsertion) {
+      // Check using step_number as the key since that's your identifier
+      if (capturedSteps[step.step_number]) {
+        relevantCaptureStepId = step.step_number;
+        console.log("Using elements from previous step:", relevantCaptureStepId);
+        break;
+      }
+    }
+  }
+  
+  // If we found a relevant step with captured elements, use those
+  if (relevantCaptureStepId && allCapturedElements[relevantCaptureStepId]) {
+    relevantElements = allCapturedElements[relevantCaptureStepId];
+  } else {
+    // Fallback: If no specific step found, use the most recent capture overall
+    console.log("No specific capture found, using last captured data");
+    if (lastCapturedStepId && allCapturedElements[lastCapturedStepId]) {
+      relevantElements = allCapturedElements[lastCapturedStepId];
+    }
+  }
+  
+  // Now use only the relevant elements for filtering
+  let allElements = Array.isArray(relevantElements) ? [...relevantElements] : [];
+  console.log("Using elements for suggestions:", allElements.length);
+  
+  let filtered = [];
+
+  if (command === "click") {
+    filtered = allElements.filter(el => el.interactivity === true)
+      .map(el => {
+        // Normalize coordinates
+        let coordinates;
+        
+        if (el.click_point && Array.isArray(el.click_point)) {
+          coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
+        } else if (el.coordinates) {
+          if (Array.isArray(el.coordinates)) {
+            coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
+          } else {
+            coordinates = [
+              parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
+              parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
+            ];
           }
-          
-          return {
-            ...el,
-            click_point: coordinates || [0, 0]
-          };
-        });
-    } else if (command === "type") {
-      // Fix: Include elements that can receive input, not just text and icon
-      filtered = allElements.filter(el => 
-        el.type === "text" ||
-        el.interactivity === true
-      ).map(el => {
+        }
+        
+        return {
+          ...el,
+          click_point: coordinates || [0, 0]
+        };
+      });
+  } else if (command === "type") {
+    // Include elements that can receive input
+    filtered = allElements.filter(el => 
+      el.type === "text" ||
+      el.interactivity === true
+    ).map(el => {
+      // Normalize coordinates
+      let coordinates;
+      
+      if (el.click_point && Array.isArray(el.click_point)) {
+        coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+      } else if (el.coordinates) {
+        if (Array.isArray(el.coordinates)) {
+          coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+        } else {
+          coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+        }
+      }
+      
+      return {
+        ...el,
+        click_point: coordinates || [0, 0]
+      };
+    });
+    
+    // For "type" command, check for text after "in" if present
+    if (inputValue.includes(" in ")) {
+      const afterIn = inputValue.split(" in ")[1].trim().toLowerCase();
+      if (afterIn) {
+        filtered = filtered.filter(el => 
+          (el.name && el.name.toLowerCase().includes(afterIn)) || 
+          (el.text && el.text.toLowerCase().includes(afterIn))
+        );
+      }
+    }
+  } else if (command === "verify" || command === "get") {
+    filtered = allElements.filter(el => el.type === "text" || el.type === "textarea" || el.text)
+      .map(el => {
         // Normalize coordinates
         let coordinates;
         
@@ -410,110 +406,79 @@ const handleEditCommandInput = (stepId, stepDescription, commandType) => {
           click_point: coordinates || [0, 0]
         };
       });
-      
-      // For "type" command, we need to check for text after "in" if present
-      if (inputValue.includes(" in ")) {
-        const afterIn = inputValue.split(" in ")[1].trim().toLowerCase();
-        if (afterIn) {
-          filtered = filtered.filter(el => 
-            (el.name && el.name.toLowerCase().includes(afterIn)) || 
-            (el.text && el.text.toLowerCase().includes(afterIn))
-          );
+  }
+  
+  // For commands other than "type", or if "in" is not present in type command
+  if (words.length > 1 && (!inputValue.includes(" in ") || command !== "type")) {
+    const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+    if (searchTerm) {
+      filtered = filtered.filter(el => 
+        (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+        (el.text && el.text.toLowerCase().includes(searchTerm))
+      );
+    }
+  }
+  
+  // Remove duplicates based on element text or name
+  const uniqueElements = [];
+  const uniqueKeys = new Set();
+  
+  filtered.forEach(el => {
+    const key = (el.name || '') + (el.text || '');
+    if (!uniqueKeys.has(key)) {
+      uniqueKeys.add(key);
+      uniqueElements.push(el);
+    }
+  });
+  
+  // Limited to 20 results
+  const finalResults = uniqueElements.slice(0, 20);
+  
+  if (finalResults.length === 0 && allElements.length > 0) {
+    // If no specific matches, fall back to a few interactive elements
+    const fallbackResults = allElements
+      .filter(el => el.interactivity === true)
+      .map(el => {
+        // Normalize coordinates
+        let coordinates;
+        
+        if (el.click_point && Array.isArray(el.click_point)) {
+          coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+        } else if (el.coordinates) {
+          if (Array.isArray(el.coordinates)) {
+            coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+          } else {
+            coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+          }
         }
-      }
-    } else if (command === "verify" || command === "get") {
-      filtered = allElements.filter(el => el.type === "text" || el.type === "textarea" || el.text)
-        .map(el => {
-          // Normalize coordinates
-          let coordinates;
-          
-          if (el.click_point && Array.isArray(el.click_point)) {
-            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
-          } else if (el.coordinates) {
-            if (Array.isArray(el.coordinates)) {
-              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
-            } else {
-              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
-            }
-          }
-          
-          return {
-            ...el,
-            click_point: coordinates || [0, 0]
-          };
-        });
-    }
+        
+        return {
+          ...el,
+          click_point: coordinates || [0, 0]
+        };
+      })
+      .slice(0, 5);
     
-    // For commands other than "type", or if "in" is not present in type command
-    if (words.length > 1 && (!inputValue.includes(" in ") || command !== "type")) {
-      const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
-      if (searchTerm) {
-        filtered = filtered.filter(el => 
-          (el.name && el.name.toLowerCase().includes(searchTerm)) || 
-          (el.text && el.text.toLowerCase().includes(searchTerm))
-        );
-      }
-    }
-    
-    // Remove duplicates based on element text or name
-    const uniqueElements = [];
-    const uniqueKeys = new Set();
-    
-    filtered.forEach(el => {
-      const key = (el.name || '') + (el.text || '');
-      if (!uniqueKeys.has(key)) {
-        uniqueKeys.add(key);
-        uniqueElements.push(el);
-      }
-    });
-    
-    // Limited to 20 results
-    const finalResults = uniqueElements.slice(0, 20);
-    
-    if (finalResults.length === 0 && allElements.length > 0) {
-      // If no specific matches, fall back to a few interactive elements
-      const fallbackResults = allElements
-        .filter(el => el.interactivity === true)
-        .map(el => {
-          // Normalize coordinates
-          let coordinates;
-          
-          if (el.click_point && Array.isArray(el.click_point)) {
-            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
-          } else if (el.coordinates) {
-            if (Array.isArray(el.coordinates)) {
-              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
-            } else {
-              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
-            }
-          }
-          
-          return {
-            ...el,
-            click_point: coordinates || [0, 0]
-          };
-        })
-        .slice(0, 5);
-      
-      console.log("No specific matches, using fallback elements:", fallbackResults);
-      setCommandSuggestions(fallbackResults);
-    } else {
-      console.log("Filtered elements:", finalResults);
-      setCommandSuggestions(finalResults);
-    }
-  };
+    console.log("No specific matches, using fallback elements:", fallbackResults);
+    setCommandSuggestions(fallbackResults);
+  } else {
+    console.log("Filtered elements:", finalResults);
+    setCommandSuggestions(finalResults);
+  }
+};
 
 const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => {
-
   const stepDescription = waitCommandOverride || newInsertedStepValue.trim();
 
-  if (!newInsertedStepValue.trim()) {
+  if (!stepDescription.trim()) {
     setError("Step description cannot be empty");
     return;
   }
+  
   setInsertingLoading(true);
   
   try {
+    const userId = localStorage.getItem("userId");
     const newStepNumber = afterStepNumber + 1;
     
     let coordinates = { click_x: 0, click_y: 0 };
@@ -535,7 +500,7 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       }
     }
 
-    const words = newInsertedStepValue.trim().split(' ');
+    const words = stepDescription.trim().split(' ');
     const actionType = words[0].toLowerCase();
     
     if ((actionType === 'click' || actionType === 'type' || actionType === 'verify' || actionType === 'get') && !selectedElement) {
@@ -543,150 +508,49 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       return;
     }
 
+    // Use the new API endpoint with correct payload structure
     const payload = {
-      testcase_id: parseInt(testCaseId),
-      step_number: newStepNumber,
-      step_description: stepDescription,
-      step_coordinates: coordinates,
-      teststep_result: "not_executed"
+      user_id: parseInt(userId),
+      project_name: projectName,
+      testcase_name: testCaseName,
+      steps: [
+        {
+          step_number: newStepNumber,
+          step_description: stepDescription,
+          teststep_result: "not_executed",
+          step_coordinates: coordinates
+        }
+      ]
     };
     
     console.log("Insert Step Payload:", payload);    
     
-    const response = await fetch(`${apiBaseUrl}/teststeps/insert-step/`, {
+    const response = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to add step");
     }
     
-    // Get the created step ID from the response
-    const responseData = await response.json();
-    const newStepId = responseData.id || null;
+    // The new API should handle step number reordering automatically
+    // So we don't need to manually update other step numbers
     
-    // Handle reference capture data if needed
-    if (newStepId) {
-      // Find the appropriate reference step ID - the previous step with capture data
-      const afterStepId = steps.find(s => s.step_number === afterStepNumber)?.id;
-      let referenceCaptureStepId = null;
-      
-      if (afterStepId && capturedSteps[afterStepId]) {
-        // Use the capture from the step we're inserting after
-        referenceCaptureStepId = afterStepId;
-      } else if (afterStepId && originalCaptureIds[afterStepId]) {
-        // Use the original capture the previous step references
-        referenceCaptureStepId = originalCaptureIds[afterStepId];
-      } else {
-        // Find the last step with a capture before this position
-        const stepsBeforeInsertion = steps
-          .filter(s => s.step_number <= afterStepNumber)
-          .sort((a, b) => b.step_number - a.step_number);
-          
-        for (const step of stepsBeforeInsertion) {
-          if (capturedSteps[step.id]) {
-            referenceCaptureStepId = step.id;
-            break;
-          }
-        }
-      }
-      
-      // If we have a reference step with capture data
-      if (referenceCaptureStepId && capturedSteps[referenceCaptureStepId]) {
-        const referenceData = capturedSteps[referenceCaptureStepId];
-        
-        // Create a new entry for this step using the reference data
-        const newStepCaptureData = {
-          ...referenceData,
-          coordinates: coordinates,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Update captured steps with reference to the original
-        setCapturedSteps(prev => ({
-          ...prev,
-          [newStepId]: newStepCaptureData
-        }));
-        
-        // Track the original capture ID this step is using
-        const originalId = originalCaptureIds[referenceCaptureStepId] || referenceCaptureStepId;
-        setOriginalCaptureIds(prev => ({
-          ...prev,
-          [newStepId]: originalId
-        }));
-        
-        // Also update allCapturedElements to include this reference
-        if (allCapturedElements[referenceCaptureStepId]) {
-          setAllCapturedElements(prev => ({
-            ...prev,
-            [newStepId]: allCapturedElements[referenceCaptureStepId]
-          }));
-        }
-      }
-      
-      // Handle the temporary step ID case from handleSuggestionClick
-      if (selectedElement && selectedElement.tempStepId) {
-        const tempStepId = selectedElement.tempStepId;
-        if (capturedSteps[tempStepId]) {
-          // Update captured steps with the real ID
-          const capturedData = capturedSteps[tempStepId];
-          setCapturedSteps(prev => {
-            const updated = {...prev};
-            delete updated[tempStepId];
-            updated[newStepId] = capturedData;
-            return updated;
-          });
-          
-          // Update original capture IDs
-          const originalId = originalCaptureIds[tempStepId];
-          if (originalId) {
-            setOriginalCaptureIds(prev => {
-              const updated = {...prev};
-              delete updated[tempStepId];
-              updated[newStepId] = originalId;
-              return updated;
-            });
-          }
-          
-          // Also update all captured elements
-          if (allCapturedElements[tempStepId]) {
-            setAllCapturedElements(prev => {
-              const updated = {...prev};
-              delete updated[tempStepId];
-              updated[newStepId] = allCapturedElements[tempStepId];
-              return updated;
-            });
-          }
-        }
-      }
-    }
+    // Refresh the steps to get the updated list
+    await fetchSteps(testCaseName, projectName);
     
-    // Update step numbers for all subsequent steps
-    const stepsToUpdate = steps.filter(step => step.step_number >= newStepNumber);
-    const updatePromises = stepsToUpdate.map(async (step) => {
-      const response = await fetch(`${apiBaseUrl}/teststeps/${step.id}/`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testcase: testCaseId,
-          step_number: step.step_number + 1,
-          step_description: step.step_description
-        })
-      });
-      return response.ok;
-    });
-
-    await Promise.all(updatePromises);
-    await fetchSteps();
+    // Reset form state
     setNewInsertedStepValue("");
     setInsertingAfterStep(null);
     setShowSuggestions(false);
     setSelectedElement(null);
     setCommandType("");
     setError(null);
+
+    console.log("Step inserted successfully");
 
   } catch (err) {
     setError("Failed to insert step. Please try again.");
@@ -831,11 +695,12 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
     setEditingStepId(null);
   };
 
-const renderEditSuggestions = (stepId, setEditValue) => {
-  // Check if we're in edit mode for this specific step and suggestions should be shown
-  if (!showSuggestions || editingStepId !== stepId) return null;
+const renderEditSuggestions = (stepNumber, setEditValue) => {
+  const currentStep = steps.find(s => s.step_number === stepNumber);
+  // Fixed: Compare with stepNumber instead of currentStep.id
+  if (!currentStep || !showSuggestions || editingStepId !== stepNumber) return null;
   
-  console.log(`Rendering suggestions for step ${stepId}, found ${commandSuggestions.length} suggestions`);
+  console.log(`Rendering suggestions for step ${stepNumber}, found ${commandSuggestions.length} suggestions`);
   
   return (
     <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-50">
@@ -845,14 +710,16 @@ const renderEditSuggestions = (stepId, setEditValue) => {
         commandSuggestions.map((element, index) => (
           <div 
             key={index}
-            onClick={() => {
-              // Similar to handleSuggestionClick but for edit mode
+              onClick={() => {
+              // Using step_number as identifier since no DB id exists
+              if (!currentStep) return;
+              
               let updatedStep = '';
               
               if (commandType === 'click') {
                 updatedStep = `click ${element.name || element.text || 'element'}`;
               } else if (commandType === 'type') {
-                const currentText = document.querySelector(`[data-step-id="${stepId}"]`)?.value || '';
+                const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
                 const inIndex = currentText.toLowerCase().indexOf(' in ');
                 if (inIndex !== -1) {
                   const textToType = currentText.substring(5, inIndex).trim();
@@ -876,7 +743,7 @@ const renderEditSuggestions = (stepId, setEditValue) => {
               // Save the selected element coordinates for this step
               setSelectedElement(element);
               
-              // Process coordinates from the suggestion (similar to handleSuggestionClick)
+              // Process coordinates from the suggestion
               let coordinates = null;
               
               if (element.click_point && Array.isArray(element.click_point)) {
@@ -898,9 +765,12 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                 }
               }
               
-              // If we have coordinates and a valid captured step, update with new coordinates
+              // If we have coordinates, update captured steps with new coordinates
               if (coordinates) {
+                // Use step_number as identifier since no DB id exists
+                const stepId = stepNumber;
                 const relevantCaptureId = originalCaptureIds[stepId] || stepId;
+                
                 if (capturedSteps[relevantCaptureId]) {
                   const updatedCaptureData = {
                     ...capturedSteps[relevantCaptureId],
@@ -911,6 +781,8 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                     ...prev,
                     [stepId]: updatedCaptureData
                   }));
+                  
+                  console.log(`Updated coordinates for step ${stepId}:`, coordinates);
                 }
               }
               
@@ -964,28 +836,28 @@ const renderEditSuggestions = (stepId, setEditValue) => {
   };
 
   const renderStepActions = (step) => {
-    if (isExecuting || executionResults[step.id]) {
+    if (isExecuting || executionResults[step.step_number]) {
       return null;
     }
   
-    const hasCapture = !!capturedSteps[step.id];
-    const originalCaptureId = originalCaptureIds[step.id];
-    const isOriginalCapture = !originalCaptureId || originalCaptureId === step.id;
+    const hasCapture = !!capturedSteps[step.step_number];
+    const originalCaptureId = originalCaptureIds[step.step_number];
+    const isOriginalCapture = !originalCaptureId || originalCaptureId === step.step_number;
   
     return (
       <>
-        {hoveredStep === step.id && (
+        {hoveredStep === step.step_number && (
           <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
             
             {/* Show Camera icon only before original capture */}
             {(!hasCapture || !isOriginalCapture) && (
               <button
-                onClick={() => handleCaptureElement(step.id, step.step_number)}
+                onClick={() => handleCaptureElement(step.step_number)}
                 className="p-1.5 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-full transition-colors"
                 title="Capture Element"
-                disabled={captureLoading[step.id]}
+                disabled={captureLoading[step.step_number]}
               >
-                {captureLoading[step.id] ? (
+                {captureLoading[step.step_number] ? (
                   <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <Camera size={16} />
@@ -996,12 +868,12 @@ const renderEditSuggestions = (stepId, setEditValue) => {
             {/* Show Refresh icon only if original capture exists */}
             {hasCapture && isOriginalCapture && (
               <button
-                onClick={() => handleCaptureElement(step.id, step.step_number)}
+                onClick={() => handleCaptureElement(step.step_number)}
                 className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-full transition-colors"
                 title="Recapture Element"
-                disabled={captureLoading[step.id]}
+                disabled={captureLoading[step.step_number]}
               >
-                {captureLoading[step.id] ? (
+                {captureLoading[step.step_number] ? (
                   <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1100,14 +972,14 @@ const renderEditSuggestions = (stepId, setEditValue) => {
 
       try {
         // Find the step being edited
-        const stepToEdit = steps.find(s => s.id === editingStepId);
+        const stepToEdit = steps.find(s => s.step_number === editingStepId);
         if (!stepToEdit) {
           throw new Error("Step not found");
         }
         
         // Prepare the update payload
         const payload = {
-          testcase: testCaseId,
+          testcase: testCaseName,
           step_number: stepToEdit.step_number,
           step_description: waitCommand
         };
@@ -1349,20 +1221,20 @@ const renderEditSuggestions = (stepId, setEditValue) => {
 
   const renderStepContent = (step) => {
     // Get the original capture ID for this step (if any)
-    const originalCaptureId = originalCaptureIds[step.id];
-    const isOriginalCapture = !originalCaptureId || originalCaptureId === step.id;
+    const originalCaptureId = originalCaptureIds[step.step_number];
+    const isOriginalCapture = !originalCaptureId || originalCaptureId === step.step_number;
   
     return (
       <>
         {/* Capture loading message */}
-        {captureLoading[step.id] && (
+        {captureLoading[step.step_number] && (
           <div className="mt-3 ml-12 text-sm p-3 rounded text-blue-700">
             Capture is loading... Please open your test page.
           </div>
         )}
   
         {/* Screenshot capture notification */}
-        {capturedSteps[step.id] && !captureLoading[step.id] && (
+        {capturedSteps[step.step_number] && !captureLoading[step.step_number] && (
           <div className="mt-3 ml-12 mb-3">
             <div className="flex items-center justify-between bg-green-50 border border-green-200 p-2 rounded">
               <div className="flex items-center">
@@ -1379,13 +1251,13 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                 <div className="flex items-center">
                   <button
                     onClick={() => {
-                      setScreenshotVisible(prev => ({...prev, [step.id]: !prev[step.id]}));
-                      setScreenshotDirection(screenshotVisible[step.id] ? 'down' : 'up');
+                      setScreenshotVisible(prev => ({...prev, [step.step_number]: !prev[step.step_number]}));
+                      setScreenshotDirection(screenshotVisible[step.step_number] ? 'down' : 'up');
                     }}
                     className="text-green-600 hover:text-green-800 p-1 rounded"
-                    title={screenshotVisible[step.id] ? "Hide screenshot" : "Show screenshot"}
+                    title={screenshotVisible[step.step_number] ? "Hide screenshot" : "Show screenshot"}
                   >
-                    {screenshotVisible[step.id] ? (
+                    {screenshotVisible[step.step_number] ? (
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="18 15 12 9 6 15"></polyline>
                       </svg>
@@ -1396,7 +1268,7 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                     )}
                   </button>
                   <button
-                    onClick={() => handleExpandScreenshot(capturedSteps[step.id].screenshot)}
+                    onClick={() => handleExpandScreenshot(capturedSteps[step.step_number].screenshot)}
                     className="text-green-600 hover:text-green-800 p-1 rounded ml-1"
                     title="Expand screenshot"
                   >
@@ -1408,7 +1280,7 @@ const renderEditSuggestions = (stepId, setEditValue) => {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleCaptureElement(step.id, step.step_number)}
+                    onClick={() => handleCaptureElement( step.step_number)}
                     className="text-blue-600 hover:text-blue-800 p-1 rounded ml-1"
                     title="Recapture screenshot"
                   >
@@ -1421,15 +1293,15 @@ const renderEditSuggestions = (stepId, setEditValue) => {
             </div>
             
             {/* Only show screenshot preview for original captures */}
-            {isOriginalCapture && screenshotVisible[step.id] && (
+            {isOriginalCapture && screenshotVisible[step.step_number] && (
               <div className={`mt-2 flex justify-center transition-all duration-300 ${
                 screenshotDirection === 'down' ? 'animate-slideInDown' : 'animate-slideInUp'
               }`}>
                 <img 
-                  src={capturedSteps[step.id].screenshot}
+                  src={capturedSteps[step.step_number].screenshot}
                   alt="Captured screenshot"
                   className="max-h-64 object-contain border border-gray-200 rounded cursor-pointer"
-                  onClick={() => handleExpandScreenshot(capturedSteps[step.id].screenshot)}
+                  onClick={() => handleExpandScreenshot(capturedSteps[step.step_number].screenshot)}
                 />
               </div>
             )}

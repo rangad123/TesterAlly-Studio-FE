@@ -58,7 +58,7 @@ const RequirementTypes = () => {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/requirement-types/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/requirement-types/`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -72,6 +72,7 @@ const RequirementTypes = () => {
         }
 
         const data = await response.json();
+        
         setTypes(data);
       } catch (error) {
         setError(error.message || "Failed to fetch requirement types");

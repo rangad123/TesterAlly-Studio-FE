@@ -49,54 +49,72 @@ const Reports = () => {
     return () => window.removeEventListener("projectChanged", handleProjectChange);
   }, []);
 
-  const fetchTestResults = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      if (!selectedProject?.id) {
-        throw new Error("No project selected");
-      }
+const fetchTestResults = React.useCallback(async () => {
+  setLoading(true);
+  try {
+    // Get localStorage data directly
+    const localStorageKey = activeTab === "suites" ? 'testSuiteResults' : 'testCaseResults';
+    const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+    
+    // Filter by date range first
+    const dateFilteredData = localData.filter(item => {
+      const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
+      const fromDate = dateRange.from;
+      const toDate = dateRange.to;
       
-      // Get localStorage data directly
-      const localStorageKey = activeTab === "suites" ? 'testSuiteResults' : 'testCaseResults';
-      const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
-      
-      console.log(`Raw localStorage data for ${activeTab}:`, localData);
-      
-      // Filter ONLY by date range, ignore project ID completely
-      const filteredLocalData = localData.filter(item => {
-        const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
-        const fromDate = dateRange.from;
-        const toDate = dateRange.to;
+      return itemDate >= fromDate && itemDate <= toDate;
+    });
+    
+    console.log(`After date filtering: ${dateFilteredData.length} items`);
+    
+    // Then filter by project (if selectedProject exists)
+    let projectFilteredData = dateFilteredData;
+    
+    if (selectedProject) {
+      projectFilteredData = dateFilteredData.filter(item => {
+        // FIXED: More flexible project matching
+        const selectedProjectName = selectedProject.project_name || selectedProject.folder_name;
+        const itemProjectName = item.project_name || item.name || item.project_id;
         
-        return itemDate >= fromDate && itemDate <= toDate;
+        console.log("Comparing:", {
+          selectedProjectName,
+          itemProjectName,
+          selectedProject: selectedProject,
+          item: item
+        });
+        
+        // Try multiple matching strategies
+        if (selectedProjectName && itemProjectName) {
+          return selectedProjectName.toLowerCase() === itemProjectName.toLowerCase();
+        }
+        
+        // If no clear project name match, show all results
+        return true;
       });
-      
-      console.log(`Filtered by date: ${filteredLocalData.length} results`);
-      
-      // Sort by execution date, most recent first
-      const sortedData = filteredLocalData.sort((a, b) => 
-        new Date(b.execution_date) - new Date(a.execution_date)
-      );
-      
-      setTestResults(sortedData);
-      calculateStats(sortedData);
-      
-    } catch (error) {
-      console.error(`Error fetching ${activeTab} results:`, error);
-      setTestResults([]);
-      setStats({
-        totalRuns: 0,
-        passRate: 0,
-        failRate: 0,
-        pendingRate: 0
-      });
-    } finally {
-      setLoading(false);
     }
-  }, [activeTab, dateRange, selectedProject]);
+    
+    console.log(`After project filtering: ${projectFilteredData.length} items`);
+    console.log("Final filtered data:", projectFilteredData);
+    
+    // Sort by execution date, most recent first
+    const sortedData = projectFilteredData.sort((a, b) => 
+      new Date(b.execution_date) - new Date(a.execution_date)
+    );
+    
+    setTestResults(sortedData);
+    calculateStats(sortedData);
+    
+  } catch (error) {
+    console.error(`Error fetching ${activeTab} results:`, error);
+    setTestResults([]);
+    setStats({ totalRuns: 0, passRate: 0, failRate: 0, pendingRate: 0 });
+  } finally {
+    setLoading(false);
+  }
+}, [activeTab, dateRange, selectedProject]);
 
   useEffect(() => {
-    if (!selectedProject?.id) {
+    if (!selectedProject?.project_name) {
       setLoading(false);
       return;
     }
@@ -297,7 +315,7 @@ const Reports = () => {
         {filteredResults.map((result, idx) => (
           <tr key={result.id || idx} className="hover:bg-gray-50">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {result.name}
+              {result.name|| result.title }
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {formatDate(result.execution_date)}
@@ -355,7 +373,7 @@ const Reports = () => {
         {filteredResults.map((result, idx) => (
           <tr key={result.id || idx} className="hover:bg-gray-50">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {result.name}
+              {result.name || result.test_name || 'Unnamed Test'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {formatDate(result.execution_date)}
@@ -369,12 +387,17 @@ const Reports = () => {
               </div>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {result.total_steps || 0}
+              {/* FIXED: Handle missing fields gracefully */}
+              {result.total_steps || result.steps || 0}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <span className="text-green-600 font-medium">{result.passed_steps || 0}</span>
+              <span className="text-green-600 font-medium">
+                {result.passed_steps || result.passed || 0}
+              </span>
               {" / "}
-              <span className="text-red-600 font-medium">{result.failed_steps || 0}</span>
+              <span className="text-red-600 font-medium">
+                {result.failed_steps || result.failed || 0}
+              </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {result.execution_time ? `${result.execution_time}s` : "N/A"}
@@ -385,7 +408,6 @@ const Reports = () => {
     </table>
   );
 
-  // Animation keyframes for counter effect
   const animateValue = (start, end, duration) => {
     let startTimestamp = null;
     const step = (timestamp) => {
@@ -397,7 +419,6 @@ const Reports = () => {
     return step;
   };
 
-  // Custom hook for animated counters
   const useCounter = (end, duration = 1500) => {
     const [count, setCount] = useState(0);
     
@@ -421,7 +442,6 @@ const Reports = () => {
     return count;
   };
 
-  // Animated counter values
   const animatedTotalRuns = useCounter(stats.totalRuns);
   const animatedPassRate = useCounter(stats.passRate);
   const animatedFailRate = useCounter(stats.failRate);

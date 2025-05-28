@@ -56,7 +56,7 @@ const TestcasesTypes = () => {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
+          "http://127.0.0.1:8000/api/testcase-types/",
           {
             headers: {
               "Content-Type": "application/json",

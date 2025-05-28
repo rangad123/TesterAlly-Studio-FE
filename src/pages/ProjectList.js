@@ -59,7 +59,7 @@ const ProjectList = () => {
   const renderProjectRow = (project) => {
     return (
       <tr
-        key={project.id} 
+        key={project.project_name} 
         className="group hover:bg-gray-50 transition-colors duration-200 border-b cursor-pointer"
         onClick={() => handleProjectClick(project)}
       >

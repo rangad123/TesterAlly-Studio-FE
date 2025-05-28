@@ -76,20 +76,21 @@ const CreateTestCases = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 404) {
+          setShowModal(true);
+          return;
+        }
         throw new Error("Failed to check existing test cases");
       }
 
       const data = await response.json();
-      const existingTestCases = data.testcases || [];
-
-      console.log("existingTestCases:", existingTestCases);
+      const existingTestCase = data.testcase;
 
       if (
-        Array.isArray(existingTestCases) &&
-        existingTestCases.some(
-          (tc) => tc.testcase_name.toLowerCase() === testcase_name.toLowerCase()
-        )
+        existingTestCase &&
+        existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
       ) {
+        console.log("✅ Match found — setting error");
         setErrors((prev) => ({
           ...prev,
           testcase_name: "A test case with this name already exists. Please use a different name.",
@@ -97,8 +98,6 @@ const CreateTestCases = () => {
         return;
       }
 
-      // If name is unique, show the modal
-      setShowModal(true);
     } catch (error) {
       console.error("Error checking test case name:", error);
       alert("Error checking test case name. Please try again.");
@@ -222,12 +221,12 @@ const CreateTestCases = () => {
                     }}
                     placeholder="Enter test case name"
                     className={`create-project-input ${
-                      errors.name ? "border-red-500" : "border-gray-300"
+                      errors.testcase_name ? "border-red-500" : "border-gray-300"
                     } focus:outline-none focus:ring-2 focus:ring-purple-500`}
                     disabled={!selectedProject}
                   />
-                  {errors.name && (
-                    <span className="text-red-500 text-sm mt-1">{errors.name}</span>
+                  {errors.testcase_name && (
+                    <span className="text-red-500 text-sm mt-1">{errors.testcase_name}</span>
                   )}
                 </div>
   

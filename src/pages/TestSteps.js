@@ -20,7 +20,7 @@ const TestSteps = () => {
   const [testCasePriorities, setTestCasePriorities] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedSteps, setSelectedSteps] = useState([]);
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false); // FIXED: Added setIsExecuting
   const [executionResults, setExecutionResults] = useState({});
   const [hoveredStep, setHoveredStep] = useState(null);
   const [deletingStepId, setDeletingStepId] = useState(null);
@@ -37,11 +37,12 @@ const TestSteps = () => {
     try {
       const userId = localStorage.getItem("userId");
       const response = await fetch(
-        `http://127.0.0.1:8000/integrate/teststep/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`
       );
       if (!response.ok) throw new Error("Failed to fetch test case");
       const data = await response.json();
-      setTestCase(data);
+      console.log("Testcase response :",data)
+      setTestCase(data.testcase);
     } catch (err) {
       console.error("Error fetching test case:", err);
       setError("Failed to fetch test case details");
@@ -67,47 +68,64 @@ const TestSteps = () => {
   }, [location.state.projectId]);
 
   useEffect(() => {
-    if (activeTab === "testCaseInfo") {
-      fetchTestCase();
+    if (activeTab === "testCaseInfo" && testCaseName && projectName) {
+      fetchTestCase(testCaseName, projectName);
       fetchTestCaseMetadata();
     }
-  }, [activeTab, fetchTestCase, fetchTestCaseMetadata]);
+  }, [activeTab, fetchTestCase, fetchTestCaseMetadata, testCaseName, projectName]);
+
 
   const handleEditTestCase = () => {
     setIsEditing(true);
     setEditingTestCase({
-      name: testCase.name,
+      name: testCase.testcase_name,
       type: testCase.testcase_type,
       priority: testCase.testcase_priority,
     });
   };
 
-  const handleUpdateTestCase = async () => {
-    try {
-      const response = await fetch(
-        `${apiBaseUrl}/testcases/${testCaseId}/?project_id=${location.state.projectId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: editingTestCase.name,
-            testcase_type: editingTestCase.type,
-            testcase_priority: editingTestCase.priority
-          }),
-        }
-      );
+const handleUpdateTestCase = async () => {
+  try {
+    const userId = localStorage.getItem("userId");
+    
+    const response = await fetch(
+      `http://127.0.0.1:8000/integrate/testcase/`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          project_name: projectName,
+          testcase_name: testCaseName, 
+          new_testcase_name: editingTestCase.name, 
+          testcase_type: editingTestCase.type,
+          testcase_priority: editingTestCase.priority
+        }),
+      }
+    );
 
-      if (!response.ok) throw new Error("Failed to update test case");
-      
-      const updatedTestCase = await response.json();
-      setTestCase(updatedTestCase);
-      setIsEditing(false);
-      setEditingTestCase(null);
-    } catch (err) {
-      console.error("Error updating test case:", err);
-      setError("Failed to update test case");
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Update failed:", errorData);
+      throw new Error(errorData.message || "Failed to update test case");
     }
-  };
+    
+    setTestCase(prev => ({
+      ...prev,
+      testcase_name: editingTestCase.name,
+      testcase_type: editingTestCase.type,
+      testcase_priority: editingTestCase.priority
+    }));
+
+    setIsEditing(false);
+    setEditingTestCase(null);
+
+  } catch (err) {
+    console.error("Error updating test case:", err);
+    setError("Failed to update test case: " + err.message);
+  }
+};
+
 
   const handleDeleteTestCase = async () => {
     if (!window.confirm("Are you sure you want to delete this test case?")) return;
@@ -208,6 +226,8 @@ const TestSteps = () => {
 
   const addStepComponent = AddStep({
     testCaseId,
+    testCaseName,        
+    projectName,
     steps,
     fetchSteps,
     apiBaseUrl,
@@ -229,50 +249,87 @@ const TestSteps = () => {
     }
   }, [testCaseName, projectName, fetchSteps]);
 
-  const handleDeleteStep = async (stepId) => {
-    if (!window.confirm("Are you sure you want to delete this step?")) return;
-    setError(null);
+const handleDeleteStep = async (stepNumber) => {
+  if (!window.confirm("Are you sure you want to delete this step?")) return;
+  setError(null);
+  setDeletingStepId(stepNumber);
+  const userId = localStorage.getItem("userId");
+
+  try {
+    console.log("Deleting step with data:", {
+      user_id: userId,
+      project_name: projectName,
+      testcase_name: testCaseName,
+      step_number: stepNumber
+    });
     
-    setDeletingStepId(stepId);
+    // Step 1: Delete the step
+    const deleteResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId, 
+        project_name: projectName,
+        testcase_name: testCaseName,
+        step_number: stepNumber
+      })
+    });
 
-    try {
-      const deleteResponse = await fetch(`${apiBaseUrl}/teststeps/${stepId}/?testcase_id=${testCaseId}`, {
-        method: "DELETE",
-      });
-
-      if (!deleteResponse.ok) {
-        throw new Error("Failed to delete step");
-      }
-
-      const updatedSteps = steps.filter(step => step.id !== stepId);
-      const updatePromises = updatedSteps.map(async (step, index) => {
-        const response = await fetch(`${apiBaseUrl}/teststeps/${step.id}/`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            testcase: testCaseId,
-            step_number: index + 1,
-            step_description: step.step_description
-          })
-        });
-        if (!response.ok) {
-          throw new Error("Failed to update step numbers");
-        }
-        return response.ok;
-      });
-
-      await Promise.all(updatePromises);
-      await fetchSteps();
-    } catch (err) {
-      setError("Error deleting step. Please try again.");
-      console.error("Delete operation failed:", err);
-    } finally {
-      setDeletingStepId(null);
+    if (!deleteResponse.ok) {
+      const errorData = await deleteResponse.json();
+      console.error("Delete failed:", errorData);
+      throw new Error("Failed to delete step");
     }
-  };
+
+    // // Step 2: Get the remaining steps and reorder them
+    // const remainingSteps = steps
+    //   .filter(step => step.step_number !== stepNumber)
+    //   .sort((a, b) => a.step_number - b.step_number);
+
+    // // Step 3: Update step numbers sequentially
+    // for (let i = 0; i < remainingSteps.length; i++) {
+    //   const step = remainingSteps[i];
+    //   const newStepNumber = i + 1;
+      
+    //   // Only update if the step number needs to change
+    //   if (step.step_number !== newStepNumber) {
+    //     console.log(`Updating step ${step.step_number} to ${newStepNumber}`);
+        
+    //     const updateResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+    //       method: "PUT",
+    //       headers: { "Content-Type": "application/json" },
+    //       body: JSON.stringify({
+    //         user_id: userId,
+    //         project_name: projectName,
+    //         testcase_name: testCaseName,
+    //         step_number: newStepNumber,
+    //         step_description: step.step_description,
+    //         step_coordinates: step.step_coordinates || { click_x: 0, click_y: 0 },
+    //         old_step_number: step.step_number // Add this to help backend identify which step to update
+    //       })
+    //     });
+
+    //     if (!updateResponse.ok) {
+    //       const errorText = await updateResponse.text();
+    //       console.error(`Failed to update step ${step.step_number} to ${newStepNumber}:`, errorText);
+    //       throw new Error(`Failed to update step numbers: ${errorText}`);
+    //     }
+    //   }
+    // }
+
+    // Step 4: Refresh the steps to show updated data
+    await fetchSteps(testCaseName, projectName);
+
+  } catch (err) {
+    setError("Error deleting step. Please try again.");
+    console.error("Delete operation failed:", err);
+  } finally {
+    setDeletingStepId(null);
+  }
+};
 
   const startEditing = (step) => {
-    setEditingStep(step.id);
+    setEditingStep(step.step_number);
     setEditValue(step.step_description);
     
     // Important: Clear any previous suggestions first
@@ -285,16 +342,17 @@ const TestSteps = () => {
       
       if (['click', 'type', 'verify', 'get', 'wait'].includes(command)) {
         // This triggers the suggestion system
-        addStepComponent.handleEditCommandInput(step.id, step.step_description, command);
+        addStepComponent.handleEditCommandInput(step.step_number, step.step_description, command);
       }
     }, 100);
   };
   
-  const handleUpdateStep = async (stepId) => {
-    setUpdatingStepId(stepId);
+  const handleUpdateStep = async (stepNumber) => {
+    setUpdatingStepId(stepNumber);
+    const userId = localStorage.getItem("userId");
 
     try {
-      const step = steps.find(s => s.id === stepId);
+      const step = steps.find(s => s.step_number === stepNumber);
       if (!step) return;
 
       // Get existing coordinates or use selected element coordinates if available
@@ -325,11 +383,13 @@ const TestSteps = () => {
       // Make sure we're using the full wait command, not just "wait"
       const stepDescription = editValue;
 
-      const response = await fetch(`${apiBaseUrl}/teststeps/${stepId}/`, {
+      const response = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          testcase: testCaseId,
+          user_id: userId,  
+          project_name: projectName,  
+          testcase_name: testCaseName, 
           step_number: step.step_number,
           step_description: stepDescription,
           step_coordinates: coordinates
@@ -341,7 +401,8 @@ const TestSteps = () => {
       }
 
       // Refresh steps to show updated data
-      await fetchSteps();
+      await fetchSteps(testCaseName, projectName); 
+
       setEditingStep(null);
       addStepComponent.clearSuggestions();
     } catch (error) {
@@ -368,11 +429,180 @@ const TestSteps = () => {
     }
   };
 
-  const handleModalOkClick = async () => {
-    setShowRunInstructions(false);
-    // Now execute the test steps
-    await executeTestSteps(selectedSteps.length > 0 ? selectedSteps : steps.map(step => step.id));
-  };
+const calculateExecutionTime = (executedSteps) => {
+  if (!executedSteps || executedSteps.length === 0) return "0s";
+  // Simple calculation - you can modify this based on your actual timing data
+  return `${executedSteps.length * 2}s`;
+};
+
+const handleModalOkClick = async () => {
+  setShowRunInstructions(false);
+
+  const userId = localStorage.getItem("userId");
+
+  if (!userId || !projectName || !testCaseName) {
+    alert("Missing required fields to run test case.");
+    return;
+  }
+
+  setIsExecuting(true);
+  setError(null);
+  setExecutionResults({});
+
+  console.log("Sending payload:", {
+    user_id: userId,
+    project_name: projectName,
+    testcase_name: testCaseName
+  });
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/integrate/run_testcase/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        project_name: projectName,
+        testcase_name: testCaseName,
+        wait_time: waitTime ? parseInt(waitTime) : 2
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to run test case");
+    }
+
+    const result = await response.json();
+    console.log("Test case run result:", result);
+
+    // Process results regardless of success or failure
+    let testRunSummary;
+    
+    if (result.status === "success" && result.executed_steps) {
+      // Handle successful execution
+      const newExecutionResults = {};
+
+      result.executed_steps.forEach((executedStep) => {
+        const step = steps.find(s => s.step_number === executedStep.step_number);
+        if (step) {
+          newExecutionResults[step.step_number] = {
+            status: 'complete',
+            message: executedStep.response.status,
+            screenshot: executedStep.response.screenshot ? `http://127.0.0.1:8000${executedStep.response.screenshot}` : null,
+            duration: null,
+            url: executedStep.response.url || null,
+            activeWindow: executedStep.response.active_window || null
+          };
+        }
+      });
+
+      setExecutionResults(newExecutionResults);
+
+      // Create summary for successful execution
+      testRunSummary = {
+        execution_date: new Date().toISOString(),
+        name: testCaseName,
+        project_name: projectName,
+        status: result.executed_steps.some(step => 
+          step.response.status === 'error' || 
+          step.response.status === 'timeout'
+        ) ? "FAIL" : "PASS",
+        total_steps: result.executed_steps.length,
+        passed_steps: result.executed_steps.filter(step => 
+          step.response.status === 'success' || 
+          step.response.status !== 'error'
+        ).length,
+        failed_steps: result.executed_steps.filter(step => 
+          step.response.status === 'error'
+        ).length,
+        execution_time: calculateExecutionTime(result.executed_steps),
+        id: Date.now().toString(),
+        error_message: null
+      };
+
+      alert(`Test case "${result.testcase_name}" executed successfully! ${result.executed_steps.length} steps completed.`);
+      
+    } else {
+      // Handle failed execution
+      setError(result.message || "Test execution failed");
+      
+      testRunSummary = {
+        execution_date: new Date().toISOString(),
+        name: testCaseName,
+        project_name: projectName,
+        status: "FAIL",
+        total_steps: steps.length, // Use original steps count
+        passed_steps: 0,
+        failed_steps: steps.length,
+        execution_time: "0s",
+        id: Date.now().toString(),
+        error_message: result.message || "Test execution failed"
+      };
+
+      alert("Test case execution failed. Please check the details.");
+    }
+
+    // Store results in localStorage (both pass and fail)
+    const savedResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
+    savedResults.push(testRunSummary);
+    const latestResults = savedResults.slice(-10); // Keep only last 10 results
+    localStorage.setItem('testCaseResults', JSON.stringify(latestResults));
+
+    // Call report API regardless of pass/fail
+    try {
+      const reportResponse = await fetch('http://127.0.0.1:8000/integrate/case_report/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          project_name: projectName,
+          testcase_name: testCaseName  
+        }),
+      });
+
+      if (reportResponse.ok) {
+        const reportData = await reportResponse.json();
+        console.log("Test report response:", reportData);
+        // Optionally: display this report somewhere in UI
+      } else {
+        console.error("Failed to fetch test report.");
+      }
+    } catch (reportErr) {
+      console.error("Error fetching test report:", reportErr);
+    }
+
+  } catch (error) {
+    // Handle network/fetch errors
+    console.error("Error running test case:", error);
+    setError("An error occurred while running the test case: " + error.message);
+    
+    // Store error result in localStorage
+    const testRunSummary = {
+      execution_date: new Date().toISOString(),
+      name: testCaseName,
+      project_name: projectName,
+      status: "FAIL",
+      total_steps: steps.length,
+      passed_steps: 0,
+      failed_steps: steps.length,
+      execution_time: "0s",
+      id: Date.now().toString(),
+      error_message: error.message
+    };
+
+    const savedResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
+    savedResults.push(testRunSummary);
+    const latestResults = savedResults.slice(-10);
+    localStorage.setItem('testCaseResults', JSON.stringify(latestResults));
+
+    alert("An error occurred while running the test case.");
+  } finally {
+    setIsExecuting(false);
+  }
+};
 
   const handleModalCancelClick = () => {
     setShowRunInstructions(false);
@@ -381,491 +611,12 @@ const TestSteps = () => {
   const handleResetExecution = () => {
     setExecutionResults({});
   };
-    
 
-  const executeTestSteps = async (stepIds) => {
-    setIsExecuting(true);
-    setExecutionResults({});
-    
-    const user_id = localStorage.getItem("user_id");
-    const selectedProject = JSON.parse(localStorage.getItem(`selectedProject_${user_id}`) || '{}');
-    const projectId = selectedProject.id;
-    
-    for (let i = 0; i < stepIds.length; i++) {
-      const stepId = stepIds[i];
-      const step = steps.find(s => s.id === stepId);
-      const isLastStep = i === stepIds.length - 1; // Identify last step
-      
-      try {
-        if (!step) continue;
-        console.log(`🔹 Starting Step ${step.step_number}: ${step.step_description}`);
-
-        console.log("Running Step ID:", stepId);
-        console.log("Expected Step:", step);
-
-        setExecutionResults(prev => ({
-          ...prev,
-          [stepId]: { status: 'running', message: `Executing step ${step.step_number}...` }
-        }));
-  
-        const result = await executeStep(step, user_id, isLastStep);
-  
-        console.log(`✅ Finished Step ${step.step_number}:`, result);
-  
-        setExecutionResults(prev => ({
-          ...prev,
-          [stepId]: result
-        }));
-        
-        if (result.status === 'error') {
-          break;
-        }
-  
-        if (stepId !== stepIds[stepIds.length - 1]) {  
-          await new Promise(resolve => {
-            let countdown = 2;
-            
-            const countdownInterval = setInterval(() => {
-              setExecutionResults(prev => ({
-                ...prev,
-                [stepId]: {
-                  ...prev[stepId],
-                  countdown: countdown
-                }
-              }));
-              
-              countdown--;
-              
-              if (countdown < 0) {
-                clearInterval(countdownInterval);
-                console.log("➡️ Moving to next step...\n");
-                console.log(`Executing Step ID: ${stepId}`);
-                console.log("Step Data:", step);
-
-                resolve();
-              }
-            }, 1000);
-          });
-        }
-      } catch (error) {
-        console.error(`❗ Error executing step ${step.step_number}:`, error);
-        setExecutionResults(prev => ({
-          ...prev,
-          [stepId]: {
-            status: 'error',
-            error: error.message || 'Execution failed'
-          }
-        }));
-        break;
-      }
-    }
-
-    const testRunSummary = {
-      execution_date: new Date().toISOString(),
-      name: testCaseName, 
-      project_id: projectId,
-      testcase_id: testCaseId, 
-      status: stepIds.some(id => executionResults[id]?.status === 'error') ? "FAIL" : "PASS",
-      total_steps: stepIds.length,
-      passed_steps: stepIds.filter(id => executionResults[id]?.status === 'complete').length,
-      failed_steps: stepIds.filter(id => executionResults[id]?.status === 'error').length,
-      execution_time: calculateExecutionTime(executionResults),
-      id: Date.now().toString(), 
-    };
-  
-    const savedResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
-
-    savedResults.push(testRunSummary);
-    const latestResults = savedResults.slice(-10);
-    localStorage.setItem('testCaseResults', JSON.stringify(latestResults));
-    
-    setIsExecuting(false);
-  };
-
-
-  const calculateExecutionTime = (results) => {
-    // Simple implementation - you might want to track actual time
-    return Object.values(results).reduce((total, result) => {
-      const durationStr = result.duration || '00:00';
-      const [minutes, seconds] = durationStr.split(':').map(Number);
-      return total + (minutes * 60) + seconds;
-    }, 0);
-  };
-  
-
-  const executeStep = async (step, user_id, isLastStep = false) => {
-    try {
-
-      if (!step || typeof step !== 'object') {
-        throw new Error("Invalid step object provided to executeStep");
-      }
-      if (!step.step_description) {
-        throw new Error("Step is missing step_description property");
-      }
-
-      const stepDescription = step.step_description;
-
-      const words = stepDescription.trim().split(' '); 
-      const actionType = words[0].toLowerCase();
-      words[0] = actionType;
-
-      let updatedStepDescription = stepDescription;
-      console.log("Updated Step Description:", updatedStepDescription); 
-
-      const stepCoordinates = step.step_coordinates || {};
-
-      console.log("Executing step directly:", {
-        step_id: step.id,
-        step_number: step.step_number, 
-        description: stepDescription,
-        coordinates: stepCoordinates,
-        is_final_step: isLastStep
-      });
-
-      if (actionType === 'wait') {
-        let requestData = {
-          user_id: user_id,
-          command: stepDescription,
-          is_final_step: isLastStep
-        };
-        
-        // Parse wait command type
-        if (stepDescription.includes('until URL contains')) {
-          // Extract the URL text to wait for
-          const urlText = stepDescription.match(/until URL contains "(.*?)"/i);
-          if (urlText && urlText[1]) {
-            requestData = {
-              ...requestData,
-              condition: "url_match",
-              text: urlText[1],
-              timeout: 10000, 
-              poll_interval: 500,
-              is_final_step: isLastStep,
-              check_address_bar: true,
-              debug: true
-            };
-          }
-        } else if (stepDescription.includes('until text') && stepDescription.includes('appears')) {
-          // Extract the text to wait for
-          const textMatch = stepDescription.match(/until text "(.*?)"/i);
-          if (textMatch && textMatch[1]) {
-            requestData = {
-              ...requestData,
-              condition: "text_match",
-              text: textMatch[1],
-              timeout: 10000, 
-              poll_interval: 500,
-              is_final_step: isLastStep,
-              debug: true
-            };
-          }
-        } else {
-          // Simple static wait
-          const timeMatch = stepDescription.match(/wait (\d+) seconds/i);
-          if (timeMatch && timeMatch[1]) {
-            const timeout = parseInt(timeMatch[1]) * 1000;
-            requestData = {
-              ...requestData,
-              timeout: timeout,
-              is_final_step: isLastStep,
-              debug: true
-            };
-          }
-        }
-        
-        console.log("Wait command:", stepDescription);
-        console.log("Request data:", requestData);
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestData),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to execute wait command');
-        }
-
-        const data = await response.json();
-        console.log("Wait response:", data);
-        
-        const screenshotUrl = data.screenshot_url
-          ? `http://127.0.0.1:8000${data.screenshot_url}`
-          : `/api/placeholder/800/300?text=Wait_Completed`;
-
-        console.log("Screenshot URL:", screenshotUrl);
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.status || "Wait command executed successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-        };
-      }
-      
-      if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ command: updatedStepDescription, user_id: user_id, is_final_step: isLastStep }),
-        });
-  
-        console.log("open url:", updatedStepDescription);
-        console.log("User_Id:", user_id);
-  
-        if (!response.ok) {
-          throw new Error('Failed to execute navigation command');
-        }
-  
-        const data = await response.json();
-        console.log("Response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.status || "Page loaded successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-        };
-      } 
-      else if (actionType === 'click' || actionType === 'type') {
-        
-        const clickX = stepCoordinates.click_x;
-        const clickY = stepCoordinates.click_y;
-
-        console.log("STEP COORDINATES DEBUG:");
-        console.log("- Step description:", stepDescription);
-        console.log("- Parsed clickX/clickY:", [clickX, clickY]);
-        
-        if (!clickX || !clickY) {
-          throw new Error(`No coordinates found for click step: "${stepDescription}"`);
-        }
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: stepDescription,
-            user_id: user_id,
-            click_x: clickX,
-            click_y: clickY,
-            is_final_step: isLastStep
-          }),
-        });
-        
-        console.log("before click command:", stepDescription, [clickX, clickY]);
-        
-        if (!response.ok) {
-          throw new Error('Failed to execute click command');
-        }
-        
-        const data = await response.json();
-        console.log("Click response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.message || "Click action executed successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-          elementAction: { click_point: [clickX, clickY] },
-        };
-      }
-      else if (actionType === 'verify') {
-
-        const clickX = stepCoordinates.click_x;
-        const clickY = stepCoordinates.click_y;
-        
-        if (!clickX || !clickY) {
-          throw new Error(`No coordinates found for verify step: "${stepDescription}"`);
-        }
-        
-        const verificationType = stepCoordinates.verification_type || 'text';
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: stepDescription,
-            user_id: user_id,
-            click_x: clickX,
-            click_y: clickY,
-            verification_type: verificationType,
-            is_final_step: isLastStep
-          }),
-        });
-        
-        console.log("verify", stepDescription, [clickX, clickY], verificationType);
-        
-        if (!response.ok) {
-          throw new Error('Failed to execute verify command');
-        }
-        
-        const data = await response.json();
-        console.log("Verify response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.status || "Verification completed",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-          verificationType: verificationType,
-          verifiedText: data.copied_text || "",
-          elementVerified: { click_point: [clickX, clickY] },
-        };
-      }
-      else if (actionType === 'get') {
-
-        const clickX = stepCoordinates.click_x;
-        const clickY = stepCoordinates.click_y;
-        
-        if (!clickX || !clickY) {
-          throw new Error(`No coordinates found for get step: "${stepDescription}"`);
-        }
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: stepDescription,
-            user_id: user_id,
-            click_x: clickX,
-            click_y: clickY,
-            action_type: 'get',
-            is_final_step: isLastStep
-          }),
-        });
-        
-        console.log("get", stepDescription, [clickX, clickY]);
-        
-        if (!response.ok) {
-          throw new Error('Failed to execute get command');
-        }
-        
-        const data = await response.json();
-        console.log("Get response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.status || "Retrieved element text successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-          retrievedText: data.copied_text || "",
-          elementRetrieved: { click_point: [clickX, clickY] },
-        };
-      }
-      else if (actionType === 'scrollup' || actionType === 'scrolldown') {
-
-        const isScrollUp = stepDescription.startsWith('scrollup');
-        const updatedCommand = isScrollUp ? "scroll_up page" : "scroll_down page";
-        
-        console.log(`Converting '${isScrollUp ? 'scrollup' : 'scrolldown'}' to '${updatedCommand}'`);
-        
-        const response = await fetch('http://127.0.0.1:8000/automation/execute_test_case/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: updatedCommand,
-            user_id: user_id
-          }),
-        });
-    
-        if (!response.ok) {
-          throw new Error(`Failed to execute ${isScrollUp ? 'scroll up' : 'scroll down'} command`);
-        }
-        
-        const data = await response.json();
-        console.log("Scroll Response:", data);
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.message || `${isScrollUp ? 'Scroll up' : 'Scroll down'} executed successfully`,
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-        };
-      }
-      else {
-        const response = await fetch('http://127.0.0.1:8000/automation/Execute_command/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command: stepDescription,
-            user_id: user_id
-          }),
-        });
-  
-        if (!response.ok) {
-          throw new Error('Failed to execute command');
-        }
-  
-        const data = await response.json();
-        
-        const screenshotUrl = data.screenshot ? 
-          `http://127.0.0.1:8000${data.screenshot}` : 
-          `/api/placeholder/800/300?text=No_Screenshot`;
-        
-        return {
-          status: 'complete',
-          duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-          message: data.status || "Command executed successfully",
-          screenshot: screenshotUrl,
-          coordinates: stepCoordinates,
-        };
-      }
-    } catch (error) {
-      console.error('Step execution error:', error);
-      return {
-        status: 'error',
-        duration: '00:00',
-        error: error.message
-      };
-    } 
-  };
-  
-
-const handleStepSelection = (stepId) => {
+const handleStepSelection = (stepNumber) => {  
   setSelectedSteps(prev => 
-    prev.includes(stepId) 
-      ? prev.filter(id => id !== stepId)
-      : [...prev, stepId]
+    prev.includes(stepNumber) 
+      ? prev.filter(num => num !== stepNumber)
+      : [...prev, stepNumber]
   );
 };
 
@@ -873,7 +624,7 @@ const selectAllSteps = () => {
   if (selectedSteps.length === steps.length) {
     setSelectedSteps([]);
   } else {
-    setSelectedSteps(steps.map(step => step.id));
+    setSelectedSteps(steps.map(step => step.step_number));
   }
 };
 
@@ -977,7 +728,7 @@ const selectAllSteps = () => {
         <div className="grid gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-500">Name</label>
-            <p className="mt-1 text-lg text-gray-900">{testCase.name}</p>
+            <p className="mt-1 text-lg text-gray-900">{testCase.testcase_name}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-500">Type</label>
@@ -992,7 +743,7 @@ const selectAllSteps = () => {
     );
   };
 
-  if (loading) {
+  if (loading && !isExecuting) {
     return (
       <div className="flex-1 lg:ml-[300px] p-6">
         <div className="text-center">Loading...</div>
@@ -1094,6 +845,16 @@ const selectAllSteps = () => {
             </div>
           )}
 
+          {/* ADDED: Execution loading indicator */}
+          {isExecuting && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-center">
+                <div className="w-5 h-5 mr-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-blue-700 font-medium">Executing test case...</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end mb-2">
             <button
               onClick={selectAllSteps}
@@ -1112,21 +873,21 @@ const selectAllSteps = () => {
             <React.Fragment key={step.step_number}>
               <div
                 className="relative flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 transition-all duration-200"
-                onMouseEnter={() => setHoveredStep(step.id)}
+                onMouseEnter={() => setHoveredStep(step.step_number)}
                 onMouseLeave={() => setHoveredStep(null)}
               >
                 {activeTab === "testSteps" && (
                   <input
                     type="checkbox"
-                    checked={selectedSteps.includes(step.id)}
-                    onChange={() => handleStepSelection(step.id)}
+                    checked={selectedSteps.includes(step.step_number)}
+                    onChange={() => handleStepSelection(step.step_number)}
                     className="w-4 h-4 text-purple-600 rounded"
                     disabled={isExecuting}
                   />
                 )}
                 <span className="min-w-[60px] font-medium">#{step.step_number}</span>
                 
-                {editingStep === step.id ? (
+                {editingStep === step.step_number ? (
                 <div className="flex-1 flex items-center gap-2 relative">
                   <input
                     type="text"
@@ -1141,26 +902,26 @@ const selectAllSteps = () => {
                       console.log("Edit input changed:", newValue, "Command:", command);
                       
                       if (['click', 'type', 'verify', 'get', 'wait'].includes(command)) {
-                        addStepComponent.handleEditCommandInput(step.id, newValue, command);
+                        addStepComponent.handleEditCommandInput(step.step_number, newValue, command);
                       }
                     }}
                     className="flex-1 p-2 border border-gray-300 rounded-md"
                     autoFocus
-                    data-step-id={step.id}
+                    data-step-id={step.step_number}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        handleUpdateStep(step.id);
+                        handleUpdateStep(step.step_number);
                       } else if (e.key === 'Escape') {
                         cancelEdit();
                       }
                     }}
                   />
                   <button
-                    onClick={() => handleUpdateStep(step.id)}
-                    disabled={updatingStepId === step.id}
+                    onClick={() => handleUpdateStep(step.step_number)}
+                    disabled={updatingStepId === step.step_number}
                     className="p-2 text-green-600 hover:text-green-700"
                   >
-                    {updatingStepId === step.id ? (
+                    {updatingStepId === step.step_number ? (
                       <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-md flex items-center">
                         <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
                         Updating...
@@ -1186,7 +947,7 @@ const selectAllSteps = () => {
                   
                   {/* This is the critical part - it must be positioned correctly */}
                   <div className="absolute w-full left-0 top-full z-50">
-                    {addStepComponent.renderEditSuggestions(step.id, setEditValue)}
+                    {addStepComponent.renderEditSuggestions(step.step_number, setEditValue)}
                   </div>
                 </div>
                 ) : (
@@ -1196,54 +957,54 @@ const selectAllSteps = () => {
                       onDoubleClick={() => startEditing(step)}
                     >
                       {step.step_description}
-                      {executionResults[step.id] && (
+                      {executionResults[step.step_number] && (
                         <div className={`mt-2 text-sm p-2 rounded ${
-                          executionResults[step.id].status === 'running' ? 'bg-yellow-50 text-yellow-700' : 
-                          executionResults[step.id].status === 'complete' ? 'bg-green-50 text-green-700' : 
-                          executionResults[step.id].status === 'error' ? 'bg-red-50 text-red-700' : ''
+                          executionResults[step.step_number].status === 'running' ? 'bg-yellow-50 text-yellow-700' : 
+                          executionResults[step.step_number].status === 'complete' ? 'bg-green-50 text-green-700' : 
+                          executionResults[step.step_number].status === 'error' ? 'bg-red-50 text-red-700' : ''
                         }`}>
-                          {executionResults[step.id].status === 'running' ? (
+                          {executionResults[step.step_number].status === 'running' ? (
                             <div className="flex items-center">
                               <div className="w-4 h-4 mr-2 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
-                              Running: {executionResults[step.id].message || 'Executing step...'}
+                              Running: {executionResults[step.step_number].message || 'Executing step...'}
                             </div>
-                          ) : executionResults[step.id].status === 'complete' ? (
+                          ) : executionResults[step.step_number].status === 'complete' ? (
                             <div>
                               <div className="flex items-center">
                                 <span className="mr-2">✓</span>
-                                {executionResults[step.id].message === 'timeout' ? (
+                                {executionResults[step.step_number].message === 'timeout' ? (
                                   <span className="text-yellow-700">Executed, but the condition was <strong>not met</strong> (timeout)</span>
                                 ) : (
-                                  <span className="text-green-700">Executed successfully {executionResults[step.id].duration ? `(${executionResults[step.id].duration})` : ''}</span>
+                                  <span className="text-green-700">Executed successfully {executionResults[step.step_number].duration ? `(${executionResults[step.id].duration})` : ''}</span>
                                 )}
                               </div>
                               {/* Countdown display */}
-                              {executionResults[step.id].countdown !== undefined && (
+                              {executionResults[step.step_number].countdown !== undefined && (
                                 <div className="mt-2 text-yellow-700 bg-yellow-50 p-2 rounded">
-                                  Waiting for next step: {executionResults[step.id].countdown} seconds
+                                  Waiting for next step: {executionResults[step.step_number].countdown} seconds
                                 </div>
                               )}
                             </div>
                           ) : (
                             <div className="flex items-center">
                               <span className="mr-2">✗</span> 
-                              Failed: {executionResults[step.id].error || 'Unknown error'}
+                              Failed: {executionResults[step.step_number].error || 'Unknown error'}
                             </div>
                           )}
                         </div>
                       )}
-                      {executionResults[step.id] && executionResults[step.id].screenshot && (
+                      {executionResults[step.step_number] && executionResults[step.step_number].screenshot && (
                         <div className="mt-2">
                           <img 
-                            src={executionResults[step.id].screenshot} 
+                            src={executionResults[step.step_number].screenshot} 
                             alt="Execution result" 
                             className="w-full max-h-40 object-contain mt-2 border border-gray-200 rounded-md cursor-pointer"
-                            onClick={() => handleViewExecutionScreenshot(executionResults[step.id].screenshot)}
+                            onClick={() => handleViewExecutionScreenshot(executionResults[step.step_number].screenshot)}
                           />
                         </div>
                       )}
                     </div>
-                    {!isExecuting && !executionResults[step.id] && (
+                    {!isExecuting && !executionResults[step.step_number] && (
                       <div className="flex gap-2">
                         {addStepComponent.insertingAfterStep !== step.step_number && (
                           <button
@@ -1254,11 +1015,11 @@ const selectAllSteps = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDeleteStep(step.id)}
-                          disabled={deletingStepId === step.id}
+                          onClick={() => handleDeleteStep(step.step_number)}
+                          disabled={deletingStepId === step.step_number}
                           className="p-2 text-red-600 hover:text-red-700"
                         >
-                          {deletingStepId === step.id ? (
+                          {deletingStepId === step.step_number ? (
                             <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                           ) : (
                             <Trash2 className="w-4 h-4" />

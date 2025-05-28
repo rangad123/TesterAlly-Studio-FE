@@ -81,21 +81,16 @@ const WriteRecord = () => {
 
   useEffect(() => {
     const info = location.state?.testCaseInfo;
-    
-    if (info && info.name && info.testcase_type && info.testcase_priority) {
-      setTestCaseInfo(info);
-      if (info.projectId) {
-        fetchTestData(info.projectId);
-      }
+    console.log("info:", info);
+
+    if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
+      alert("Test case data is incomplete or missing.");
+      navigate("/test-cases/create-testcases");
     } else {
-      setTestCaseInfo({
-        name: 'New Test Case',
-        testcase_type: 'Functional',
-        testcase_priority: 'Medium',
-        projectId: ''
-      });
+      setTestCaseInfo(info);  
     }
-  }, [location]);
+  }, [location, navigate]);
+
 
   useEffect(() => {
     if (elementData) {
@@ -209,25 +204,6 @@ useEffect(() => {
   }
 }, [showSuggestions, suggestions.length]);
 
-
-const fetchTestData = async (projectId) => {
-  if (!projectId) return;
-
-  try {
-    setLoadingMessage('Fetching test data...');
-    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${projectId}/`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.url) {
-        setNewStep(`open ${data.url}`);
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching test data:", error);
-  } finally {
-    setLoadingMessage('');
-  }
-};
 
 const getLastClickCoordinates = (steps) => {
   // Loop backwards through steps to find the last successful click action
@@ -941,26 +917,37 @@ const createTestCase = async () => {
 
   try {
     setCreateTestCaseLoading(true);
-    const testCaseResponse = await fetch("http://127.0.0.1:8000/api/testcases/", {
+    
+    // Get the user ID from localStorage
+    const userId = localStorage.getItem("userId");
+    
+    // Step 1: Create the test case first (without steps)
+    const testCasePayload = {
+      user_id: parseInt(userId),
+      project_name: testCaseInfo.projectId,
+      testcase_name: testCaseInfo.testcase_name,
+      testcase_type: testCaseInfo.testcase_type,
+      testcase_priority: testCaseInfo.testcase_priority
+    };
+
+    console.log("Creating test case with payload:", testCasePayload);
+
+    const testCaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        project_id: testCaseInfo.projectId,
-        name: testCaseInfo.name,
-        testcase_type: testCaseInfo.testcase_type,
-        testcase_priority: testCaseInfo.testcase_priority
-      })
+      body: JSON.stringify(testCasePayload)
     });
 
     if (!testCaseResponse.ok) {
-      throw new Error("Failed to create test case");
+      const errorData = await testCaseResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to create test case");
     }
 
     const testCaseData = await testCaseResponse.json();
-    const testCaseId = testCaseData.id;
+    console.log("Test case created:", testCaseData);
 
-    const stepsData = testSteps.map((step, index) => {
-      
+    // Step 2: Prepare and add steps to the created test case
+    const selectedSteps = testSteps.map((step, index) => {
       let teststep_result = "not_executed";
       if (step.status === "complete") {
         teststep_result = "passed";
@@ -968,40 +955,58 @@ const createTestCase = async () => {
         teststep_result = "failed";
       }
       
-      const stepCoordinates = step.requestBody || {};
+      // Initialize default coordinates
+      let coordinates = { click_x: 0, click_y: 0 };
+      
+      // Extract coordinates from step data if available
+      if (step.requestBody) {
+        coordinates = step.requestBody;
+      }
       
       return {
-        testcase: testCaseId,
         step_number: index + 1,
         step_description: step.description,
         teststep_result: teststep_result,
-        step_coordinates: stepCoordinates
+        step_coordinates: coordinates,
+        expected_result: step.expectedResult || "",
+        actual_result: ""
       };
     });
 
-    console.log("Sending bulk test steps:", { steps: stepsData });
+    // Create steps payload matching the working API structure
+    const stepsPayload = {
+      user_id: parseInt(userId),
+      project_name: testCaseInfo.projectId,
+      testcase_name: testCaseInfo.testcase_name,
+      steps: selectedSteps
+    };
 
-    const requestPayload = { steps: stepsData };
-    console.log("Request payload for bulk create:", JSON.stringify(requestPayload));
+    console.log("Adding steps with payload:", stepsPayload);
 
-    const bulkStepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/bulk-create/", {
+    const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestPayload)
+      body: JSON.stringify(stepsPayload)
     });
 
-    if (!bulkStepResponse.ok) {
-
-      const errorText = await bulkStepResponse.text();
-      console.error("API Error Response:", errorText);
-      throw new Error(`Failed to create test steps: ${bulkStepResponse.status} ${errorText}`);
+    if (!stepsResponse.ok) {
+      const errorData = await stepsResponse.json().catch(() => ({}));
+      // If steps fail, show warning that test case was created but steps failed
+      console.warn("Steps creation failed:", errorData);
+      alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
+      navigate("/test-cases");
+      return;
     }
 
-    alert('Test case created successfully!');
+    const stepsData = await stepsResponse.json();
+    console.log("Steps added:", stepsData);
+
+    alert("Test Case and Steps Created Successfully");
     navigate("/test-cases");
+
   } catch (error) {
     console.error('Error creating test case:', error);
-    alert(`Error creating test case: ${error.message}`);
+    alert(`Error: ${error.message}`);
   } finally {
     setCreateTestCaseLoading(false);
   }
@@ -1631,7 +1636,7 @@ const DebugImagesViewer = ({ debugImages }) => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-purple-700">{testCaseInfo.name}</h1>
+                <h1 className="text-xl md:text-2xl font-bold text-purple-700">{testCaseInfo.testcase_name}</h1>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-md text-xs">
                     Type: {testCaseInfo.testcase_type}

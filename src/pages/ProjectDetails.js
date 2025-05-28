@@ -12,7 +12,7 @@ import {
   Tag,
 } from "lucide-react";
 
-const ProjectDetails = ({ project_name }) => {
+const ProjectDetails = () => {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,10 +53,16 @@ useEffect(() => {
   const fetchTestSuites = async (projectName) => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testsuites/?project_id=${projectName}`
+        `http://127.0.0.1:8000/integrate/testsuite/?user_id=${userId}&project_name=${projectName}`
       );
       const data = await response.json();
-      if (response.ok) setTestSuites(Array.isArray(data) ? data : []);
+      console.log(data)
+
+      if (response.ok && Array.isArray(data.testsuites)) {
+        setTestSuites(data.testsuites);
+      } else {
+        setTestSuites([]);
+      }
     } catch (err) {
       console.error("Error fetching test suites:", err);
     }
@@ -390,7 +396,7 @@ useEffect(() => {
                   <div className="grid gap-4">
                     {testCases.map((testCase) => (
                       <div
-                        // key={testCase.id}
+                        key={testCase.testcase_name}
                         className="p-4 border rounded-lg hover:bg-gray-50"
                       >
                         <h4 className="font-medium text-gray-900">
@@ -411,7 +417,7 @@ useEffect(() => {
                             <h5 className="text-gray-900 font-semibold">Test Steps:</h5>
                             <ul className="list-disc pl-5 text-gray-700 mt-1">
                             {testCase.steps.map((step) => (
-                              <li key={step.id}>
+                              <li key={step.step_number}>
                                 <span className="font-medium">Step {step.step_number}:</span> {step.step_description}
                               </li>
                             ))}
@@ -439,7 +445,7 @@ useEffect(() => {
                   <div className="grid gap-4">
                     {testSuites.map((suite) => (
                       <div
-                        key={suite.id}
+                        key={suite.title}
                         className="p-4 border rounded-lg hover:bg-gray-50"
                       >
                         <h4 className="font-medium text-gray-900">
