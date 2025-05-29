@@ -36,40 +36,48 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
       console.warn("No userId found in localStorage");
       return;
     }
-  
+
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`,
+        `http://127.0.0.1:8000/api/projects/?user_id=${userId}`,
         {
           headers: {
             "Content-Type": "application/json",
           },
         }
       );
-  
+
       if (response.ok) {
         const data = await response.json();
-        setProjects(data.projects); 
-  
+        
+        const mappedProjects = data.map(project => ({
+          ...project,
+          project_name: project.name, 
+          id: project.id
+        }));
+        
+        setProjects(mappedProjects);
+
         const savedProjectKey = `selectedProject_${userId}`;
         const savedProject = localStorage.getItem(savedProjectKey);
-  
-        if (data.projects.length > 0) {
+
+        if (mappedProjects.length > 0) {
           if (savedProject) {
             const parsedProject = JSON.parse(savedProject);
-            const projectExists = data.projects.some((p) => p.project_name === parsedProject.project_name);
-  
+            const projectExists = mappedProjects.find(
+              (p) => p.id === parsedProject.id || p.project_name === parsedProject.project_name
+            );
+
             if (projectExists) {
-              setSelectedProject(parsedProject);
+              setSelectedProject(projectExists);
+              localStorage.setItem(savedProjectKey, JSON.stringify(projectExists));
             } else {
-
-              setSelectedProject(data.projects[0]);
-              localStorage.setItem(savedProjectKey, JSON.stringify(data.projects[0]));
-
+              setSelectedProject(mappedProjects[0]);
+              localStorage.setItem(savedProjectKey, JSON.stringify(mappedProjects[0]));
             }
           } else {
-            setSelectedProject(data.projects[0]);
-            localStorage.setItem(savedProjectKey, JSON.stringify(data.projects[0]));
+            setSelectedProject(mappedProjects[0]);
+            localStorage.setItem(savedProjectKey, JSON.stringify(mappedProjects[0]));
           }
         } else {
           setSelectedProject(null);

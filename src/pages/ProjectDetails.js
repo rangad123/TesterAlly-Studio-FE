@@ -98,55 +98,86 @@ useEffect(() => {
 }, [navigate]);
 
 
-  const handleDeleteProject = async (projectName) => {
-    if (!window.confirm("Are you sure you want to delete this project?"))
-      return;
+  const handleDeleteProject = async (projectName) => { 
+    if (!window.confirm("Are you sure you want to delete this project?")) 
+      return; 
 
-    try {
-      if (!projectName || !userId) {
-        alert(!projectName ? "Invalid project Name." : "Invalid user ID.");
-        return;
-      }
+    try { 
+      if (!projectName || !userId) { 
+        alert(!projectName ? "Invalid project Name." : "Invalid user ID."); 
+        return; 
+      } 
 
-      const requestBody = {
+      // Request body for local API (integrate) - your existing code
+      const localRequestBody = { 
+        user_id: localStorage.getItem("userId"), 
+        project_name: selectedProject.project_name, 
+      }; 
+      console.log("Local API Request Body:", localRequestBody); 
+
+      // Request body for DB API
+      const dbRequestBody = {
         user_id: localStorage.getItem("userId"),
-        project_name: selectedProject.project_name,
+        id: selectedProject.id // Using project ID for DB deletion
       };
+      console.log("DB API Request Body:", dbRequestBody);
 
-      console.log("Request Body:", requestBody);
+      // Call local API (integrate) - your existing code
+      const localDeleteResponse = await fetch( 
+        "http://127.0.0.1:8000/integrate/project/", 
+        { 
+          method: "DELETE", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify(localRequestBody), 
+        } 
+      ); 
 
-      const deleteResponse = await fetch(
-        "http://127.0.0.1:8000/integrate/project/",
+      const dbDeleteResponse = await fetch(
+        `http://127.0.0.1:8000/api/projects/${selectedProject.id}/?user_id=${userId}`,
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify(dbRequestBody),
         }
       );
 
-      if (deleteResponse.ok) {
-        const currentUser = localStorage.getItem("userId");
-        localStorage.removeItem(`selectedProject_${currentUser}`);
-        localStorage.removeItem("selectedProject");
+      // Check if both deletions succeeded
+      if (localDeleteResponse.ok && dbDeleteResponse.ok) { 
+        const currentUser = localStorage.getItem("userId"); 
+        localStorage.removeItem(`selectedProject_${currentUser}`); 
+        localStorage.removeItem("selectedProject"); 
 
-        window.dispatchEvent(
-          new CustomEvent("projectDeleted", {
-            detail: { projectName },
-          })
-        );
+        window.dispatchEvent( 
+          new CustomEvent("projectDeleted", { 
+            detail: { projectName, projectId: selectedProject.id }, // Include both name and ID
+          }) 
+        ); 
 
-        alert("Project deleted successfully.");
-        setSelectedProject(null);
-        navigate("/dashboard-user");
-      } else {
-        const errorData = await deleteResponse.json();
-        console.error("Delete failed:", errorData);
-        alert(errorData.message || "Failed to delete project.");
-      }
-    } catch (error) {
-      console.error("Error during deletion:", error);
-      alert("An error occurred while deleting the project. Please try again.");
-    }
+        alert("Project deleted successfully from both local and database."); 
+        setSelectedProject(null); 
+        navigate("/dashboard-user"); 
+      } else { 
+        // Handle partial failures
+        let errorMessage = "Failed to delete project. ";
+        
+        if (!localDeleteResponse.ok) {
+          const localErrorData = await localDeleteResponse.json();
+          console.error("Local API delete failed:", localErrorData);
+          errorMessage += "Local deletion failed. ";
+        }
+        
+        if (!dbDeleteResponse.ok) {
+          const dbErrorData = await dbDeleteResponse.json();
+          console.error("DB API delete failed:", dbErrorData);
+          errorMessage += "Database deletion failed. ";
+        }
+        
+        alert(errorMessage + "Please check console for details.");
+      } 
+    } catch (error) { 
+      console.error("Error during deletion:", error); 
+      alert("An error occurred while deleting the project. Please try again."); 
+    } 
   };
 
   const handleEditClick = (project) => {
@@ -168,43 +199,84 @@ useEffect(() => {
     }));
   };
 
-  const handleSave = async () => {
-    try {
-      console.log("Selected Project in Save:", selectedProject);
-      const requestBody = {
-        user_id: parseInt(userId),
-        project_name: selectedProject.original_project_name,
-        new_project_name: selectedProject.project_name,
-        new_description: selectedProject.description,
-        new_project_type: selectedProject.project_type,
-      };
-      console.log("Request Body before PUT:", requestBody);
+  const handleSave = async () => { 
+    try { 
+      console.log("Selected Project in Save:", selectedProject); 
+      
+      // Request body for local API (integrate)
+      const localRequestBody = { 
+        user_id: parseInt(userId), 
+        project_name: selectedProject.original_project_name, 
+        new_project_name: selectedProject.project_name, 
+        new_description: selectedProject.description, 
+        new_project_type: selectedProject.project_type, 
+      }; 
+      console.log("Local API Request Body before PUT:", localRequestBody); 
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/integrate/project/`,
+      // Request body for DB API - adjust structure as needed for your DB API
+      const dbRequestBody = {
+        name: selectedProject.project_name, 
+        description: selectedProject.description,
+        project_type: selectedProject.project_type,
+      };
+      console.log("DB API Request Body before PUT:", dbRequestBody);
+
+      // Call local API (integrate) - your existing code
+      const localResponse = await fetch( 
+        `http://127.0.0.1:8000/integrate/project/`, 
+        { 
+          method: "PUT", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify(localRequestBody), 
+        } 
+      ); 
+
+      // Call DB API for update
+      const dbResponse = await fetch(
+        `http://127.0.0.1:8000/api/projects/${selectedProject.id}/?user_id=${userId}`, 
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify(dbRequestBody),
         }
       );
 
-      if (response.ok) {
-        const updatedProject = await response.json();
+      // Check if both APIs succeeded
+      if (localResponse.ok && dbResponse.ok) { 
+        const updatedLocalProject = await localResponse.json(); 
+        const updatedDbProject = await dbResponse.json();
 
-        setSelectedProject(updatedProject);
+        // Merge the responses to ensure we have complete data
+        const mergedProject = {
+          ...updatedLocalProject,
+          id: updatedDbProject.id, // Ensure we keep the DB ID
+          project_name: updatedDbProject.name || updatedLocalProject.project_name
+        };
 
-        const savedProjectKey = `selectedProject_${userId}`;
-        localStorage.setItem(savedProjectKey, JSON.stringify(updatedProject));
-        localStorage.setItem("selectedProject", JSON.stringify(updatedProject));
+        setSelectedProject(mergedProject); 
 
-        setIsEditModalOpen(false);
-        alert("Project updated successfully.");
+        const savedProjectKey = `selectedProject_${userId}`; 
+        localStorage.setItem(savedProjectKey, JSON.stringify(mergedProject)); 
+        localStorage.setItem("selectedProject", JSON.stringify(mergedProject)); 
+
+        setIsEditModalOpen(false); 
+        alert("Project updated successfully in both local and database."); 
+      } else {
+        // Handle partial failures
+        if (!localResponse.ok) {
+          const localError = await localResponse.json();
+          console.error("Local API update failed:", localError);
+        }
+        if (!dbResponse.ok) {
+          const dbError = await dbResponse.json();
+          console.error("DB API update failed:", dbError);
+        }
+        alert("Project update failed. Please check console for details.");
       }
-    } catch (err) {
-      console.error("Error updating project:", err);
-      alert("An error occurred while updating the project.");
-    }
+    } catch (err) { 
+      console.error("Error updating project:", err); 
+      alert("An error occurred while updating the project."); 
+    } 
   };
 
   const renderEditModal = () => {

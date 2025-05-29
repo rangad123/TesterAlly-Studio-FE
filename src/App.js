@@ -929,9 +929,9 @@ const App = () => {
                 path="github"
                 exact
                 element={
-                  
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
                     <GitHub />
-                  
+                  </PrivateRoute>
                 }
               />
               <Route

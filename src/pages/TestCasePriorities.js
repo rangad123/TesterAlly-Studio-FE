@@ -46,7 +46,7 @@ const TestCasePriorities = () => {
 
   useEffect(() => {
     const fetchPriorities = async () => {
-      if (!selectedProject?.id) {
+      if (!selectedProject?.project_name) {
         setLoading(false);
         return;
       }
@@ -92,14 +92,14 @@ const TestCasePriorities = () => {
       return;
     }
 
-    if (!selectedProject?.id) {
+    if (!selectedProject?.project_name) {
       alert("Please select a project first.");
       return;
     }
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-priorities/",
         {
           method: "POST",
           headers: {
@@ -138,7 +138,7 @@ const TestCasePriorities = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-priorities/",
         {
           method: "PUT",
           headers: {
@@ -156,6 +156,7 @@ const TestCasePriorities = () => {
       setPriorities(priorities.map(priority => 
         priority.id === priorityId ? updatedPriority : priority
       ));
+
       setEditingId(null);
     } catch (error) {
       alert(error.message);
@@ -167,7 +168,7 @@ const TestCasePriorities = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-priorities/${priorityId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-priorities/",
         {
           method: "DELETE",
           headers: {

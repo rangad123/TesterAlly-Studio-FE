@@ -7,7 +7,8 @@ import {
   FaUserShield,
   FaUsers,
   FaFolderOpen,
-  FaGithub
+  FaGithub,
+  FaCreditCard
 } from "react-icons/fa";
 import { FiSettings } from "react-icons/fi";
 import { MdDashboard, MdAccountCircle } from "react-icons/md";
@@ -27,6 +28,7 @@ const Sidebar = () => {
   const [isTestCasesVisible, setIsTestCasesVisible] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
   const [isIntegrationVisible, setIsIntegrationVisible] = useState(false);
+  const [isProfileVisible, setIsProfileVisible] = useState(false);
 
   const sidebarRef = useRef(null);
 
@@ -49,6 +51,7 @@ const Sidebar = () => {
         setIsSubSidebarVisible(false);
         setIsSettingsVisible(false);
         setIsIntegrationVisible(false);
+        setIsProfileVisible(false);
         
         if (window.innerWidth < 640) {
           setIsTestCasesVisible(false);
@@ -81,6 +84,7 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsIntegrationVisible(false);
+    setIsProfileVisible(false);
 
   };
 
@@ -90,7 +94,7 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsIntegrationVisible(false);
-
+    setIsProfileVisible(false);
   };
 
   const handleNavigateToCreateProject = () => {
@@ -118,13 +122,23 @@ const Sidebar = () => {
 
   };
 
-  const handleNavigateToProfile = () => {
-    navigate("/profile");
+  const toggleProfileSidebar = () => {
+    setIsProfileVisible((prevState) => !prevState);
     setIsSubSidebarVisible(false);
+    setIsSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
-    setIsSettingsVisible(false);
     setIsIntegrationVisible(false);
+  };
+
+  const handleNavigateToViewProfile = () => {
+    navigate("/profile");
+    setIsProfileVisible(false);
+  };
+
+  const handleNavigateToBilling = () => {
+    navigate("/billing");
+    setIsProfileVisible(false);
   };
 
   const toggleIntegrationSidebar = () => {
@@ -133,6 +147,7 @@ const Sidebar = () => {
     setIsSettingsVisible(false);
     setIsTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
+    setIsProfileVisible(false);
   };
 
   const handleNavigateToGithubIntegration = () => {
@@ -148,6 +163,7 @@ const Sidebar = () => {
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
     setIsIntegrationVisible(false);
+    setIsProfileVisible(false);
   };
 
   const handleNavigateToUserRoles = () => {
@@ -173,7 +189,7 @@ const Sidebar = () => {
     setIsSettingsVisible(false);
     setIsSubSidebarVisible(false);
     setIsIntegrationVisible(false);
-
+    setIsProfileVisible(false);
   };
 
   const handleProjectList = () => {
@@ -281,10 +297,10 @@ const Sidebar = () => {
 
     {/* Profile Option */}
     <div
-      className={`sidebar-option ${currentPath === "/profile" ? "active" : ""}`}
-      onClick={handleNavigateToProfile}
+      className={`sidebar-option ${currentPath === "/profile" || currentPath === "/billing" ? "active" : ""}`}
+      onClick={toggleProfileSidebar}
     >
-      <MdAccountCircle className={`icon project-icon ${window.location.pathname === "/profile" ? "active-icon" : ""}`}  />
+      <MdAccountCircle className={`icon project-icon ${currentPath === "/profile" || currentPath === "/billing" ? "active-icon" : ""}`} />
       <div className="option-name-container">
         <span className="option-name">Profile</span>
       </div>
@@ -324,6 +340,20 @@ const Sidebar = () => {
           <div className="sub-sidebar-item" onClick={handleNavigateToUsers}>
             <FaUsers className="icon" />
             <span>Users</span>
+          </div>
+        </div>
+      )}
+
+      {isProfileVisible && (
+        <div className={`sub-sidebar-settings ${isSidebarOpen ? "aligned-expanded" : "aligned-collapsed"}`}>
+          <div className="sub-sidebar-header">Account Settings</div>
+          <div className="sub-sidebar-item" onClick={handleNavigateToViewProfile}>
+            <MdAccountCircle className="icon" />
+            <span>View Profile</span>
+          </div>
+          <div className="sub-sidebar-item" onClick={handleNavigateToBilling}>
+            <FaCreditCard className="icon" />
+            <span>Billing</span>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const SchedulerPage = () => {
   // API base URL for fetching data
@@ -51,16 +51,8 @@ const SchedulerPage = () => {
     }
   }, []);
   
-  // Fetch schedules when component mounts
-  useEffect(() => {
-    if (projectId) {
-      fetchSchedules();
-      fetchTestItems();
-    }
-  }, [projectId]);
-  
   // Fetch schedules from API
-  const fetchSchedules = async () => {
+  const fetchSchedules = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${apiBaseUrl}/schedules/?project_id=${projectId}`);
@@ -126,10 +118,10 @@ const SchedulerPage = () => {
       setError("Failed to fetch schedules");
       setLoading(false);
     }
-  };
+  }, [projectId]);
   
   // Fetch test cases and test suites for dropdown selection
-  const fetchTestItems = async () => {
+  const fetchTestItems = useCallback(async () => {
     try {
       // Fetch test cases
       const testCasesResponse = await fetch(`${apiBaseUrl}/testcases/?project_id=${projectId}`);
@@ -174,7 +166,14 @@ const SchedulerPage = () => {
         { id: 3, title: "UI Tests" }
       ]);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchSchedules();
+      fetchTestItems();
+    }
+  }, [projectId, fetchSchedules, fetchTestItems]);
   
   const handleItemTypeChange = (newType) => {
     setItemType(newType);

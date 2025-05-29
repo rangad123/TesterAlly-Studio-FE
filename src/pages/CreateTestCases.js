@@ -13,6 +13,7 @@ const CreateTestCases = () => {
   const [priorities, setPriorities] = useState([]);
   const [, setError] = useState(null);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
@@ -66,6 +67,7 @@ const CreateTestCases = () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return;
     if (!validateFields()) return;
+    setIsLoading(true);
 
     try {
       const response = await fetch(
@@ -75,7 +77,12 @@ const CreateTestCases = () => {
         }
       );
 
-      if (!response.ok) {
+      if (response.ok) {
+        if (response.status === 200) {
+          setShowModal(true);
+          return;
+        }
+      } else {
         if (response.status === 404) {
           setShowModal(true);
           return;
@@ -101,6 +108,8 @@ const CreateTestCases = () => {
     } catch (error) {
       console.error("Error checking test case name:", error);
       alert("Error checking test case name. Please try again.");
+      setIsLoading(false);
+
     }
   };
 
@@ -294,8 +303,12 @@ const CreateTestCases = () => {
                       Cancel
                     </button>
 
-                    <button onClick={handleNextClick} className="create-test-cases-btn-manual bg-purple-600">
-                      Next
+                    <button
+                      onClick={handleNextClick}
+                      className="create-test-cases-btn-manual bg-purple-600"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Loading..." : "Next"}
                     </button>
                   </div>
                 </div>
@@ -322,7 +335,15 @@ const CreateTestCases = () => {
                   Record
                 </button>
               </div>
-              <button onClick={() => setShowModal(false)} className="modal-close text-gray-500">Cancel</button>
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setIsLoading(false); 
+                }}
+                className="modal-close text-gray-500"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}

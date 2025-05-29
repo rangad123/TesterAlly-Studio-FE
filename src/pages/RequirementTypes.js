@@ -48,7 +48,7 @@ const RequirementTypes = () => {
 
   useEffect(() => {
     const fetchRequirementTypes = async () => {
-      if (!selectedProject?.id) {
+      if (!selectedProject?.project_name) {
         setLoading(false);
         return;
       }
@@ -58,7 +58,7 @@ const RequirementTypes = () => {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/requirement-types/`,
+          "http://127.0.0.1:8000/api/requirement-types/",
           {
             headers: {
               "Content-Type": "application/json",
@@ -72,7 +72,7 @@ const RequirementTypes = () => {
         }
 
         const data = await response.json();
-        
+
         setTypes(data);
       } catch (error) {
         setError(error.message || "Failed to fetch requirement types");
@@ -95,14 +95,14 @@ const RequirementTypes = () => {
       return;
     }
 
-    if (!selectedProject?.id) {
+    if (!selectedProject?.project_name) {
       alert("Please select a project first.");
       return;
     }
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/requirement-types/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/requirement-types/",
         {
           method: "POST",
           headers: {
@@ -141,7 +141,7 @@ const RequirementTypes = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/requirement-types/",
         {
           method: "PUT",
           headers: {
@@ -170,7 +170,7 @@ const RequirementTypes = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/requirement-types/${typeId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/requirement-types/",
         {
           method: "DELETE",
           headers: {

@@ -100,6 +100,7 @@ const ProjectMembers = () => {
       recipient_email: inviteEmail,
       role: selectedRole 
     };
+    console.log("send-invite:",payload)
 
     try {
       const response = await axios.post(
@@ -121,6 +122,7 @@ const ProjectMembers = () => {
       fetchInvitedMembers(); // Always refresh
     } catch (error) {
       console.error("Error sending invite:", error);
+
       const errorMessage =
         error.response?.data?.error || 
         error.response?.data?.message || 
@@ -211,7 +213,7 @@ const ProjectMembers = () => {
               </h2>
               {selectedProject && (
                 <span className="text-sm text-gray-600 mt-1 block">
-                  Project: {selectedProject.name}
+                  Project: {selectedProject.project_name}
                 </span>
               )}
             </div>

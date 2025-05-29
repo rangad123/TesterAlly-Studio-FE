@@ -156,7 +156,7 @@ const handleCreateTestCase = async () => {
         const selectedSteps = testSteps
         .filter(step => step.isSelected && step.isSaved)
         .map((step, index) => {
-            const stepId = step.step_number;
+            const stepId = step.id;
             
             // Initialize default coordinates
             let coordinates = { click_x: 0, click_y: 0 };
@@ -179,6 +179,9 @@ const handleCreateTestCase = async () => {
                     coordinates = capturedSteps[stepId].coordinates;
                 }
             }
+            console.log("Debug - stepId:", stepId);
+console.log("Debug - capturedSteps[stepId]:", capturedSteps[stepId]);
+console.log("Debug - step.selectedElement:", step.selectedElement);
             
             // Format each step for the teststep API
             return {
@@ -238,8 +241,6 @@ const handleCreateTestCase = async () => {
 
             if (!stepsResponse.ok) {
                 const errorData = await stepsResponse.json().catch(() => ({}));
-                // If steps fail, we might want to delete the created test case
-                // or just show a warning that test case was created but steps failed
                 console.warn("Steps creation failed:", errorData);
                 alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
                 navigate("/test-cases");

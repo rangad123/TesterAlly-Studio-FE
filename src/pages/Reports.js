@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaSearch, FaExclamationTriangle, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { Calendar, BarChart2, Download, RefreshCw } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Reports = () => {
   const [selectedProject, setSelectedProject] = useState(null);
@@ -193,20 +195,24 @@ const fetchTestResults = React.useCallback(async () => {
     setTimeRange("custom");
   };
 
-  const handleExportReport = () => {
-    if (!testResults.length) {
-      alert("No results to export");
-      return;
-    }
-    
-    // Create a simple CSV export
-    const headers = activeTab === "suites" ? 
-      ['Test Suite', 'Execution Date', 'Status', 'Test Cases', 'Passed', 'Failed', 'Time (s)'] :
-      ['Test Case', 'Execution Date', 'Status', 'Steps', 'Passed', 'Failed', 'Time (s)'];
-    
-    const rows = testResults.map(result => {
-      if (activeTab === "suites") {
-        return [
+const handleExportReport = () => {
+  if (!testResults.length) {
+    alert("No results to export");
+    return;
+  }
+
+  const doc = new jsPDF();
+
+  const title = activeTab === "suites" ? "Test Suites Report" : "Test Cases Report";
+  doc.text(title, 14, 15);
+
+  const headers = activeTab === "suites"
+    ? ['Test Suite', 'Execution Date', 'Status', 'Test Cases', 'Passed', 'Failed', 'Time (s)']
+    : ['Test Case', 'Execution Date', 'Status', 'Steps', 'Passed', 'Failed', 'Time (s)'];
+
+  const rows = testResults.map(result => (
+    activeTab === "suites"
+      ? [
           result.name,
           new Date(result.execution_date).toLocaleString(),
           result.status,
@@ -214,9 +220,8 @@ const fetchTestResults = React.useCallback(async () => {
           result.passed_testcases || 0,
           result.failed_testcases || 0,
           result.execution_time || 0
-        ];
-      } else {
-        return [
+        ]
+      : [
           result.name,
           new Date(result.execution_date).toLocaleString(),
           result.status,
@@ -224,24 +229,21 @@ const fetchTestResults = React.useCallback(async () => {
           result.passed_steps || 0,
           result.failed_steps || 0,
           result.execution_time || 0
-        ];
-      }
-    });
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${activeTab}-report-${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+        ]
+  ));
+
+  // ✅ Use autoTable(doc, { ... })
+  autoTable(doc, {
+    head: [headers],
+    body: rows,
+    startY: 25,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [22, 160, 133] }
+  });
+
+  const filename = `${activeTab}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(filename);
+};
 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };

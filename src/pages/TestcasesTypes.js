@@ -46,7 +46,7 @@ const TestcasesTypes = () => {
 
   useEffect(() => {
     const fetchTestCaseTypes = async () => {
-      if (!selectedProject?.id) {
+      if (!selectedProject?.project_name) {
         setLoading(false);
         return;
       }
@@ -92,14 +92,14 @@ const TestcasesTypes = () => {
       return;
     }
 
-    if (!selectedProject?.id) {
+    if (!selectedProject?.project_name) {
       alert("Please select a project first.");
       return;
     }
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-types/",
         {
           method: "POST",
           headers: {
@@ -135,7 +135,7 @@ const TestcasesTypes = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-types/",
         {
           method: "PUT",
           headers: {
@@ -162,7 +162,7 @@ const TestcasesTypes = () => {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-types/${typeId}/?project_id=${selectedProject.id}`,
+        "http://127.0.0.1:8000/api/testcase-types/",
         {
           method: "DELETE",
           headers: {
