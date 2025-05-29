@@ -1,4 +1,3 @@
-
 import { Avatar, Dropdown, Navbar } from "flowbite-react";
 import UserIcon from "../images/user.png";
 import { toast } from "react-toastify";
@@ -64,6 +63,16 @@ const AppNavBar = (props) => {
   };
 
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isMemberRoute = location.pathname.includes("member-");
+
+  // Profile navigation handler
+  const handleProfileClick = () => {
+    if (isMemberRoute) {
+      navigate("/member-profile");
+    } else {
+      navigate("/profile");
+    }
+  };
 
   return (
     <div className="py-2">
@@ -149,7 +158,15 @@ const AppNavBar = (props) => {
                 />
               }
             >
-              <Dropdown.Item onClick={() => navigate("/profile")}>
+              <Dropdown.Header>
+                <span className="block text-sm">
+                  {isMemberRoute ? "Member" : "User"}
+                </span>
+                <span className="block truncate text-sm font-medium">
+                  {currentEmail}
+                </span>
+              </Dropdown.Header>
+              <Dropdown.Item onClick={handleProfileClick}>
                 <div className="flex items-center space-x-2">
                   <AccountCircleIcon fontSize="small" />
                   <span>View Profile</span>

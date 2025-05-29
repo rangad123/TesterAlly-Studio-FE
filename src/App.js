@@ -355,6 +355,7 @@ import WriteTestManually from "./pages/WriteTestManually";
 import SchedulerPage from "./pages/SchedulerPage";
 import GitHub from "./pages/GitHub";
 import GitCreate from "./pages/GitCreate";
+import MemberGithub from "./Members/MemberGithub";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -759,6 +760,15 @@ const App = () => {
                 element={ 
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <MemberPriorities />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-github"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberGithub />
                   </PrivateRoute>
                 }
               />
