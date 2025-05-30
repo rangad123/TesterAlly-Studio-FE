@@ -356,6 +356,9 @@ import SchedulerPage from "./pages/SchedulerPage";
 import GitHub from "./pages/GitHub";
 import GitCreate from "./pages/GitCreate";
 import MemberGithub from "./Members/MemberGithub";
+import MemberRecord from "./Members/MemberRecord";
+import MemberSuiteDetails from "./Members/MemberSuiteDetails";
+import MemberCreateSuite from "./Members/MemberCreateSuite";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -688,6 +691,33 @@ const App = () => {
                 element={ 
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <MemberTestCases />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-record"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberRecord />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-suite-details"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberSuiteDetails />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/member-create-suite"
+                exact
+                element={ 
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MemberCreateSuite />
                   </PrivateRoute>
                 }
               />

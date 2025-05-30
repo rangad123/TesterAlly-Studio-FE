@@ -18,8 +18,10 @@ const MemberProjectDetails = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/user-projects/${userId}/`);
+        const response = await fetch(`http://127.0.0.1:8000/integrate/project/?user_id=${userId}`);
         const result = await response.json();
+        console.log("Projects", result);
+
         setData(result);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -32,25 +34,19 @@ const MemberProjectDetails = () => {
   }, [userId]);
 
   const handleProjectClick = (project) => {
-    const projectData = {
-      ...project,
-      test_cases: data.test_cases.filter(tc => tc.project_id === project.id),
-      test_suites: data.test_suites.filter(ts => ts.project_id === project.id),
-      requirements: data.requirements.filter(req => req.project_id === project.id),
-    };
 
-    localStorage.setItem(`selectedProject_${userId}`, JSON.stringify(projectData));
-    localStorage.setItem("selectedProject", JSON.stringify(projectData));
+    const currentUser = localStorage.getItem("userId");
+    const savedProjectKey = `selectedProject_${currentUser}`;
+    localStorage.setItem(savedProjectKey, JSON.stringify(project));
+    localStorage.setItem("selectedProject", JSON.stringify(project));
+
     
-    window.dispatchEvent(new CustomEvent("projectChanged", { detail: projectData }));
+    window.dispatchEvent(new CustomEvent("projectChanged", { detail: project }));
     window.dispatchEvent(new CustomEvent("showProjectSidebar", { detail: true }));
     
     navigate("/member-project-details");
   };
 
-  const handleAddNew = (type) => {
-    navigate("/member-create-testcase");
-  };
 
   return (
     <div>
@@ -95,12 +91,12 @@ const MemberProjectDetails = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     {data.projects.map((project) => (
                       <div
-                        key={project.id}
+                        key={project.project_name}
                         onClick={() => handleProjectClick(project)}
                         className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-6"
                       >
                         <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">
-                          {project.name}
+                          {project.project_name}
                         </h1>
                         <div className="flex items-center text-gray-600 mt-2">
                           <Tag className="w-5 h-5 mr-2" />
@@ -139,116 +135,11 @@ const MemberProjectDetails = () => {
                           </p>
                         </div>
 
-                        <div className="space-y-2 mt-4">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Test Cases:</span>
-                            <span className="font-medium">{data.test_cases.filter(tc => tc.project_id === project.id).length}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Test Suites:</span>
-                            <span className="font-medium">{data.test_suites.filter(ts => ts.project_id === project.id).length}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Requirements:</span>
-                            <span className="font-medium">{data.requirements.filter(req => req.project_id === project.id).length}</span>
-                          </div>
-                        </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Test Cases Tab */}
-                {activeTab === "test-cases" && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold">Test Cases</h2>
-                      <button
-                        onClick={() => handleAddNew('test-case')}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                      >
-                        <span className="text-lg">+</span> Add Test Case
-                      </button>
-                    </div>
-                    <div className="space-y-4">
-                      {data.test_cases.map((tc) => (
-                        <div key={tc.id} className="bg-white rounded-lg shadow p-6">
-                          <h3 className="text-lg font-semibold mb-2">{tc.name}</h3>
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <span className="text-gray-500">Type:</span>
-                              <span className="ml-2">{tc.testcase_type}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">Priority:</span>
-                              <span className="ml-2">{tc.testcase_priority}</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            {tc.steps.map((step, index) => (
-                              <div key={step.id} className="flex gap-2">
-                                <span className="text-gray-500">{index + 1}.</span>
-                                <p>{step.step_description}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Test Suites Tab */}
-                {activeTab === "test-suites" && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold">Test Suites</h2>
-                      <button
-                        onClick={() => handleAddNew('test-suite')}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                      >
-                        <span className="text-lg">+</span> Add Test Suite
-                      </button>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {data.test_suites.map((ts) => (
-                        <div key={ts.id} className="bg-white rounded-lg shadow p-6">
-                          <h3 className="text-lg font-semibold mb-2">{ts.title}</h3>
-                          <p className="text-gray-600 mb-2">{ts.description}</p>
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium">Pre-requisite:</span> {ts.pre_requisite}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Requirements Tab */}
-                {activeTab === "requirements" && (
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold">Requirements</h2>
-                      <button
-                        onClick={() => handleAddNew('requirement')}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                      >
-                        <span className="text-lg">+</span> Add Requirement
-                      </button>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {data.requirements.map((req) => (
-                        <div key={req.id} className="bg-white rounded-lg shadow p-6">
-                          <h3 className="text-lg font-semibold mb-2">{req.title}</h3>
-                          <p className="text-gray-600 mb-2">{req.description}</p>
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium">Type:</span> {req.type}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>

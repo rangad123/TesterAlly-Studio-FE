@@ -280,7 +280,7 @@ const handleRowClick = (testCase) => {
       const testCaseToCopy = testCases.find(tc => tc.testcase_name === testCaseName);
       if (!testCaseToCopy) throw new Error("Test case not found");
 
-      // Generate a unique copy name outside the loop
+      // Generate a unique copy name
       const generateUniqueCopyName = (baseName, existingNames) => {
         let copyName = `${baseName} (copy)`;
         let count = 1;
@@ -293,7 +293,7 @@ const handleRowClick = (testCase) => {
 
       const existingNames = testCases.map(tc => tc.testcase_name);
       const copyName = generateUniqueCopyName(testCaseToCopy.testcase_name, existingNames);
-  
+
       // 1. Create new test case
       const createTestCaseRequest = {
         user_id: parseInt(userId),
@@ -302,9 +302,9 @@ const handleRowClick = (testCase) => {
         testcase_type: testCaseToCopy.testcase_type,
         testcase_priority: testCaseToCopy.testcase_priority
       };
-  
+
       console.log("Request: Create test case", createTestCaseRequest);
-  
+
       const newTestCaseResponse = await fetch(
         `http://127.0.0.1:8000/integrate/testcase/`,
         {
@@ -315,86 +315,111 @@ const handleRowClick = (testCase) => {
           body: JSON.stringify(createTestCaseRequest),
         }
       );
-  
+
       console.log("Response: Create test case", newTestCaseResponse);
-  
+
       if (!newTestCaseResponse.ok) {
         const errorText = await newTestCaseResponse.text();
         console.error("Create test case error response:", errorText);
         throw new Error("Failed to create copied test case");
       }
-  
+
       const newTestCase = await newTestCaseResponse.json();
       console.log("Created copied test case:", newTestCase);
-  
-      // 2. Get existing steps
-      console.log(`Request: Fetch steps for testCaseId ${testCaseName}`);
+
+      // 2. Get existing steps for the original test case
+      console.log(`Request: Fetch steps for testCaseName ${testCaseName}`);
       const stepsResponse = await fetch(
-        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${testCaseName}`
       );
-  
+
       console.log("Response: Fetch steps", stepsResponse);
-  
+
       if (!stepsResponse.ok) {
         const errorText = await stepsResponse.text();
         console.error("Fetch steps error response:", errorText);
         throw new Error("Failed to fetch steps for copying");
       }
-  
-      const steps = await stepsResponse.json();
-  
-      const stepsData = steps.map((step, index) => ({
-        testcase: newTestCase.id,
-        step_number: step.step_number,
-        step_description: step.step_description,
-        teststep_result: step.teststep_result || "not_executed",
-        step_coordinates: step.step_coordinates || {}
-      }));
-  
-      // 3. Bulk create steps
-      console.log("Request: Bulk create steps", stepsData);
-  
-      const bulkStepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/bulk-create/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ steps: stepsData })
-      });
-  
-      console.log("Response: Bulk create steps", bulkStepResponse);
-  
-      if (!bulkStepResponse.ok) {
-        const errorText = await bulkStepResponse.text();
-        console.error("Bulk create error response:", errorText);
-        throw new Error("Failed to bulk create steps");
+
+      const originalStepsData = await stepsResponse.json();
+      console.log("Original steps data:", originalStepsData);
+
+      // 3. Prepare steps for the new test case using the new API structure
+      if (originalStepsData && originalStepsData.testcase && originalStepsData.testcase.steps && originalStepsData.testcase.steps.length > 0) {
+        const stepsForNewTestCase = originalStepsData.testcase.steps.map((step, index) => ({
+          step_number: step.step_number || (index + 1),
+          step_description: step.step_description,
+          teststep_result: step.teststep_result || "not_executed",
+          step_coordinates: step.step_coordinates || { click_x: 0, click_y: 0 },
+          expected_result: step.expected_result || "",
+          actual_result: step.actual_result || ""
+        }));
+
+        // 4. Create steps using the new integrate/teststep API
+        const stepsPayload = {
+          user_id: parseInt(userId),
+          project_name: selectedProject.project_name,
+          testcase_name: copyName,
+          steps: stepsForNewTestCase
+        };
+
+        console.log("Request: Create steps with new API", stepsPayload);
+
+        const createStepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(stepsPayload)
+        });
+
+        console.log("Response: Create steps", createStepsResponse);
+
+        if (!createStepsResponse.ok) {
+          const errorText = await createStepsResponse.text();
+          console.error("Create steps error response:", errorText);
+          // Test case was created but steps failed - show warning
+          console.warn("Test case copied but steps creation failed");
+          setError("Test case copied but failed to copy steps");
+        } else {
+          const stepsResult = await createStepsResponse.json();
+          console.log("Steps created successfully:", stepsResult);
+        }
+      } else {
+        console.log("No steps found in original test case");
       }
-  
-      // 4. Refresh test cases list
-      console.log(`Request: Refresh test cases for project ${selectedProject.id}`);
+
+      // 5. Refresh test cases list using the new API
+      console.log(`Request: Refresh test cases for project ${selectedProject.project_name}`);
       const updatedTestCasesResponse = await fetch(
-        `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+        `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`,
         {
           headers: {
             "Content-Type": "application/json",
           }
         }
       );
-  
+
       console.log("Response: Refresh test cases", updatedTestCasesResponse);
-  
+
       if (!updatedTestCasesResponse.ok) {
         const errorText = await updatedTestCasesResponse.text();
         console.error("Refresh test cases error response:", errorText);
         throw new Error("Failed to refresh test cases");
       }
-  
+
       const updatedData = await updatedTestCasesResponse.json();
-  
-      setTestCases(updatedData.map(testCase => ({
+
+      if (!Array.isArray(updatedData.testcases)) {
+        throw new Error("Invalid response format: 'testcases' not found or not an array");
+      }
+
+      setTestCases(updatedData.testcases.map(testCase => ({
         ...testCase,
         project_name: selectedProject.project_name
       })));
-  
+
       setError(null);
+      console.log("Test case copied successfully with steps");
+
     } catch (error) {
       console.error("Error copying test case:", error);
       setError("Failed to copy test case");

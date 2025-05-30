@@ -12,8 +12,10 @@ const MemberProjects = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/user-projects/${userId}/`);
+        const response = await fetch(`http://127.0.0.1:8000/integrate/project/?user_id=${userId}`);
         const result = await response.json();
+        console.log("Projects", result);
+
         setData(result);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -26,17 +28,13 @@ const MemberProjects = () => {
   }, [userId]);
 
   const handleProjectClick = (project) => {
-    const projectData = {
-      ...project,
-      test_cases: data.test_cases.filter(tc => tc.project_id === project.id),
-      test_suites: data.test_suites.filter(ts => ts.project_id === project.id),
-      requirements: data.requirements.filter(req => req.project_id === project.id),
-    };
 
-    localStorage.setItem(`selectedProject_${userId}`, JSON.stringify(projectData));
-    localStorage.setItem("selectedProject", JSON.stringify(projectData));
+    const currentUser = localStorage.getItem("userId");
+    const savedProjectKey = `selectedProject_${currentUser}`;
+    localStorage.setItem(savedProjectKey, JSON.stringify(project));
+    localStorage.setItem("selectedProject", JSON.stringify(project));
 
-    window.dispatchEvent(new CustomEvent("projectChanged", { detail: projectData }));
+    window.dispatchEvent(new CustomEvent("projectChanged", { detail: project }));
     window.dispatchEvent(new CustomEvent("showProjectSidebar", { detail: true }));
 
     navigate("/member-project-details");
@@ -64,12 +62,12 @@ const MemberProjects = () => {
                 ) : (
                   data.projects.map((project) => (
                     <div
-                      key={project.id}
+                      key={project.project_name}
                       onClick={() => handleProjectClick(project)}
                       className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer overflow-hidden"
                     >
                       <div className="p-6">
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">{project.name}</h3>
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2">{project.project_name}</h3>
                         <p className="text-gray-600 mb-4 line-clamp-2">
                           {project.description || "No description provided"}
                         </p>
@@ -78,28 +76,6 @@ const MemberProjects = () => {
                         </div>
                       </div>
                       
-                      <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-semibold text-blue-600">
-                              {data.test_cases.filter(tc => tc.project_id === project.id).length}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">Test Cases</div>
-                          </div>
-                          <div className="text-center border-l border-r border-gray-200">
-                            <div className="text-2xl font-semibold text-green-600">
-                              {data.test_suites.filter(ts => ts.project_id === project.id).length}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">Test Suites</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-semibold text-purple-600">
-                              {data.requirements.filter(req => req.project_id === project.id).length}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">Requirements</div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   ))
                 )}

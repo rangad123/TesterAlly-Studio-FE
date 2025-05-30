@@ -24,7 +24,8 @@ const MemberDashBoard = () => {
           return;
         }
 
-        // Check git status first
+        await syncProjectsOnLogin();
+
         const gitResponse = await fetch(`http://127.0.0.1:8000/integrate/git_status/?user_id=${userId}`, {
           method: 'GET',
           headers: {
@@ -56,6 +57,65 @@ const MemberDashBoard = () => {
 
     checkGitHubConnectionAndCloneStatus();
   }, []); 
+
+  const syncProjectsOnLogin = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    try {
+      // Fetch projects from both APIs
+      const [localResponse, dbResponse] = await Promise.all([
+        fetch(`http://127.0.0.1:8000/integrate/project/?user_id=${userId}`),
+        fetch(`http://127.0.0.1:8000/api/user-projects/${userId}`)
+      ]);
+
+      const localData = localResponse.ok ? await localResponse.json() : { projects: [] };
+      const dbData = dbResponse.ok ? await dbResponse.json() : {};
+
+      const localProjects = localData.projects || [];
+      const dbProjects = dbData.projects || []; // Extract only projects from the response
+
+      console.log("Local projects:", localProjects);
+      console.log("DB projects:", dbProjects);
+
+      // If local is empty but DB has projects, sync them to local
+      if (localProjects.length === 0 && dbProjects.length > 0) {
+        console.log("Syncing projects from DB to local...");
+        
+        for (const dbProject of dbProjects) {
+          const projectData = {
+            user_id: parseInt(userId),
+            project_name: dbProject.name,
+            description: dbProject.description || "No description provided",
+            project_type: dbProject.project_type,
+          };
+
+          try {
+            const syncResponse = await fetch("http://127.0.0.1:8000/integrate/project/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(projectData),
+            });
+
+            if (syncResponse.ok) {
+              console.log(`Project '${dbProject.name}' synced to local successfully`);
+            } else {
+              console.error(`Failed to sync project '${dbProject.name}' to local`);
+            }
+          } catch (error) {
+            console.error(`Error syncing project '${dbProject.name}':`, error);
+          }
+        }
+        
+        console.log("Project sync completed");
+      }
+
+    } catch (error) {
+      console.error("Error during project sync:", error);
+    }
+  };
 
   const checkCloneStatus = async (userId) => {
     try {
@@ -179,24 +239,17 @@ const MemberDashBoard = () => {
     </div>
   );
 
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <div className="main-content">
-          <div className="text-center space-y-5">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-            <p className="text-lg text-gray-600">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <MemberSidebar />
       <div className="dashboard-container">
         <div className="main-content">
+          {loading ? (
+          <div className="text-center space-y-5">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <p className="text-lg text-gray-600">Loading...</p>
+          </div>
+        ) : (
           <div className="text-center space-y-5">
             <h1 className="text-5xl font-bold">Welcome to Member Agent</h1>
             <p className="text-xl text-gray-600">
@@ -263,6 +316,7 @@ const MemberDashBoard = () => {
               </div>
             )}
           </div>
+        )}
         </div>
 
         {/* Show modal if admin hasn't connected GitHub or assigned repository */}

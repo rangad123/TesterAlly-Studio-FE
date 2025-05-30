@@ -10,6 +10,7 @@ import {
   FaClipboardList,
 } from "react-icons/fa";
 
+
 const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,7 +53,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
   
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/user-projects/${userId}/`,
+        `http://127.0.0.1:8000/integrate/project/?user_id=${userId}`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -62,27 +63,40 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
   
       if (response.ok) {
         const data = await response.json();
-        const projectsArray = data.projects || [];
-        setProjects(projectsArray);
-  
-        if (!selectedProject && projectsArray.length > 0) {
-          const savedProjectKey = `selectedProject_${userId}`;
-          const savedProject = localStorage.getItem(savedProjectKey);
-  
+        console.log("Projects", data);
+
+        const mappedProjects = data.projects.map(project => ({
+          ...project,
+          project_name: project.project_name,
+          id: project.id, 
+        }));
+        
+        setProjects(mappedProjects);
+
+        const savedProjectKey = `selectedProject_${userId}`;
+        const savedProject = localStorage.getItem(savedProjectKey);
+
+        if (mappedProjects.length > 0) {
           if (savedProject) {
             const parsedProject = JSON.parse(savedProject);
-            const projectExists = projectsArray.some((p) => p.id === parsedProject.id);
-  
+            const projectExists = mappedProjects.find(
+              (p) => p.id === parsedProject.id || p.project_name === parsedProject.project_name
+            );
+
             if (projectExists) {
-              setSelectedProject(parsedProject);
+              setSelectedProject(projectExists);
+              localStorage.setItem(savedProjectKey, JSON.stringify(projectExists));
             } else {
-              setSelectedProject(projectsArray[0]);
-              localStorage.setItem(savedProjectKey, JSON.stringify(projectsArray[0]));
+              setSelectedProject(mappedProjects[0]);
+              localStorage.setItem(savedProjectKey, JSON.stringify(mappedProjects[0]));
             }
           } else {
-            setSelectedProject(projectsArray[0]);
-            localStorage.setItem(savedProjectKey, JSON.stringify(projectsArray[0]));
+            setSelectedProject(mappedProjects[0]);
+            localStorage.setItem(savedProjectKey, JSON.stringify(mappedProjects[0]));
           }
+        } else {
+          setSelectedProject(null);
+          localStorage.removeItem(savedProjectKey);
         }
       } else {
         console.error("Failed to fetch projects:", await response.json());
@@ -90,18 +104,16 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
     } catch (error) {
       console.error("Error fetching projects:", error);
     }
-  }, [selectedProject]);
+  }, []);
   
-  const filteredProjects = Array.isArray(projects) 
-    ? projects.filter((project) =>
-        project.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : [];
+    const filteredProjects = projects.filter((project) =>
+      project.project_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   
   
-    useEffect(() => {
-      fetchProjects();
-    }, [fetchProjects]);
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
     useEffect(() => {
       const pathToMenu = {
@@ -126,7 +138,8 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
     useEffect(() => {
       const handleProjectChanged = (event) => {
         const changedProject = event.detail;
-        if (changedProject && changedProject.id !== selectedProject?.id) {
+        fetchProjects(); 
+        if (changedProject) {
           setSelectedProject(changedProject);
           const userId = localStorage.getItem("userId");
           if (userId) {
@@ -137,7 +150,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
     
       window.addEventListener("projectChanged", handleProjectChanged);
       return () => window.removeEventListener("projectChanged", handleProjectChanged);
-    }, [selectedProject]);
+    }, [selectedProject, fetchProjects]);
 
     const handleProjectSelect = useCallback((project) => {
       const userId = localStorage.getItem("userId");
@@ -207,7 +220,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <span className="text-black truncate">
-              {selectedProject?.name || "Select Project"}
+              {selectedProject?.project_name || "Select Project"}
             </span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -224,7 +237,7 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
       </div>
 
       {/* Dropdown Menu */}
-      {isDropdownOpen && Array.isArray(projects) && projects.length > 0 && (
+      {isDropdownOpen && projects.length > 0 && (
   <div className="absolute left-0 w-full bg-white border border-gray-300 rounded-md mt-1 z-10">
     <div className="p-2 border-b border-gray-200">
       <input
@@ -239,11 +252,11 @@ const MemberSubBar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect })
     <div className="max-h-[200px] overflow-y-auto text-black">
       {filteredProjects.map((project) => (
         <div
-          key={project.id}
+          key={project.project_name}
           onClick={() => handleProjectSelect(project)}
           className="p-2 cursor-pointer hover:bg-blue-100"
         >
-          {project.name}
+          {project.project_name}
         </div>
       ))}
     </div>

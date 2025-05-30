@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import { AiOutlinePlus } from "react-icons/ai";
-import { Save, X, Edit2, Trash2, Plus } from 'lucide-react';
+import { Save, X, Edit2, Trash2, Copy } from 'lucide-react';
 import MemberSidebar from "./MemberSidebar";
+
 
 const MemberTestDetails = () => {
   const navigate = useNavigate();
@@ -15,7 +17,6 @@ const MemberTestDetails = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [testSteps, setTestSteps] = useState([]);
-  const [newStepValue, setNewStepValue] = useState("");
   const [editingStep, setEditingStep] = useState(null);
   const [editStepValue, setEditStepValue] = useState("");
   const [testCaseTypes, setTestCaseTypes] = useState([]);
@@ -53,19 +54,19 @@ const MemberTestDetails = () => {
 
   useEffect(() => {
     const fetchTestCaseMetadata = async () => {
-      if (!selectedProject?.id) return;
+      if (!selectedProject || !selectedProject.project_name) return;
 
       try {
 
         const typesResponse = await fetch(
-          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-types/?project_id=${selectedProject.project_name}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const typesData = await typesResponse.json();
         setTestCaseTypes(typesData);
 
         const prioritiesResponse = await fetch(
-          `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/api/testcase-priorities/?project_id=${selectedProject.project_name}`,
           { headers: { "Content-Type": "application/json" } }
         );
         const prioritiesData = await prioritiesResponse.json();
@@ -81,18 +82,19 @@ const MemberTestDetails = () => {
 
   useEffect(() => {
     const fetchTestCases = async () => {
+      const userId = localStorage.getItem("userId");
       setLoading(true);
       setError(null);
       setTestCases([]);
 
-      if (!selectedProject?.id) {
+      if (!selectedProject || !selectedProject.project_name){
         setLoading(false);
         return;
       }
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/api/testcases/?project_id=${selectedProject.id}`,
+          `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -106,11 +108,15 @@ const MemberTestDetails = () => {
         }
 
         const data = await response.json();
+        console.log("testcases response:", data);
 
-        console.log("testcases",data)
-        setTestCases(data.map(testCase => ({
+        if (!Array.isArray(data.testcases)) {
+          throw new Error("Invalid response format: 'testcases' not found or not an array");
+        }
+
+        setTestCases(data.testcases.map(testCase => ({
           ...testCase,
-          project_name: selectedProject.name
+          project_name: selectedProject.project_name
         })));
       } catch (error) {
         console.error("Error fetching test cases:", error);
@@ -123,10 +129,10 @@ const MemberTestDetails = () => {
     fetchTestCases();
   }, [selectedProject]);
 
-  const fetchTestSteps = async (testCaseId) => {
+  const fetchTestSteps = async (userId, projectName, testcaseName) => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/teststeps/?testcase_id=${testCaseId}`
+        `http://127.0.0.1:8000/integrate/teststep/?user_id=${userId}&project_name=${projectName}&testcase_name=${testcaseName}`
       );
       if (!response.ok) {
         throw new Error('Failed to fetch test steps');
@@ -141,48 +147,8 @@ const MemberTestDetails = () => {
   };
 
   const filteredTestCases = testCases.filter((testCase) =>
-    testCase.name.toLowerCase().includes(searchTerm.toLowerCase())
+    testCase.testcase_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleEdit = async (testCase) => {
-    setEditingTestCase({
-      id: testCase.id,
-      name: testCase.name,
-      type: testCase.testcase_type || "",
-      priority: testCase.testcase_priority || "",
-    });
-    await fetchTestSteps(testCase.id);
-    setActiveTab('details');
-  };
-
-  const handleAddStep = async () => {
-    if (!newStepValue.trim()) {
-      setError("Step description cannot be empty");
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/api/teststeps/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          testcase: editingTestCase.id,
-          step_number: testSteps.length + 1,
-          step_description: newStepValue.trim()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to add step");
-      }
-
-      await fetchTestSteps(editingTestCase.id);
-      setNewStepValue("");
-    } catch (error) {
-      setError("Failed to add step");
-      console.error("Error adding step:", error);
-    }
-  };
 
   const handleUpdateStep = async (stepId) => {
     if (!editStepValue.trim()) {
@@ -288,38 +254,211 @@ const MemberTestDetails = () => {
     }
   };
 
-  const handleRowClick = (testCase) => {
-    navigate(`/member-test-cases/${testCase.id}/steps`, {
-      state: {
-        testCaseName: testCase.name,
-        testCaseId: testCase.id,
-        projectId: selectedProject.id
-      }
-    });
+const handleRowClick = (testCase) => {
+  
+  const targetPath = `/member-test-cases/${encodeURIComponent(testCase.testcase_name)}/steps`;
+  console.log("5. Target path:", targetPath);
+  
+  const stateData = {
+    testCaseName: testCase.testcase_name,
+    testCaseId: testCase.id || testCase.testcase_name,
+    projectName: selectedProject.project_name,
   };
+  console.log("6. State data:", stateData);
+  
+  try {
+    navigate(targetPath, { state: stateData });
+    console.log("7. Navigation called successfully");
+  } catch (error) {
+    console.error("8. Navigation error:", error);
+  }
+  
+};
 
 
-  const handleDelete = async (testCaseId) => {
+const handleCopy = async (testCaseName) => {
+  try {
+    setLoading(true);
+    const userId = localStorage.getItem("userId");
+    const testCaseToCopy = testCases.find(tc => tc.testcase_name === testCaseName);
+    if (!testCaseToCopy) throw new Error("Test case not found");
+
+    // Generate a unique copy name
+    const generateUniqueCopyName = (baseName, existingNames) => {
+      let copyName = `${baseName} (copy)`;
+      let count = 1;
+      while (existingNames.includes(copyName)) {
+        count++;
+        copyName = `${baseName} (copy ${count})`;
+      }
+      return copyName;
+    };
+
+    const existingNames = testCases.map(tc => tc.testcase_name);
+    const copyName = generateUniqueCopyName(testCaseToCopy.testcase_name, existingNames);
+
+    // 1. Create new test case
+    const createTestCaseRequest = {
+      user_id: parseInt(userId),
+      project_name: selectedProject.project_name,
+      testcase_name: copyName,
+      testcase_type: testCaseToCopy.testcase_type,
+      testcase_priority: testCaseToCopy.testcase_priority
+    };
+
+    console.log("Request: Create test case", createTestCaseRequest);
+
+    const newTestCaseResponse = await fetch(
+      `http://127.0.0.1:8000/integrate/testcase/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(createTestCaseRequest),
+      }
+    );
+
+    console.log("Response: Create test case", newTestCaseResponse);
+
+    if (!newTestCaseResponse.ok) {
+      const errorText = await newTestCaseResponse.text();
+      console.error("Create test case error response:", errorText);
+      throw new Error("Failed to create copied test case");
+    }
+
+    const newTestCase = await newTestCaseResponse.json();
+    console.log("Created copied test case:", newTestCase);
+
+    // 2. Get existing steps for the original test case
+    console.log(`Request: Fetch steps for testCaseName ${testCaseName}`);
+    const stepsResponse = await fetch(
+      `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${testCaseName}`
+    );
+
+    console.log("Response: Fetch steps", stepsResponse);
+
+    if (!stepsResponse.ok) {
+      const errorText = await stepsResponse.text();
+      console.error("Fetch steps error response:", errorText);
+      throw new Error("Failed to fetch steps for copying");
+    }
+
+    const originalStepsData = await stepsResponse.json();
+    console.log("Original steps data:", originalStepsData);
+
+    // 3. Prepare steps for the new test case using the new API structure
+    if (originalStepsData && originalStepsData.testcase && originalStepsData.testcase.steps && originalStepsData.testcase.steps.length > 0) {
+      const stepsForNewTestCase = originalStepsData.testcase.steps.map((step, index) => ({
+        step_number: step.step_number || (index + 1),
+        step_description: step.step_description,
+        teststep_result: step.teststep_result || "not_executed",
+        step_coordinates: step.step_coordinates || { click_x: 0, click_y: 0 },
+        expected_result: step.expected_result || "",
+        actual_result: step.actual_result || ""
+      }));
+
+      // 4. Create steps using the new integrate/teststep API
+      const stepsPayload = {
+        user_id: parseInt(userId),
+        project_name: selectedProject.project_name,
+        testcase_name: copyName,
+        steps: stepsForNewTestCase
+      };
+
+      console.log("Request: Create steps with new API", stepsPayload);
+
+      const createStepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stepsPayload)
+      });
+
+      console.log("Response: Create steps", createStepsResponse);
+
+      if (!createStepsResponse.ok) {
+        const errorText = await createStepsResponse.text();
+        console.error("Create steps error response:", errorText);
+        // Test case was created but steps failed - show warning
+        console.warn("Test case copied but steps creation failed");
+        setError("Test case copied but failed to copy steps");
+      } else {
+        const stepsResult = await createStepsResponse.json();
+        console.log("Steps created successfully:", stepsResult);
+      }
+    } else {
+      console.log("No steps found in original test case");
+    }
+
+    // 5. Refresh test cases list using the new API
+    console.log(`Request: Refresh test cases for project ${selectedProject.project_name}`);
+    const updatedTestCasesResponse = await fetch(
+      `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        }
+      }
+    );
+
+    console.log("Response: Refresh test cases", updatedTestCasesResponse);
+
+    if (!updatedTestCasesResponse.ok) {
+      const errorText = await updatedTestCasesResponse.text();
+      console.error("Refresh test cases error response:", errorText);
+      throw new Error("Failed to refresh test cases");
+    }
+
+    const updatedData = await updatedTestCasesResponse.json();
+
+    if (!Array.isArray(updatedData.testcases)) {
+      throw new Error("Invalid response format: 'testcases' not found or not an array");
+    }
+
+    setTestCases(updatedData.testcases.map(testCase => ({
+      ...testCase,
+      project_name: selectedProject.project_name
+    })));
+
+    setError(null);
+    console.log("Test case copied successfully with steps");
+
+  } catch (error) {
+    console.error("Error copying test case:", error);
+    setError("Failed to copy test case");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleDelete = async (testCaseName) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this test case?");
     if (!confirmDelete) return;
 
     setLoading(true);
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/testcases/${testCaseId}/?project_id=${selectedProject.id}`,
-        {
+      const requestBody = {
+        user_id: localStorage.getItem("userId"),
+        project_name: selectedProject.project_name,
+        testcase_name: testCaseName
+      };
+
+      console.log("Request Body:", requestBody);
+
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
-        }
-      );
+          body: JSON.stringify(requestBody),
+        });
+
 
       if (!response.ok) {
         throw new Error("Failed to delete test case");
       }
 
-      setTestCases((prevTestCases) => prevTestCases.filter((testCase) => testCase.id !== testCaseId));
+      setTestCases((prevTestCases) => prevTestCases.filter((testCase) => testCase.testcase_name !== testCaseName));
     } catch (error) {
       console.error("Error deleting test case:", error);
       setError("Failed to delete test case");
@@ -334,7 +473,6 @@ const MemberTestDetails = () => {
 
 
   const renderEditModal = () => (
-
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white shadow-xl rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
@@ -428,22 +566,6 @@ const MemberTestDetails = () => {
             </>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newStepValue}
-                  onChange={(e) => setNewStepValue(e.target.value)}
-                  className="flex-1 p-2 border border-gray-300 rounded-md"
-                  placeholder="Enter new test step"
-                />
-                <button
-                  onClick={handleAddStep}
-                  className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Step
-                </button>
-              </div>
   
               <div className="space-y-2">
                 {testSteps.map((step) => (
@@ -516,136 +638,145 @@ const MemberTestDetails = () => {
   return (
     <div>
       <MemberSidebar />
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
-        <div className="p-6">
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="flex flex-col lg:flex-row justify-between items-center p-4 border-b">
-              <div className="flex space-x-4 mb-4 sm:mb-0">
-                <button className="px-4 py-2 text-purple-600 font-medium border-b-2 border-purple-600">
-                  Test Cases
-                </button>
-                <button className="px-4 py-2 text-gray-500 hover:text-purple-600">
-                  Step Groups
+      <div className="flex flex-col min-h-screen">
+        <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
+          <div className="p-6">
+            <div className="bg-white rounded-lg shadow mb-6">
+              <div className="flex flex-col lg:flex-row justify-between items-center p-4 border-b">
+                <div className="flex space-x-4 mb-4 sm:mb-0">
+                  <button className="px-4 py-2 text-purple-600 font-medium border-b-2 border-purple-600">
+                    Test Cases
+                  </button>
+                  <button className="px-4 py-2 text-gray-500 hover:text-purple-600">
+                    Step Groups
+                  </button>
+                </div>
+                <button
+                  onClick={() => navigate("/member-create-testcase")}
+                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 lg:mt-0 sm:mt-3"
+                  disabled={!selectedProject}
+                >
+                  <AiOutlinePlus className="mr-2" />
+                  Create
                 </button>
               </div>
-              <button
-                onClick={() => navigate("/member-create-testcase")}
-                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 lg:mt-0 sm:mt-3"
-                disabled={!selectedProject}
-              >
-                <AiOutlinePlus className="mr-2" />
-                Create
-              </button>
+
+              <div className="p-4 flex flex-col lg:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                <h2 className="text-lg font-medium text-gray-700">
+                  {selectedProject ? `Test Cases  ${/* Commented out selectedProject.name */ ''}` : 'Select a Project'}
+                </h2>
+                {selectedProject && (
+                  <div className="relative w-full sm:w-64">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search test cases..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="p-4 flex flex-col lg:flex-row justify-between items-center space-y-4 sm:space-y-0">
-              <h2 className="text-lg font-medium text-gray-700">
-                {selectedProject ? `Test Cases  ${/* Commented out selectedProject.name */ ''}` : 'Select a Project'}
-              </h2>
-              {selectedProject && (
-                <div className="relative w-full sm:w-64">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search test cases..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+            <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
+              {loading ? (
+                <div className="p-4 text-center">Loading test cases...</div>
+              ) : error ? (
+                <div className="p-4 text-center text-red-500">{error}</div>
+              ) : !selectedProject ? (
+                <div className="p-4 text-center text-gray-500">
+                  Please select a project from the sidebar to view test cases
+                </div>
+              ) : filteredTestCases.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  No test cases found for this project
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Title
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Priority
+                        </th>
+  {/*                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Project
+                        </th> */}
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredTestCases.map((testCase) => (
+                        <tr key={testCase.testcase_name} className="hover:bg-gray-50">
+                          
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer hover:text-purple-600" onClick={() => handleRowClick(testCase)} >
+                            {testCase.testcase_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {testCase.testcase_type}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {testCase.testcase_priority}
+                          </td>
+  {/*                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {testCase.project_name}
+                          </td> */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+  {/*                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); 
+                                handleEdit(testCase);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors duration-200"
+                            >
+                              <Edit2 className="w-4 h-4 mr-1" />
+                              Edit
+                            </button>
+  */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); 
+                                handleCopy(testCase.testcase_name);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200 ml-2"
+                            >
+                              <Copy className="w-4 h-4 mr-1" />
+                              Copy
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); 
+                                handleDelete(testCase.testcase_name);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200 ml-2"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
+
+            {editingTestCase && renderEditModal ()}
           </div>
-
-          <div className="bg-white rounded-lg shadow overflow-hidden mb-6">
-            {loading ? (
-              <div className="p-4 text-center">Loading test cases...</div>
-            ) : error ? (
-              <div className="p-4 text-center text-red-500">{error}</div>
-            ) : !selectedProject ? (
-              <div className="p-4 text-center text-gray-500">
-                Please select a project from the sidebar to view test cases
-              </div>
-            ) : filteredTestCases.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                No test cases found for this project
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Title
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Priority
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Project
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTestCases.map((testCase) => (
-                      <tr key={testCase.id} onClick={() => handleRowClick(testCase)} className="cursor-pointer hover:bg-gray-50">
-                        
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {testCase.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.testcase_type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.testcase_priority}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {testCase.project_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); 
-                              handleEdit(testCase);
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors duration-200"
-                          >
-                            <Edit2 className="w-4 h-4 mr-1" />
-                            Edit
-                          </button>
-                          <button
-
-                          onClick={(e) => {
-                            e.stopPropagation(); 
-                            handleDelete(testCase.id);
-                          }}
-                            className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200 ml-2"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {editingTestCase && renderEditModal (
-
-)}
         </div>
       </div>
-    </div>
     </div>
   );
 };
