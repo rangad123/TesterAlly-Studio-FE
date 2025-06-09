@@ -17,7 +17,8 @@ const WriteRecord = () => {
     name: '',
     testcase_type: '',
     testcase_priority: '',
-    projectId: ''
+    projectId: '',
+    project_type: ''
   });
 
   const [verificationModal, setVerificationModal] = useState({
@@ -1523,111 +1524,6 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-/*
-const DebugImagesViewer = ({ debugImages }) => { 
-  const [selectedImage, setSelectedImage] = useState('detected_browser_ui'); 
-  const [expandedImage, setExpandedImage] = useState(null); 
-   
-  // Early return if no debug images
-  if (!debugImages || Object.keys(debugImages).length === 0) { 
-    return null; 
-  } 
- 
-  const handleImageClick = (imageKey) => { 
-    setExpandedImage({ 
-      src: getImageSrc(imageKey, debugImages[imageKey]), 
-      alt: imageKey 
-    }); 
-  }; 
- 
-  const closeExpandedImage = () => { 
-    setExpandedImage(null); 
-  }; 
-
-  const getImageSrc = (key, value) => {
-    let imageUrl = '';
-  
-
-    if (typeof value === 'string' && value.startsWith('/')) {
-      imageUrl = `http://127.0.0.1:8000${value}`;
-    } else if (typeof value === 'string' && value.startsWith('data:')) {
-      imageUrl = value;
-    } else if (typeof value === 'string') {
-      imageUrl = `data:image/png;base64,${value}`;
-    }
-
-//    console.log(`Debug Image - Key: ${key}, URL: ${imageUrl}`);
-  
-    return imageUrl;
-  };  
- 
-  return ( 
-    <div className="mt-3 border border-gray-200 rounded-lg"> 
-      <div className="p-2 bg-gray-100 border-b border-gray-200 rounded-t-lg"> 
-        <h4 className="text-sm font-medium">Debug Images</h4> 
-        <div className="flex flex-wrap gap-1 mt-1"> 
-          {Object.keys(debugImages).map((key) => ( 
-            <button 
-              key={key} 
-              onClick={() => setSelectedImage(key)} 
-              className={`px-2 py-1 text-xs rounded-md ${ 
-                selectedImage === key 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
-              }`} 
-            > 
-              {key.split('_').join(' ')} 
-            </button> 
-          ))} 
-        </div> 
-      </div> 
-      <div className="p-2"> 
-        {debugImages[selectedImage] && ( 
-          <div className="relative"> 
-            <img 
-              src={getImageSrc(selectedImage, debugImages[selectedImage])}
-              alt={selectedImage} 
-              className="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity" 
-              onClick={() => handleImageClick(selectedImage)} 
-            /> 
-            <div className="absolute top-2 right-2 bg-gray-800 bg-opacity-75 text-white px-2 py-1 rounded text-xs"> 
-              {selectedImage.split('_').join(' ')} 
-            </div> 
-          </div> 
-        )} 
-      </div> 
- 
-      {expandedImage && ( 
-        <div  
-          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" 
-          onClick={closeExpandedImage} 
-        > 
-          <div  
-            className="relative max-w-4xl max-h-[90vh] w-full overflow-hidden" 
-            onClick={(e) => e.stopPropagation()} 
-          > 
-            <button  
-              className="absolute top-2 right-2 bg-black bg-opacity-50 text-white rounded-full p-1 hover:bg-opacity-70 transition-opacity z-10" 
-              onClick={closeExpandedImage} 
-            > 
-              <X className="w-5 h-5" /> 
-            </button> 
-            <img  
-              src={expandedImage.src}  
-              alt={expandedImage.alt}  
-              className="w-full h-auto max-h-[90vh] object-contain rounded-lg"  
-            /> 
-            <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white px-3 py-1 rounded text-sm"> 
-              {expandedImage.alt.split('_').join(' ')} 
-            </div> 
-          </div> 
-        </div> 
-      )} 
-    </div> 
-  ); 
-};
-*/
-
   return ( 
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1636,7 +1532,7 @@ const DebugImagesViewer = ({ debugImages }) => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-purple-700">{testCaseInfo.testcase_name}</h1>
+                <h1 className="text-xl md:text-2xl font-bold text-purple-700">WebRecord:{testCaseInfo.testcase_name}</h1>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-md text-xs">
                     Type: {testCaseInfo.testcase_type}

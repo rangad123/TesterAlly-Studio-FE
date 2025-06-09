@@ -58,7 +58,6 @@ const TestSuite = () => {
     window.addEventListener("projectChanged", handleProjectChange);
     return () => window.removeEventListener("projectChanged", handleProjectChange);
   }, [navigate]); 
-  
 
   const fetchTestSuite = useCallback(async () => {
     if (!testSuiteName || !projectId) return;
@@ -168,10 +167,17 @@ const TestSuite = () => {
       );
 
       if (!response.ok) throw new Error("Failed to update test suite");
-      const updatedTestSuite = await response.json();
-      console.log("edited testsuite:", updatedTestSuite)
+      const result = await response.json();
+      console.log("edited testsuite:", result);
+
+      setTestSuite(prevTestSuite => ({
+        ...prevTestSuite,
+        title: editedTitle,
+        description: editedDescription,
+        labels: formattedLabels,
+        pre_requisite: editedPreRequisite,
+      }));
       
-      setTestSuite(updatedTestSuite);
       setEditingTestSuite(false);
       setError(null);
     } catch (err) {

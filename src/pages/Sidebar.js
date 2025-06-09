@@ -267,9 +267,7 @@ const Sidebar = () => {
       isL1Expanded={isSidebarOpen}
       isMobileView={isMobileView}
       onOptionSelect={() => {
-        if (isMobileView) {
-          setIsTestCasesVisible(false);
-        }
+        setIsTestCasesVisible(false);
       }}
     />
 

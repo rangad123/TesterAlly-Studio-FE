@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Github, CheckCircle, AlertCircle, Loader2, ArrowLeft, BookOpen, FolderOpen } from 'lucide-react';
 
 function GitHub() {
@@ -13,7 +13,6 @@ function GitHub() {
   const [repoSelected, setRepoSelected] = useState(false);
   const [connectedRepo, setConnectedRepo] = useState('');
   
-  // New state for path selection and cloning
   const [paths, setPaths] = useState([]);
   const [selectedPath, setSelectedPath] = useState('');
   const [cloneStatus, setCloneStatus] = useState('');
@@ -21,27 +20,9 @@ function GitHub() {
   const [cloneLoading, setCloneLoading] = useState(false);
   const [showPaths, setShowPaths] = useState(false);
   
-  const userId = 2;
+  const userId = localStorage.getItem("userId");
 
-  // Check connection status when component mounts
-  useEffect(() => {
-    checkConnectionStatus();
-  }, []);
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const success = urlParams.get('success');
-    
-    if (code && success === 'true') {
-      setShowSuccessModal(true);
-      setConnectionStatus('connected');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
-  // Check connection status by trying to fetch repositories
-  const checkConnectionStatus = async () => {
+  const checkConnectionStatus = useCallback(async () => {
     try {
       setConnectionStatus('checking');
       console.log('Checking connection status...');
@@ -68,9 +49,29 @@ function GitHub() {
       console.error('Failed to check connection status:', err);
       setConnectionStatus('disconnected');
     }
-  };
+  }, [userId]);
 
-  // Fetch available paths
+  useEffect(() => {
+    checkConnectionStatus();
+  }, [checkConnectionStatus]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const connected = urlParams.get('connected');
+    const error = urlParams.get('error');
+    
+    if (success === 'true' && connected === 'github') {
+      setShowSuccessModal(true);
+      setConnectionStatus('connected');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      checkConnectionStatus();
+    } else if (error) {
+      setError(`Authentication failed: ${error}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [checkConnectionStatus]);
+
   const fetchPaths = async () => {
     try {
       setLoading(true);
@@ -96,7 +97,6 @@ function GitHub() {
     }
   };
 
-  // Clone repository to selected path
   const cloneRepository = async () => {
     if (!selectedPath || !connectedRepo) {
       setError('Please select a path and ensure repository is connected');
@@ -123,7 +123,7 @@ function GitHub() {
       if (response.ok) {
         const data = await response.json();
         console.log('Clone response:', data);
-        
+
         if (data.status === 'success') {
           setCloneStatus('success');
           setCloneMessage(data.message || 'Repository cloned successfully');
@@ -132,6 +132,14 @@ function GitHub() {
           setCloneMessage(data.message || 'Failed to clone repository');
           setError(data.message || 'Failed to clone repository');
         }
+      } else if (response.status === 400) {
+        const errorData = await response.json();
+        console.error('Backend 400 response:', errorData);
+
+        const message = errorData.message || 'You have already cloned this repository. Please check.';
+        setCloneStatus('error');
+        setCloneMessage(message);
+        setError(message);
       } else {
         setCloneStatus('error');
         setCloneMessage('Failed to clone repository');
@@ -250,7 +258,6 @@ function GitHub() {
         setConnectedRepo('');
         setRepoSelected(false);
         setCurrentView('main');
-        // Reset clone-related states
         setPaths([]);
         setSelectedPath('');
         setCloneStatus('');
@@ -268,101 +275,109 @@ function GitHub() {
 
   const SuccessModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <div className="text-center mb-4">
-          <div className="mx-auto bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+      <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+        <div className="text-center">
+          <div className="mx-auto bg-gradient-to-r from-green-400 to-green-600 rounded-full w-20 h-20 flex items-center justify-center mb-6">
+            <CheckCircle className="w-10 h-10 text-white" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800">Successfully Connected!</h3>
-          <p className="text-gray-600 mt-2">
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">Successfully Connected!</h3>
+          <p className="text-gray-600 mb-6">
             Your GitHub account has been connected successfully.
           </p>
+          <button
+            onClick={() => {
+              setShowSuccessModal(false);
+              setCurrentView('main');
+            }}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            Continue
+          </button>
         </div>
-        <button
-          onClick={() => {
-            setShowSuccessModal(false);
-            setCurrentView('main');
-          }}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-        >
-          Continue
-        </button>
       </div>
     </div>
   );
 
   const MainView = () => (
-    <div>
-      <div className="text-center mb-6">
-        <div className="bg-gray-900 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-          <Github className="w-8 h-8 text-white" />
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="text-center">
+        <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <Github className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800">GitHub Integration</h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-2">GitHub Integration</h2>
+        <p className="text-gray-600">Connect and manage your repositories</p>
       </div>
 
+      {/* Status Cards */}
       {connectionStatus === 'checking' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-            <span className="text-blue-700">Checking connection status...</span>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+            <span className="text-blue-700 font-medium">Checking connection status...</span>
           </div>
         </div>
       )}
 
       {connectionStatus === 'connected' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="text-green-700 font-semibold">Connected to GitHub</span>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-3">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+            <span className="text-green-700 font-bold text-lg">Connected to GitHub</span>
           </div>
-          <div className="text-green-600 text-sm">
-            <p>Welcome, {userInfo.name || userInfo.login || 'GitHub User'}!</p>
-            {userInfo.email && <p>Email: {userInfo.email}</p>}
+          <div className="text-green-700 space-y-1">
+            <p className="font-medium">Welcome, {userInfo.name || userInfo.login || 'GitHub User'}!</p>
+            {userInfo.email && <p className="text-sm opacity-90">Email: {userInfo.email}</p>}
             {connectedRepo && (
-              <p className="mt-2 font-medium">
-                Connected Repository: <span className="text-blue-600">{connectedRepo}</span>
-              </p>
+              <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
+                <p className="text-sm text-gray-600">Connected Repository:</p>
+                <p className="font-bold text-blue-600">{connectedRepo}</p>
+              </div>
             )}
           </div>
         </div>
       )}
 
       {connectionStatus === 'disconnected' && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-8 shadow-sm">
           <div className="text-center">
-            <Github className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-            <span className="text-gray-600">Not connected to GitHub</span>
+            <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Github className="w-8 h-8 text-gray-500" />
+            </div>
+            <span className="text-gray-600 font-medium">Not connected to GitHub</span>
+            <p className="text-sm text-gray-500 mt-2">Connect to access your repositories</p>
           </div>
         </div>
       )}
 
       {/* Clone Status Messages */}
       {cloneStatus === 'success' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="text-green-700 font-semibold">Clone Successful!</span>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-2">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+            <span className="text-green-700 font-bold text-lg">Clone Successful!</span>
           </div>
-          <p className="text-green-600 text-sm mt-1">{cloneMessage}</p>
+          <p className="text-green-600 pl-9">{cloneMessage}</p>
         </div>
       )}
 
       {cloneStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <span className="text-red-700 font-semibold">Clone Failed</span>
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 mb-2">
+            <AlertCircle className="w-6 h-6 text-red-600" />
+            <span className="text-red-700 font-bold text-lg">Clone Failed</span>
           </div>
-          <p className="text-red-600 text-sm mt-1">{cloneMessage}</p>
+          <p className="text-red-600 pl-9">{cloneMessage}</p>
         </div>
       )}
 
-      <div className="mb-4">
+      {/* Action Buttons */}
+      <div className="space-y-4">
         {connectionStatus === 'disconnected' && (
           <button
             onClick={connectGitHub}
             disabled={loading || !userId}
-            className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white font-semibold py-4 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 text-lg"
+            className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             {loading ? (
               <>
@@ -379,111 +394,155 @@ function GitHub() {
         )}
 
         {connectionStatus === 'connected' && (
-          <div className="space-y-3">
+          <div className="grid gap-4">
             {!repoSelected ? (
-              <button
-                onClick={() => {
-                  setCurrentView('repositories');
-                  if (repositories.length === 0) {
-                    fetchRepositories();
-                  }
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-              >
-                Select Repository
-              </button>
-            ) : (
-              <>
-                {/* Select Path Button */}
+              <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+                <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Select Repository</h3>
+                <p className="text-gray-500 text-sm mb-6">Choose a repository to connect with your project</p>
                 <button
                   onClick={() => {
-                    if (paths.length === 0) {
-                      fetchPaths();
-                    } else {
-                      setShowPaths(!showPaths);
+                    setCurrentView('repositories');
+                    if (repositories.length === 0) {
+                      fetchRepositories();
                     }
                   }}
-                  disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Loading Paths...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FolderOpen className="w-5 h-5" />
-                      <span>{showPaths ? 'Hide Paths' : 'Select Path'}</span>
-                    </>
-                  )}
+                  Browse Repositories
                 </button>
-
-                {/* Path Selection */}
-                {showPaths && paths.length > 0 && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Select Clone Path:</h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {paths.map((pathItem, index) => (
-                        <div 
-                          key={index}
-                          onClick={() => setSelectedPath(pathItem.path)}
-                          className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${
-                            selectedPath === pathItem.path ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            <FolderOpen className="w-4 h-4 text-gray-600 mr-2" />
-                            <div className="flex-1">
-                              <div className="font-medium text-sm text-gray-800">{pathItem.name}</div>
-                              <div className="text-xs text-gray-600">{pathItem.path}</div>
-                            </div>
-                            {selectedPath === pathItem.path && (
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {/* Repository Connected Card */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="bg-blue-600 rounded-full w-10 h-10 flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-800">Repository Connected</h3>
+                      <p className="text-blue-600 font-medium">{connectedRepo}</p>
                     </div>
                   </div>
-                )}
+                  <button
+                    onClick={() => setCurrentView('repositories')}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center space-x-1"
+                  >
+                    <span>Change Repository</span>
+                    <ArrowLeft className="w-4 h-4 rotate-180" />
+                  </button>
+                </div>
 
-                {/* Clone Repository Button */}
+                {/* Path Selection Card */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-purple-600 rounded-full w-10 h-10 flex items-center justify-center">
+                        <FolderOpen className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">Clone Location</h3>
+                        <p className="text-gray-500 text-sm">Select destination path</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (paths.length === 0) {
+                          fetchPaths();
+                        } else {
+                          setShowPaths(!showPaths);
+                        }
+                      }}
+                      disabled={loading}
+                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FolderOpen className="w-4 h-4" />
+                          <span>{showPaths ? 'Hide' : 'Browse'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Path Selection */}
+                  {showPaths && paths.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-medium text-gray-700 mb-3">Available Paths:</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {paths.map((pathItem, index) => (
+                            <div 
+                              key={index}
+                              onClick={() => setSelectedPath(pathItem.path)}
+                              className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                selectedPath === pathItem.path 
+                                  ? 'bg-purple-50 border-purple-500 shadow-md' 
+                                  : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-25'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <FolderOpen className="w-5 h-5 text-gray-600" />
+                                  <div>
+                                    <div className="font-medium text-gray-800">{pathItem.name}</div>
+                                    <div className="text-sm text-gray-600">{pathItem.path}</div>
+                                  </div>
+                                </div>
+                                {selectedPath === pathItem.path && (
+                                  <CheckCircle className="w-5 h-5 text-purple-600" />
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPath && (
+                    <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <p className="text-sm text-purple-700">
+                        <span className="font-medium">Selected Path:</span> {selectedPath}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Clone Button */}
                 {selectedPath && (
                   <button
                     onClick={cloneRepository}
                     disabled={cloneLoading || !selectedPath}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-green-400 disabled:to-emerald-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   >
                     {cloneLoading ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <Loader2 className="w-6 h-6 animate-spin" />
                         <span>Cloning Repository...</span>
                       </>
                     ) : (
                       <>
-                        <Github className="w-5 h-5" />
+                        <Github className="w-6 h-6" />
                         <span>Clone Repository</span>
                       </>
                     )}
                   </button>
                 )}
-
-                {/* Change Repository Button */}
-                <button
-                  onClick={() => setCurrentView('repositories')}
-                  className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-                >
-                  Change Repository
-                </button>
-              </>
+              </div>
             )}
 
             {/* Disconnect Button */}
             <button
               onClick={disconnectGitHub}
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 disabled:from-red-400 disabled:to-rose-400 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               {loading ? (
                 <>
@@ -491,112 +550,139 @@ function GitHub() {
                   <span>Disconnecting...</span>
                 </>
               ) : (
-                <span>Disconnect</span>
+                <span>Disconnect GitHub</span>
               )}
             </button>
           </div>
         )}
       </div>
-
-      <div className="text-center text-gray-500 text-sm">
-        {userId ? `User ID: ${userId}` : 'Please login to continue'}
-      </div>
     </div>
   );
 
   const RepositoriesView = () => (
-    <div>
-      <div className="flex items-center mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <button 
           onClick={() => setCurrentView('main')}
-          className="mr-4 p-2 rounded-full hover:bg-gray-100"
+          className="p-3 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-6 h-6" />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800">
-          {repoSelected ? 'Change Repository' : 'Select Repository'}
-        </h2>
+        <div className="text-center flex-1">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {repoSelected ? 'Change Repository' : 'Select Repository'}
+          </h2>
+          <p className="text-gray-600 text-sm mt-1">Choose from your GitHub repositories</p>
+        </div>
+        <div className="w-12"></div> {/* Spacer for center alignment */}
       </div>
 
+      {/* Current Repository Info */}
       {connectedRepo && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <p className="text-blue-700 text-sm">
-            Currently connected: <span className="font-semibold">{connectedRepo}</span>
-          </p>
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-600 rounded-full w-10 h-10 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-blue-700 font-medium">Currently Connected</p>
+              <p className="font-bold text-gray-800">{connectedRepo}</p>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="mb-6">
+      {/* Repository List */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center p-8">
+          <div className="flex items-center justify-center p-12">
             <Loader2 className="w-8 h-8 text-blue-600 animate-spin mr-3" />
             <span className="text-blue-700 text-lg">Loading repositories...</span>
           </div>
         ) : repositories.length > 0 ? (
-          <div className="space-y-3">
-            <p className="text-gray-600 mb-2">
-              {repoSelected ? 'Select a different repository:' : 'Select a repository to connect with your project:'}
-            </p>
-            <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
-              {repositories.map((repo) => (
+          <div>
+            <div className="p-6 border-b border-gray-200 bg-gray-50">
+              <h3 className="font-semibold text-gray-800">Available Repositories</h3>
+              <p className="text-gray-600 text-sm mt-1">
+                {repoSelected ? 'Select a different repository:' : 'Select a repository to connect:'}
+              </p>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto">
+              {repositories.map((repo, index) => (
                 <div 
                   key={repo.full_name}
                   onClick={() => setSelectedRepo(repo.full_name)}
-                  className={`p-4 border-b border-gray-200 last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedRepo === repo.full_name ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                  className={`p-6 border-b border-gray-100 last:border-b-0 cursor-pointer transition-all duration-200 ${
+                    selectedRepo === repo.full_name 
+                      ? 'bg-blue-50 border-l-4 border-l-blue-500' 
+                      : 'hover:bg-gray-50'
                   } ${
                     connectedRepo === repo.full_name ? 'bg-green-50' : ''
                   }`}
                 >
-                  <div className="flex items-start">
-                    <div className="mr-3 mt-1">
-                      <BookOpen className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800">{repo.name}</div>
-                      {repo.description && (
-                        <div className="text-sm text-gray-600 mt-1 line-clamp-2">{repo.description}</div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-2">{repo.full_name}</div>
-                      {connectedRepo === repo.full_name && (
-                        <div className="text-xs text-green-600 mt-1 font-medium">Currently Connected</div>
-                      )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="bg-gray-100 rounded-lg w-12 h-12 flex items-center justify-center">
+                        <BookOpen className="w-6 h-6 text-gray-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-800 text-lg">{repo.name}</div>
+                        {repo.description && (
+                          <div className="text-gray-600 mt-1 line-clamp-2">{repo.description}</div>
+                        )}
+                        <div className="flex items-center space-x-4 mt-3">
+                          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {repo.full_name}
+                          </div>
+                          {connectedRepo === repo.full_name && (
+                            <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded font-medium">
+                              Currently Connected
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     {selectedRepo === repo.full_name && (
-                      <CheckCircle className="w-5 h-5 text-green-600 ml-2" />
+                      <CheckCircle className="w-6 h-6 text-green-600 ml-4" />
                     )}
                   </div>
                 </div>
               ))}
             </div>
             
-            <button
-              onClick={selectRepository}
-              disabled={loading || !selectedRepo || selectedRepo === connectedRepo}
-              className="w-full mt-4 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Selecting Repository...</span>
-                </>
-              ) : selectedRepo === connectedRepo ? (
-                <span>Already Connected</span>
-              ) : (
-                <span>{repoSelected ? 'Change to Selected Repository' : 'Connect Selected Repository'}</span>
-              )}
-            </button>
+            <div className="p-6 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={selectRepository}
+                disabled={loading || !selectedRepo || selectedRepo === connectedRepo}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-green-400 disabled:to-emerald-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Selecting Repository...</span>
+                  </>
+                ) : selectedRepo === connectedRepo ? (
+                  <span>Repository Already Connected</span>
+                ) : (
+                  <span>{repoSelected ? 'Change to Selected Repository' : 'Connect Selected Repository'}</span>
+                )}
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="text-center p-8 border border-gray-200 rounded-lg">
-            <Github className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-700 mb-2">No repositories found</p>
-            <p className="text-gray-500 text-sm mb-4">
+          <div className="text-center p-12">
+            <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Github className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No repositories found</h3>
+            <p className="text-gray-500 mb-6">
               We couldn't find any repositories in your GitHub account.
             </p>
             <button
               onClick={fetchRepositories}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               Refresh Repositories
             </button>
@@ -607,20 +693,26 @@ function GitHub() {
   );
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
-      {showSuccessModal && <SuccessModal />}
-      
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <span className="text-red-700 text-sm">{error}</span>
+    <div className="from-gray-50 to-gray-100 py-8">
+      <div className="max-w-2xl mx-auto px-4">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="p-8">
+            {showSuccessModal && <SuccessModal />}
+            
+            {error && (
+              <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-6 mb-6 shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                  <span className="text-red-700 font-medium">{error}</span>
+                </div>
+              </div>
+            )}
+
+            {currentView === 'main' && <MainView />}
+            {currentView === 'repositories' && <RepositoriesView />}
           </div>
         </div>
-      )}
-
-      {currentView === 'main' && <MainView />}
-      {currentView === 'repositories' && <RepositoriesView />}
+      </div>
     </div>
   );
 }

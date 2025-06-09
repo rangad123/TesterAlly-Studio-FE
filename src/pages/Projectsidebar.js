@@ -38,21 +38,27 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     }
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/projects/?user_id=${userId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      
+      const [dbResponse, localResponse] = await Promise.all([
+        fetch(`http://127.0.0.1:8000/api/projects/?user_id=${userId}`, {
+          headers: { "Content-Type": "application/json" }
+        }),
+        fetch(`http://127.0.0.1:8000/integrate/project/?user_id=${userId}`)
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (dbResponse.ok && localResponse.ok) {
+        const dbData = await dbResponse.json();
+        const localData = await localResponse.json();
         
-        const mappedProjects = data.map(project => ({
+        // Find matching projects between both APIs
+        const mappedProjects = dbData.filter(dbProject => 
+          localData.projects.some(localProject => 
+            localProject.project_name === dbProject.name || 
+            localProject.project_name === dbProject.project_name
+          )
+        ).map(project => ({
           ...project,
-          project_name: project.name, 
+          project_name: project.name,
           id: project.id
         }));
         
@@ -84,7 +90,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
           localStorage.removeItem(savedProjectKey);
         }
       } else {
-        console.error("Failed to fetch projects:", await response.json());
+        console.error("Failed to fetch projects:", await dbResponse.json());
       }
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -94,7 +100,6 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
   useEffect(() => {
     fetchProjects();
   }, []); 
-  
 
   useEffect(() => {
   
@@ -155,8 +160,6 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     };
   }, [selectedProject]); 
   
-  
-
   const handleProjectSelect = (project) => {
     const userId = localStorage.getItem("userId");
     if (!userId) return;
@@ -174,6 +177,7 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
 
   const handleCreateProject = () => {
     navigate("/create-project"); 
+    onOptionSelect();
   };
 
   const handleTestExecuted = () => {
@@ -230,8 +234,6 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
       onOptionSelect();
     }
   };
-
-  
 
   const filteredProjects = projects.filter((project) =>
     project.project_name?.toLowerCase().includes(searchTerm.toLowerCase())

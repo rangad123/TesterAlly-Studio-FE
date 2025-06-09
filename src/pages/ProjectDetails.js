@@ -149,7 +149,7 @@ useEffect(() => {
 
         window.dispatchEvent( 
           new CustomEvent("projectDeleted", { 
-            detail: { projectName, projectId: selectedProject.id }, // Include both name and ID
+            detail: { projectName, projectId: selectedProject.id }, 
           }) 
         ); 
 
@@ -308,6 +308,9 @@ useEffect(() => {
                   onChange={(e) => handleChange("project_name", e.target.value)}
                   className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all duration-200"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Please enter a different name for better experience.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

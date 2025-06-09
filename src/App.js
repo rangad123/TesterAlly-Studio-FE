@@ -301,7 +301,6 @@ import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
 import CreateProject from "./pages/CreateProject";
 import CreateTestCases from "./pages/CreateTestCases";
-import WriteRecord from "./pages/WriteRecord";
 import TestSuite from "./pages/TestSuite";
 import CreateTestSuite from "./pages/CreateTestSuite";
 import DashBoard from "./pages/DashBoard";
@@ -359,6 +358,7 @@ import MemberGithub from "./Members/MemberGithub";
 import MemberRecord from "./Members/MemberRecord";
 import MemberSuiteDetails from "./Members/MemberSuiteDetails";
 import MemberCreateSuite from "./Members/MemberCreateSuite";
+import RecordSelector from "./pages/RecordSelector";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -825,7 +825,7 @@ const App = () => {
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <WriteRecord />
+                    <RecordSelector />
                   </PrivateRoute>
                 }
               />

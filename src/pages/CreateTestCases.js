@@ -79,37 +79,39 @@ const CreateTestCases = () => {
 
       if (response.ok) {
         if (response.status === 200) {
-          setShowModal(true);
-          return;
+          const data = await response.json();
+          const existingTestCase = data.testcase;
+
+          if (
+            existingTestCase &&
+            existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
+          ) {
+            console.log("✅ Duplicate found — setting error");
+            setErrors((prev) => ({
+              ...prev,
+              name: "A test case with this name already exists. Please use a different name.",
+            }));
+            setIsLoading(false);
+            return;
+          }
         }
+        
+        setShowModal(true);
+        setIsLoading(false);
+        
       } else {
         if (response.status === 404) {
           setShowModal(true);
-          return;
+          setIsLoading(false);
+        } else {
+          throw new Error("Failed to check existing test cases");
         }
-        throw new Error("Failed to check existing test cases");
-      }
-
-      const data = await response.json();
-      const existingTestCase = data.testcase;
-
-      if (
-        existingTestCase &&
-        existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
-      ) {
-        console.log("✅ Match found — setting error");
-        setErrors((prev) => ({
-          ...prev,
-          testcase_name: "A test case with this name already exists. Please use a different name.",
-        }));
-        return;
       }
 
     } catch (error) {
       console.error("Error checking test case name:", error);
       alert("Error checking test case name. Please try again.");
       setIsLoading(false);
-
     }
   };
 
@@ -122,7 +124,8 @@ const CreateTestCases = () => {
           testcase_name,
           testcase_type: testCaseType,
           testcase_priority: testCasePriority,
-          projectId: selectedProject.project_name
+          projectId: selectedProject.project_name,
+          project_type: selectedProject.project_type
         }
       }
     });
@@ -234,8 +237,8 @@ const CreateTestCases = () => {
                     } focus:outline-none focus:ring-2 focus:ring-purple-500`}
                     disabled={!selectedProject}
                   />
-                  {errors.testcase_name && (
-                    <span className="text-red-500 text-sm mt-1">{errors.testcase_name}</span>
+                  {errors.name && ( 
+                    <span className="text-red-500 text-sm mt-1">{errors.name}</span>
                   )}
                 </div>
   

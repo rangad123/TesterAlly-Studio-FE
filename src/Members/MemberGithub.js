@@ -124,6 +124,14 @@ function MemberGithub() {
 
     try {
       const userId = localStorage.getItem("userId");
+
+      const requestBody = {
+        user_id: userId,
+        selected_path: selectedPath
+      };
+
+      console.log("Request Body:", requestBody);
+
       const response = await fetch('http://127.0.0.1:8000/integrate/clone_repo/', {
         method: 'POST',
         headers: {
@@ -148,10 +156,18 @@ function MemberGithub() {
           setCloneMessage(data.message || 'Failed to clone repository');
           setError(data.message || 'Failed to clone repository');
         }
-      } else {
+      } else if (response.status === 400) {
+        const errorData = await response.json();
+        console.error('Backend 400 response:', errorData);
+
+        const message = errorData.message || 'You have already cloned this repository. Please check.';
         setCloneStatus('error');
-        setCloneMessage('Failed to clone repository - server error');
-        setError('Failed to clone repository - server error');
+        setCloneMessage(message);
+        setError(message);
+      }else {
+        setCloneStatus('error');
+        setCloneMessage('Failed to clone repository');
+        setError('Failed to clone repository');
       }
     } catch (err) {
       console.error('Failed to clone repository:', err);

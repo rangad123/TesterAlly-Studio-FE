@@ -3,7 +3,8 @@ import {
   FaCode,
   FaUserShield,
   FaUsers,
-  FaFolderOpen
+  FaFolderOpen,
+  FaGithub 
 } from "react-icons/fa";
 import { FiSettings } from "react-icons/fi";
 import { MdDashboard, MdAccountCircle } from "react-icons/md";
@@ -73,6 +74,13 @@ const MemberSidebar = () => {
 
   const handleNavigateToProfile = () => {
     navigate("/member-profile")
+    setIsMTestCasesVisible(false);
+    setIsProjectSettingsVisible(false);
+    setIsSettingsVisible(false);
+  };
+
+  const handleNavigateToGithub = () => {
+    navigate("/member-github")
     setIsMTestCasesVisible(false);
     setIsProjectSettingsVisible(false);
     setIsSettingsVisible(false);
@@ -214,6 +222,17 @@ const MemberSidebar = () => {
         <span className="option-name">Profile</span>
       </div>
     </div>
+
+    <div
+      className={`sidebar-option ${currentPath === "/member-github" ? "active" : ""}`}
+      onClick={handleNavigateToGithub}
+    >
+      <FaGithub  className={`icon project-icon ${window.location.pathname === "/member-github" ? "active-icon" : ""}`}  />
+      <div className="option-name-container">
+        <span className="option-name">Git Integration</span>
+      </div>
+    </div>
+
   </div>
 
       {/* Sub-sidebar: Settings */}
