@@ -326,7 +326,6 @@ import TestData from "./pages/TestData";
 import MemberRegister from "./Members/MemberRegister";
 import ProjectListDetails from "./pages/ProjectListDetails";
 import UserRoles from "./pages/UserRoles";
-import TestSteps from "./pages/TestSteps";
 import AdminOrganization from "./Admin/AdminOrganization";
 import { useLocation } from 'react-router-dom';
 import MemberDashBoard from "./Members/MemberDashBoard";
@@ -350,15 +349,15 @@ import MemberPriorities from "./Members/MemberPriorities"
 import TestAutomationControl from "./pages/TestExecution";
 import Agent from "./pages/Agent";
 import Reports from "./pages/Reports";
-import WriteTestManually from "./pages/WriteTestManually";
 import SchedulerPage from "./pages/SchedulerPage";
 import GitHub from "./pages/GitHub";
-import GitCreate from "./pages/GitCreate";
 import MemberGithub from "./Members/MemberGithub";
 import MemberRecord from "./Members/MemberRecord";
 import MemberSuiteDetails from "./Members/MemberSuiteDetails";
 import MemberCreateSuite from "./Members/MemberCreateSuite";
 import RecordSelector from "./pages/RecordSelector";
+import ManuallySelector from "./pages/ManuallySelector";
+import TestStepSelector from "./pages/TestStepSelector";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -829,15 +828,15 @@ const App = () => {
                   </PrivateRoute>
                 }
               />
-              <Route
+              {/* <Route
                 path="/writemanually-test"
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <WriteTestManually />
+                    <WriteManually />
                   </PrivateRoute>
                 }
-              />
+              /> */}
               <Route
                 path="testsuite"
                 exact
@@ -924,7 +923,7 @@ const App = () => {
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <TestSteps />
+                    <TestStepSelector />
                   </PrivateRoute>
                 }
               />
@@ -961,7 +960,7 @@ const App = () => {
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <GitCreate />
+                    <ManuallySelector />
                   </PrivateRoute>
                 }
               />

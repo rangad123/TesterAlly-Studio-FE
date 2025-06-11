@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
-const GitCreate = () => {
+const AndroidManually = () => {
 
   const storeInSessionStorage = (stepId, data) => {
     try {
@@ -60,13 +60,30 @@ const GitCreate = () => {
   const [originalStepValues, setOriginalStepValues] = useState({});
   const [lastCapturedStepId, setLastCapturedStepId] = useState(null);
   const [originalCaptureIds, setOriginalCaptureIds] = useState({});
-  const [browserTabs, setBrowserTabs] = useState([]);
-  const [showBrowserTabsModal, setShowBrowserTabsModal] = useState(false);
-  const [tabsLoading, setTabsLoading] = useState(false);
+
   const [currentStepId, setCurrentStepId] = useState(null);
   const [ , setCurrentStepNumber] = useState(null);
   const [hasSessionData, setHasSessionData] = useState(false);
   const [showWaitModal, setShowWaitModal] = useState(false);
+
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [deviceConnected, setDeviceConnected] = useState(false);
+  const [installedApps, setInstalledApps] = useState({});
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
+  const [connectionSteps, setConnectionSteps] = useState({
+    currentStep: 0,
+    steps: [
+      { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
+      { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
+      { id: 3, message: "Checking device connection...", icon: "🔍" },
+      { id: 4, message: "Installing ATX agent...", icon: "⚙️" },
+      { id: 5, message: "Verifying ATX installation...", icon: "✓" }
+    ],
+    isSuccess: false,
+    successMessage: ""
+  });
+
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -148,6 +165,106 @@ const GitCreate = () => {
     setHasSessionData(checkSessionData());
   }, []);
 
+  const checkDeviceConnection = async () => {
+    console.log("checkDeviceConnection")
+    setConnectionLoading(true);
+    setShowConnectionLoadingModal(true); 
+    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false })); 
+
+    try {
+      // Step 1: USB Connection (show for 2-3 seconds)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 2: USB Debugging 
+      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 3: Actually check device connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+
+      // First API call - connect-ui
+      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!connectResponse.ok) {
+
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(true);
+        return;
+      }
+
+      const connectData = await connectResponse.json();
+      console.log("connect-ui response:", connectData);
+
+      // Move to step 4 (Installing ATX agent)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+
+      // Second API call - setup-device (ATX check)
+      const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }
+      });
+
+      // Move to step 5 (Verifying ATX installation)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
+
+      if (setupResponse.ok) {
+        const setupData = await setupResponse.json();
+        console.log("setup-device response:", setupData);
+
+        // Check if both APIs succeeded and device is connected with apps
+        if (connectData.Message === "Device Already Connected" && 
+            (connectData["System Apps"] || connectData["User Apps"]) &&
+            setupData.status === "success") {
+          
+          setDeviceConnected(true);
+          const combinedApps = {
+            ...connectData["System Apps"],
+            ...connectData["User Apps"]
+          };
+          setInstalledApps(combinedApps);
+          
+          setConnectionSteps(prev => ({
+            ...prev,
+            isSuccess: true,
+            successMessage: "Device connected and ATX agent verified successfully!"
+          }));
+          
+          setTimeout(() => {
+            setShowConnectionLoadingModal(false);
+          }, 2000);
+        } else {
+          setDeviceConnected(false);
+          setShowConnectionLoadingModal(false);
+          setShowConnectModal(false);
+        }
+      } else {
+        // ATX setup failed
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(false);
+        alert("ATX agent installation failed. Please try again.");
+      }
+      
+    } catch (error) {
+
+      console.error("Error checking device connection:", error);
+      setDeviceConnected(false);
+      setShowConnectionLoadingModal(false);
+      setShowConnectModal(true);
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkDeviceConnection();
+  }, []);
+
 const handleCreateTestCase = async () => {
     setIsLoading(true);
 
@@ -180,8 +297,8 @@ const handleCreateTestCase = async () => {
                 }
             }
             console.log("Debug - stepId:", stepId);
-console.log("Debug - capturedSteps[stepId]:", capturedSteps[stepId]);
-console.log("Debug - step.selectedElement:", step.selectedElement);
+            console.log("Debug - capturedSteps[stepId]:", capturedSteps[stepId]);
+            console.log("Debug - step.selectedElement:", step.selectedElement);
             
             // Format each step for the teststep API
             return {
@@ -262,108 +379,117 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
     }
 };
 
-  const handleCaptureElement = async (stepId) => {
-    setTabsLoading(true);
-    setCurrentStepId(stepId);
-    setCurrentStepNumber(testSteps.find(step => step.id === stepId)?.stepNumber);
-    
-    try {
-      // Fetch browser tabs instead of immediately capturing
-      const response = await fetch('http://127.0.0.1:8000/automation/get_browser_tabs/', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+const handleCaptureElement = async (stepId) => {
+  setCaptureLoading(prev => ({ ...prev, [stepId]: true }));
   
-      if (!response.ok) {
-        throw new Error('Failed to get browser tabs');
+  try {
+    const response = await fetch('http://localhost:8000/android/sync_scr/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       }
-  
-      const data = await response.json();
-      console.log("Browser tabs response:", data);
-      
-      // Set browser tabs and show modal
-      setBrowserTabs(data.browser_tabs || []);
-      setShowBrowserTabsModal(true);
-    } catch (error) {
-      console.error('Browser tabs fetch error:', error);
-      alert("Failed to fetch browser tabs. Please try again.");
-    } finally {
-      setTabsLoading(false);
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to capture Android screen');
     }
-  };
-  
-  const handleTabSelection = async (tab) => {
-    setCaptureLoading(prev => ({ ...prev, [currentStepId]: true }));
-    setShowBrowserTabsModal(false);
+
+    const data = await response.json();
+    console.log("Android screen capture response:", data);
+
+    const coordinates = { click_x: 0, click_y: 0 };
     
-    try {
-      const user_id = localStorage.getItem("userId");
+    const convertedElements = convertAndroidElements(data.screen_elements);
+    
+    const capturedData = {
+      coordinates: coordinates,
+      screenshot: data.screenshot_result?.url ? `http://localhost:8000${data.screenshot_result.url}` : null,
+      timestamp: new Date().toISOString(),
+      elements: convertedElements,
+      currentApp: data.current_app
+    };
+
+    // Store the captured data
+    setOriginalCaptureIds(prev => ({
+      ...prev, 
+      [stepId]: stepId
+    }));
+
+    setCapturedSteps(prev => ({
+      ...prev,
+      [stepId]: capturedData
+    }));
+
+    storeInSessionStorage(stepId, {
+      ...capturedData,
+      originalCaptureId: stepId
+    });
+
+    setLastCapturedStepId(stepId);
+    
+  } catch (error) {
+    alert("Failed to capture Android screen. Please try again.");
+    console.error('Android screen capture error:', error);
+  } finally {
+    setCaptureLoading(prev => ({ ...prev, [stepId]: false }));
+  }
+};
+
+const convertAndroidElements = (screenElements) => {
+  const allElements = [];
+  
+  // Helper function to parse bounds string like "[503,2025][540,2062]"
+  const parseBounds = (boundsStr) => {
+    const matches = boundsStr.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+    if (matches) {
+      const left = parseInt(matches[1]);
+      const top = parseInt(matches[2]);
+      const right = parseInt(matches[3]);
+      const bottom = parseInt(matches[4]);
       
-      const requestBody = {
-        tab_title: tab.title,
-        hwnd: tab.hwnd,
-        browser_name: tab.browser_name,
-        user_id: user_id,
+      // Calculate center point for clicking
+      const centerX = (left + right) / 2;
+      const centerY = (top + bottom) / 2;
+      
+      return {
+        left, top, right, bottom,
+        centerX, centerY
       };
-      
-      console.log("Request body for /process_browser_tab/:", requestBody);
-      
-      const response = await fetch('http://127.0.0.1:8000/automation/process_browser_tab/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to process browser tab');
-      }
-      
-      const data = await response.json();
-      
-      // Fix for coordinates - ensure they're properly formatted
-      const coordinates = {
-        click_x: data.coordinates?.x || data.coordinates?.click_x || 0,
-        click_y: data.coordinates?.y || data.coordinates?.click_y || 0
-      };
-      
-      const capturedData = {
-        coordinates: coordinates,
-        screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null,
-        timestamp: new Date().toISOString(),
-        elements: data.omniparser_data?.elements || []
-      };
-  
-      // Mark this step as the original capturer of this screenshot
-      setOriginalCaptureIds(prev => ({
-        ...prev, 
-        [currentStepId]: currentStepId // This step captured its own screenshot
-      }));
-  
-      // Store in both state and session storage
-      setCapturedSteps(prev => ({
-        ...prev,
-        [currentStepId]: capturedData
-      }));
-  
-      // Store in session storage with original capture info
-      storeInSessionStorage(currentStepId, {
-        ...capturedData,
-        originalCaptureId: currentStepId
-      });
-  
-      setLastCapturedStepId(currentStepId);
-      
-    } catch (error) {
-      alert("Failed to process browser tab. Please try again.");
-      console.error('Tab processing error:', error);
-    } finally {
-      setCaptureLoading(prev => ({ ...prev, [currentStepId]: false }));
     }
+    return { left: 0, top: 0, right: 0, bottom: 0, centerX: 0, centerY: 0 };
   };
+
+  // Process each category of elements
+  Object.entries(screenElements).forEach(([category, elements]) => {
+    if (Array.isArray(elements)) {
+      elements.forEach(element => {
+        const bounds = parseBounds(element.bounds || "");
+        
+        const convertedElement = {
+          name: element.content_desc || element.text || element.description || '',
+          text: element.text || element.content_desc || '',
+          type: category === 'buttons' ? 'button' : 
+                category === 'text_fields' ? 'text' : 
+                category === 'icons' ? 'icon' : 'other',
+          interactivity: element.clickable || element.focusable || false,
+          click_point: [bounds.centerX, bounds.centerY],
+          coordinates: [bounds.centerX, bounds.centerY],
+          bounds: element.bounds,
+          resource_id: element.resource_id || '',
+          class: element.class || '',
+          clickable: element.clickable || false,
+          focusable: element.focusable || false,
+          scrollable: element.scrollable || false,
+          category: category
+        };
+        
+        allElements.push(convertedElement);
+      });
+    }
+  });
+  
+  return allElements;
+};
 
   const handleSaveStep = (index) => {
     if (testSteps[index].choice.trim() === "") {
@@ -683,7 +809,7 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
         setShowSuggestions(false);
         setCommandSuggestions([]);
       }
-    } else if (['scrollup', 'scrolldown', 'open', 'wait'].includes(command)) {
+    } else if (['scrollup', 'scrolldown', 'wait'].includes(command)) {
       setCommandType(command);
       setShowSuggestions(false);
 
@@ -693,6 +819,15 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
         setCurrentStepNumber(index);
         setShowWaitModal(true);
       }
+    } else if (command === 'open') {
+      setCommandType(command);
+      if (words.length > 1) {
+        const appName = words.slice(1).join(' ').toLowerCase();
+        fetchAppSuggestions(appName, index);
+      } else {
+        fetchAppSuggestions('', index);  
+      }
+      setShowSuggestions(index);  
     } else {
       setCommandType("");
       setShowSuggestions(false);
@@ -890,6 +1025,26 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
     setCommandSuggestions(filtered);
   };
 
+  const fetchAppSuggestions = (searchTerm, index) => {
+    if (!deviceConnected || !installedApps) {
+      setCommandSuggestions([]);
+      return;
+    }
+
+    const suggestions = Object.entries(installedApps)
+      .filter(([appName, packageName]) => 
+        appName.toLowerCase().includes(searchTerm)
+      )
+      .map(([appName, packageName]) => ({
+        name: appName,
+        package: packageName,
+        type: 'app'
+      }))
+      .slice(0, 10);
+
+    setCommandSuggestions(suggestions);
+  };
+
   const handleSuggestionClick = (suggestion, index) => {
     const updatedSteps = [...testSteps];
     let step = updatedSteps[index];
@@ -902,7 +1057,11 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
     );
     const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
   
-    if (commandType === 'click') {
+    if (commandType === 'open' && suggestion.type === 'app') {
+      updatedStepValue = `open ${suggestion.package}`; 
+      // step.appPackage = suggestion.package;
+      step.step_description = suggestion.package;
+    } else if (commandType === 'click') {
       updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
     } else if (commandType === 'type') {
       const currentText = step.choice;
@@ -1053,64 +1212,121 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
     );
   };
 
-  const BrowserTabsModal = () => {
-    if (!showBrowserTabsModal) return null;
-    
-    const formatTabTitle = (title) => {
-      // Extract only the main part of the title, removing the browser name
-      const mainTitle = title.split(' - ')[0];
-      return mainTitle.length > 30 ? mainTitle.substring(0, 27) + '...' : mainTitle;
-    };
+  const ConnectDeviceModal = () => {
+    if (!showConnectModal) return null;
     
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Select Browser Tab</h2>
-            <button 
-              onClick={() => setShowBrowserTabsModal(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          
-          {tabsLoading ? (
-            <div className="flex items-center justify-center p-4">
-              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-              <span>Loading browser tabs...</span>
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <WifiOff className="w-8 h-8 text-red-600" />
+              </div>
             </div>
-          ) : (
-            <>
-              {browserTabs.length === 0 ? (
-                <p className="text-center text-gray-600 py-4">No browser tabs found</p>
-              ) : (
-                <ul className="space-y-2">
-                  {browserTabs.map((tab, index) => (
-                    <li 
-                      key={index}
-                      className={`p-3 border rounded-md cursor-pointer hover:bg-blue-50 transition-colors ${tab.active ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}
-                      onClick={() => handleTabSelection(tab)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium">{formatTabTitle(tab.title)}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {tab.active ? 'Active tab' : 'Inactive tab'} • {tab.width}×{tab.height}
-                          </p>
-                        </div>
-                        {tab.active && (
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                            Active
-                          </span>
-                        )}
+            <h2 className="text-xl font-semibold mb-3 text-gray-800">Connect Your Android Device</h2>
+            <p className="text-gray-600 mb-6">
+              Please connect your Android device and enable the required options to continue with testing.
+            </p>
+            
+            <div className="text-left mb-6">
+              <h3 className="font-medium text-gray-800 mb-2">Required Steps:</h3>
+              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                <li>Enable Developer Options on your device</li>
+                <li>Enable USB Debugging</li>
+                <li>Connect your device via USB</li>
+                <li>Allow USB debugging when prompted</li>
+              </ul>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={checkDeviceConnection}
+                disabled={connectionLoading}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {connectionLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Checking...
+                  </div>
+                ) : (
+                  'Check Connection'
+                )}
+              </button>
+              <button
+                onClick={() => navigate('/test-cases')}
+                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ConnectionLoadingModal = () => {
+    if (!showConnectionLoadingModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            {!connectionSteps.isSuccess ? (
+              <>
+                <div className="mb-6">
+                  <div className="text-4xl mb-4">
+                    {connectionSteps.steps[connectionSteps.currentStep]?.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
+                    Connecting to Device...
+                  </h3>
+                  <p className="text-gray-600">
+                    {connectionSteps.steps[connectionSteps.currentStep]?.message}
+                  </p>
+                </div>
+                
+                {/* Progress steps */}
+                <div className="mb-6">
+                  {connectionSteps.steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center mb-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                        index <= connectionSteps.currentStep 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {index < connectionSteps.currentStep ? '✓' : index + 1}
                       </div>
-                    </li>
+                      <span className={`text-sm ${
+                        index <= connectionSteps.currentStep 
+                          ? 'text-gray-800 font-medium' 
+                          : 'text-gray-500'
+                      }`}>
+                        {step.message}
+                      </span>
+                    </div>
                   ))}
-                </ul>
-              )}
-            </>
-          )}
+                </div>
+                
+                {/* Loading spinner */}
+                <div className="flex justify-center">
+                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-green-500 text-4xl mb-4">✅</div>
+                <h3 className="text-xl font-semibold mb-2 text-green-600">
+                  Success!
+                </h3>
+                <p className="text-gray-600">
+                  {connectionSteps.successMessage}
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1294,7 +1510,7 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
                 <button
                   className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700"
                   onClick={handleCreateTestCase}
-                  disabled={isLoading}
+                  disabled={isLoading || !deviceConnected}
                 >
                   {isLoading ? "Creating..." : "Create"}
                 </button>
@@ -1339,6 +1555,7 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
                           onChange={(e) => handleCommandInputChange(e, index)}
                           placeholder="Enter test step description"
                           autoFocus={editingStep === index}
+                          // disabled={!deviceConnected}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -1353,7 +1570,7 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
                           }}
                         />
                       </div>
-                      {showSuggestions === index && commandSuggestions.length > 0 && (
+                      {/* {showSuggestions === index && commandSuggestions.length > 0 && (
                         <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
                           {commandSuggestions.map((element, idx) => {
                             const sameNameElements = commandSuggestions.filter((el, i) => 
@@ -1431,7 +1648,47 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
                             </button>
                           </div>
                         </div>
+                      )} */}
+
+                      {showSuggestions === index && commandSuggestions.length > 0 && (
+                        <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
+                          {commandSuggestions.map((suggestion, idx) => (
+                            <div 
+                              key={idx}
+                              onClick={() => handleSuggestionClick(suggestion, index)}
+                              className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                            >
+                              <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
+                                <Smartphone className="w-3 h-3 text-green-600" />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{suggestion.name}</span>
+                                <span className="text-xs text-gray-500">{suggestion.package}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
+                      {showSuggestions === index && commandSuggestions.length === 0 && commandType === 'open' && (
+                        <div className="absolute z-10 bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+                          <div className="p-4 text-center">
+                            <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+                              <AlertCircle className="w-5 h-5 mr-2" />
+                              App not found
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              The app you're looking for is not installed on the connected device.
+                            </p>
+                            <button 
+                              onClick={() => setShowSuggestions(false)}
+                              className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   )}
 
@@ -1579,7 +1836,8 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
         </div>
       )}
       <InstructionsModal />
-      <BrowserTabsModal />
+      <ConnectDeviceModal />  
+      <ConnectionLoadingModal />
       <WaitModal 
         isOpen={showWaitModal}
         onClose={() => setShowWaitModal(false)}
@@ -1589,4 +1847,6 @@ console.log("Debug - step.selectedElement:", step.selectedElement);
   );
 };
 
-export default GitCreate;
+export default AndroidManually;
+
+

@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
-const WriteTestManually = () => {
+const WriteManually = () => {
 
   const storeInSessionStorage = (stepId, data) => {
     try {
@@ -97,7 +98,7 @@ const WriteTestManually = () => {
   useEffect(() => {
     const info = location.state?.testCaseInfo;
   
-    if (!info || !info.name || !info.testcase_type || !info.testcase_priority) {
+    if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
       alert("Test case data is incomplete or missing.");
       navigate("/test-cases/create-testcases");
       return;
@@ -147,81 +148,119 @@ const WriteTestManually = () => {
     setHasSessionData(checkSessionData());
   }, []);
 
-  const handleCreateTestCase = async () => {
+const handleCreateTestCase = async () => {
     setIsLoading(true);
 
     try {
-      const testCaseResponse = await fetch("http://127.0.0.1:8000/api/testcases/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project_id: testCaseInfo.projectId,
-          name: testCaseInfo.name,
-          testcase_type: testCaseInfo.testcase_type,
-          testcase_priority: testCaseInfo.testcase_priority
-        })
-      });
-
-      if (!testCaseResponse.ok) {
-        throw new Error("Failed to create test case");
-      }
-
-      const testCaseData = await testCaseResponse.json();
-      const testCaseId = testCaseData.id;
-
-      const stepPromises = testSteps
+        // Filter only selected and saved steps
+        const selectedSteps = testSteps
         .filter(step => step.isSelected && step.isSaved)
-        .map(async (step, index) => {
-          const stepId = step.id;
-          
-          let coordinates = { click_x: 0, click_y: 0 };
+        .map((step, index) => {
+            const stepId = step.id;
+            
+            // Initialize default coordinates
+            let coordinates = { click_x: 0, click_y: 0 };
 
-          if (capturedSteps[stepId]) {
-            if (step.selectedElement) {
-              if (step.selectedElement.click_point && Array.isArray(step.selectedElement.click_point)) {
-                coordinates = {
-                  click_x: step.selectedElement.click_point[0] || 0,
-                  click_y: step.selectedElement.click_point[1] || 0
-                };
-              } else if (step.selectedElement.coordinates && Array.isArray(step.selectedElement.coordinates)) {
-                coordinates = {
-                  click_x: step.selectedElement.coordinates[0] || 0,
-                  click_y: step.selectedElement.coordinates[1] || 0
-                };
-              }
-            } else if (capturedSteps[stepId].coordinates) {
-              coordinates = capturedSteps[stepId].coordinates;
+            // Extract coordinates from captured step data if available
+            if (capturedSteps[stepId]) {
+                if (step.selectedElement) {
+                    if (step.selectedElement.click_point && Array.isArray(step.selectedElement.click_point)) {
+                        coordinates = {
+                            click_x: step.selectedElement.click_point[0] || 0,
+                            click_y: step.selectedElement.click_point[1] || 0
+                        };
+                    } else if (step.selectedElement.coordinates && Array.isArray(step.selectedElement.coordinates)) {
+                        coordinates = {
+                            click_x: step.selectedElement.coordinates[0] || 0,
+                            click_y: step.selectedElement.coordinates[1] || 0
+                        };
+                    }
+                } else if (capturedSteps[stepId].coordinates) {
+                    coordinates = capturedSteps[stepId].coordinates;
+                }
             }
-          }
-          
-          const stepResponse = await fetch("http://127.0.0.1:8000/api/teststeps/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              testcase: testCaseId,
-              step_number: index + 1,
-              step_description: step.choice,
-              step_coordinates: coordinates,
-              teststep_result: "not_executed"
-            })
-          });
-
-          if (!stepResponse.ok) {
-            throw new Error(`Failed to create step ${index + 1}`);
-          }
-
-          return stepResponse.json();
+            console.log("Debug - stepId:", stepId);
+console.log("Debug - capturedSteps[stepId]:", capturedSteps[stepId]);
+console.log("Debug - step.selectedElement:", step.selectedElement);
+            
+            // Format each step for the teststep API
+            return {
+                step_number: index + 1,
+                step_description: step.choice,
+                teststep_result: "not_executed",
+                step_coordinates: coordinates,
+                expected_result: step.expectedResult || "",
+                actual_result: ""
+            };
         });
 
-      await Promise.all(stepPromises);
-      alert("Test Case and Steps Created Successfully");
-      navigate("/test-cases");
+        // Get the user ID from localStorage
+        const userId = localStorage.getItem("userId");
+        
+        // Step 1: Create the test case first (without steps)
+        const testCasePayload = {
+            user_id: parseInt(userId),
+            project_name: testCaseInfo.projectId,
+            testcase_name: testCaseInfo.testcase_name,
+            testcase_type: testCaseInfo.testcase_type,
+            testcase_priority: testCaseInfo.testcase_priority
+        };
+
+        console.log("Creating test case with payload:", testCasePayload);
+
+        const testCaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(testCasePayload)
+        });
+
+        if (!testCaseResponse.ok) {
+            const errorData = await testCaseResponse.json().catch(() => ({}));
+            throw new Error(errorData.message || "Failed to create test case");
+        }
+
+        const testCaseData = await testCaseResponse.json();
+        console.log("Test case created:", testCaseData);
+
+        // Step 2: Add steps to the created test case (only if there are steps)
+        if (selectedSteps.length > 0) {
+            const stepsPayload = {
+                user_id: parseInt(userId),
+                project_name: testCaseInfo.projectId,
+                testcase_name: testCaseInfo.testcase_name,
+                steps: selectedSteps
+            };
+
+            console.log("Adding steps with payload:", stepsPayload);
+
+            const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(stepsPayload)
+            });
+
+            if (!stepsResponse.ok) {
+                const errorData = await stepsResponse.json().catch(() => ({}));
+                console.warn("Steps creation failed:", errorData);
+                alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
+                navigate("/test-cases");
+                return;
+            }
+
+            const stepsData = await stepsResponse.json();
+            console.log("Steps added:", stepsData);
+        }
+
+        alert("Test Case and Steps Created Successfully");
+        navigate("/test-cases");
+
     } catch (error) {
-      alert(`Error: ${error.message}`);
+        alert(`Error: ${error.message}`);
+        console.error("Test case creation error:", error);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  };
+};
 
   const handleCaptureElement = async (stepId) => {
     setTabsLoading(true);
@@ -1550,4 +1589,4 @@ const WriteTestManually = () => {
   );
 };
 
-export default WriteTestManually;
+export default WriteManually;

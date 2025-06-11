@@ -260,6 +260,7 @@ const handleRowClick = (testCase) => {
     testCaseName: testCase.testcase_name,
     testCaseId: testCase.id || testCase.testcase_name,
     projectName: selectedProject.project_name,
+    ProjectType: selectedProject.project_type,
   };
   console.log("6. State data:", stateData);
   

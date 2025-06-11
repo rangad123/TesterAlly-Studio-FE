@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle, XCircle, Plus, Clock, X, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, X, Loader, WifiOff } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { getSuggestedElements } from './elementSuggestionUtils';
+import { getSuggestedElements } from '../pages/elementSuggestionUtils';
 import { HelpCircle, Link, MousePointer, Info, AlertCircle } from 'lucide-react';
 
 
@@ -45,6 +45,25 @@ const AndroidRecord = () => {
   const [waitModalOpen, setWaitModalOpen] = useState(false);
   const [stepWaitData, setStepWaitData] = useState(null);
   const [pendingWaitStep, setPendingWaitStep] = useState(false);
+
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [, setDeviceConnected] = useState(false);
+  const [installedApps, setInstalledApps] = useState({});
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
+  const [connectionSteps, setConnectionSteps] = useState({
+    currentStep: 0,
+    steps: [
+      { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
+      { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
+      { id: 3, message: "Checking device connection...", icon: "🔍" },
+      { id: 4, message: "Installing ATX agent...", icon: "⚙️" },
+      { id: 5, message: "Verifying ATX installation...", icon: "✓" }
+    ],
+    isSuccess: false,
+    successMessage: ""
+  });
+  
 
   
   const previewRef = useRef(null);
@@ -116,29 +135,69 @@ const AndroidRecord = () => {
   }
 }, [newStep]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!newStep) {
         setShowSuggestions(false);
         return;
     }
 
-    if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
-      return;
+    if (selectedElement && commandType === 'open' && selectedElement.type === 'app') {
+        if (newStep.includes(selectedElement.packageName)) {
+            return;
+        }
+    } else if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
+        return;
     }
 
     const inputText = newStep.trim().toLowerCase();
     const words = inputText.split(' ');
     const firstWord = words[0];
     
-    // Check if the command is a click or type command
-    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
+    console.log("Command detected:", firstWord);
+    
+    // Check if the command is a click, type, or open command
+    if (['click', 'type', 'verify', 'get', 'open'].includes(firstWord)) {
         setCommandType(firstWord);
 
         if (firstWord === 'wait') {
             setShowSuggestions(false);
             return;
         }
-        
+
+        if (firstWord === 'open') {
+            console.log("Open command detected!");
+            console.log("installedApps:", installedApps);
+            
+            if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
+                const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
+                
+                let appSuggestions = Object.entries(installedApps).map(([packageName, appName]) => ({
+                    id: packageName,
+                    name: appName,
+                    displayName: appName,
+                    packageName: packageName,
+                    type: 'app',
+                    click_point: [0, 0]
+                }));
+
+                if (appSearchTerm) {
+                    appSuggestions = appSuggestions.filter(app => 
+                        app.name.toLowerCase().includes(appSearchTerm) ||
+                        app.packageName.toLowerCase().includes(appSearchTerm)
+                    );
+                }
+                
+                console.log("App suggestions created:", appSuggestions);
+                setSuggestions(appSuggestions);
+                setShowSuggestions(appSuggestions.length > 0);
+            } else {
+                console.log("No installed apps available");
+                setSuggestions([]);
+                setShowSuggestions(false);
+            }
+            return; 
+        }
+      
         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
             setSuggestions([]);
             setShowSuggestions(false);
@@ -147,28 +206,22 @@ const AndroidRecord = () => {
         
         let searchTerm = '';
         
-        // Extract search term based on command type
         if (firstWord === 'click' && words.length > 1) {
-            // For click commands, everything after "click" is the search term
             searchTerm = words.slice(1).join(' ').toLowerCase();
         } else if (firstWord === 'type') {
-            // For type commands, extract what comes after "in "
             const inIndex = inputText.indexOf(' in ');
             if (inIndex !== -1) {
                 searchTerm = inputText.substring(inIndex + 4).trim();
             }
-        }else if (firstWord === 'verify' && words.length > 1) {
-          // For verify commands, everything after "verify" is the search term
-          searchTerm = words.slice(1).join(' ').toLowerCase();
-        }else if (firstWord === 'get' && words.length > 1) {
-          searchTerm = words.slice(1).join(' ').toLowerCase();
+        } else if (firstWord === 'verify' && words.length > 1) {
+            searchTerm = words.slice(1).join(' ').toLowerCase();
+        } else if (firstWord === 'get' && words.length > 1) {
+            searchTerm = words.slice(1).join(' ').toLowerCase();
         }
-        
-        // Get last click coordinates from executed steps
+
         const lastClickCoordinates = testSteps.length > 0 ? 
             getLastClickCoordinates(testSteps) : null;
         
-        // Use our enhanced algorithm to get suggestions with proper state
         const suggestedElements = getSuggestedElements(
             elementData.elements,
             searchTerm,
@@ -178,23 +231,22 @@ const AndroidRecord = () => {
                 lastClickCoordinates 
             }
         );
-
-        
         
         setSuggestions(suggestedElements);
         setShowSuggestions(suggestedElements.length > 0);
-        
+
     } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
-      setCommandType('scroll');
-      setShowSuggestions(false);
-    } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
-        setCommandType('open');
+        setCommandType('scroll');
+        setShowSuggestions(false);
+    } else if (firstWord === 'search') { 
+        setCommandType('search');
         setShowSuggestions(false);
     } else {
-        setCommandType('');
+        console.log("Unrecognized command, hiding suggestions");
         setShowSuggestions(false);
     }
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement]);
+
+}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType]);
 
 useEffect(() => {
   if (showSuggestions && suggestions.length > 0) {
@@ -205,6 +257,106 @@ useEffect(() => {
   }
 }, [showSuggestions, suggestions.length]);
 
+
+  const checkDeviceConnection = async () => {
+    console.log("checkDeviceConnection")
+    setConnectionLoading(true);
+    setShowConnectionLoadingModal(true); 
+    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false })); 
+
+    try {
+      // Step 1: USB Connection (show for 2-3 seconds)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 2: USB Debugging 
+      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 3: Actually check device connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+
+      // First API call - connect-ui
+      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!connectResponse.ok) {
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(true);
+        return;
+      }
+
+      const connectData = await connectResponse.json();
+      console.log("connect-ui response:", connectData);
+
+      // Move to step 4 (Installing ATX agent)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+
+      // Second API call - setup-device (ATX check)
+      const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }
+      });
+
+      // Move to step 5 (Verifying ATX installation)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
+
+      if (setupResponse.ok) {
+        const setupData = await setupResponse.json();
+        console.log("setup-device response:", setupData);
+
+        // Check if both APIs succeeded and device is connected with apps
+        if (connectData.Message === "Device Already Connected" && 
+            (connectData["System Apps"] || connectData["User Apps"]) &&
+            setupData.status === "success") {
+          
+          setDeviceConnected(true);
+          const combinedApps = {
+            ...connectData["System Apps"],
+            ...connectData["User Apps"]
+          };
+          console.log("Setting installedApps:", combinedApps); 
+          setInstalledApps(combinedApps);
+          
+          setConnectionSteps(prev => ({
+            ...prev,
+            isSuccess: true,
+            successMessage: "Device connected and ATX agent verified successfully!"
+          }));
+          
+          setTimeout(() => {
+            setShowConnectionLoadingModal(false);
+          }, 3000);
+        } else {
+          setDeviceConnected(false);
+          setShowConnectionLoadingModal(false);
+          setShowConnectModal(false);
+        }
+      } else {
+        // ATX setup failed
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(false);
+        alert("ATX agent installation failed. Please try again.");
+      }
+      
+    } catch (error) {
+
+      console.error("Error checking device connection:", error);
+      setDeviceConnected(false);
+      setShowConnectionLoadingModal(false);
+      setShowConnectModal(true);
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkDeviceConnection();
+  }, []);
 
 const getLastClickCoordinates = (steps) => {
   // Loop backwards through steps to find the last successful click action
@@ -250,6 +402,8 @@ const getLastClickCoordinates = (steps) => {
           setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${actionType === 'scrollup' ? 'up' : 'down'}, please wait...`);
         } else if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
+        } else if (actionType === 'search') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Executing Search, please wait...`);
         } else if (actionType === 'click') {
           setLoadingMessage(`Step ${stepIndex + 1}: Executing click, please wait...`);
         } else if (actionType === 'type') {
@@ -315,10 +469,10 @@ const getLastClickCoordinates = (steps) => {
         }
 
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
-            const response = await fetch('http://localhost:8000/installer/command/', {
+            const response = await fetch('http://localhost:8000/android/command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: updatedStepDescription }), // Removed user_id
+                body: JSON.stringify({ command: updatedStepDescription }), 
             });
 
             console.log("Open Command:", updatedStepDescription);
@@ -339,17 +493,20 @@ const getLastClickCoordinates = (steps) => {
                     ...data.screen_elements.buttons.map(btn => {
                         const bounds = btn.bounds;
                         let click_point = [0, 0];
-                        
+
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[290,380][510,597]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
-                                console.warn('Error parsing bounds for button:', bounds, e);
+                                console.warn('Error parsing bounds:', bounds, e);
                             }
                         }
                         
@@ -367,17 +524,20 @@ const getLastClickCoordinates = (steps) => {
                     ...data.screen_elements.text_fields.map(field => {
                         const bounds = field.bounds;
                         let click_point = [0, 0];
-                        
+
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[290,380][510,597]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
-                                console.warn('Error parsing bounds for text field:', bounds, e);
+                                console.warn('Error parsing bounds:', bounds, e);
                             }
                         }
                         
@@ -397,16 +557,19 @@ const getLastClickCoordinates = (steps) => {
                         let click_point = [0, 0];
                         
                         if (bounds && typeof bounds === 'string') {
-                            try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                            } catch (e) {
-                                console.warn('Error parsing bounds for icon:', bounds, e);
-                            }
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds:', bounds, e);
+                          }
                         }
                         
                         return {
@@ -425,16 +588,19 @@ const getLastClickCoordinates = (steps) => {
                         let click_point = [0, 0];
                         
                         if (bounds && typeof bounds === 'string') {
-                            try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                            } catch (e) {
-                                console.warn('Error parsing bounds for other element:', bounds, e);
-                            }
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds:', bounds, e);
+                          }
                         }
                         
                         return {
@@ -482,7 +648,7 @@ const getLastClickCoordinates = (steps) => {
             };
         } 
         else if (actionType === 'click' || actionType === 'type') {
-    
+            
             const selectedElement = stepObj.selectedElement;
             
             if (!selectedElement) {
@@ -508,7 +674,7 @@ const getLastClickCoordinates = (steps) => {
             });
 
             // Use the same endpoint as open command
-            const response = await fetch('http://localhost:8000/installer/command/', {
+            const response = await fetch('http://localhost:8000/android/command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
@@ -535,12 +701,15 @@ const getLastClickCoordinates = (steps) => {
                         
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[2025,113][2157,245]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
                                 console.warn('Error parsing bounds for button:', bounds, e);
                             }
@@ -563,12 +732,15 @@ const getLastClickCoordinates = (steps) => {
                         
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[2025,113][2157,245]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
                                 console.warn('Error parsing bounds for text field:', bounds, e);
                             }
@@ -591,12 +763,15 @@ const getLastClickCoordinates = (steps) => {
                         
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[2025,113][2157,245]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
                                 console.warn('Error parsing bounds for icon:', bounds, e);
                             }
@@ -619,12 +794,15 @@ const getLastClickCoordinates = (steps) => {
                         
                         if (bounds && typeof bounds === 'string') {
                             try {
-                                const boundsArray = bounds.split('[')[1].split(']')[0].split(',');
-                                const x1 = parseInt(boundsArray[0]);
-                                const y1 = parseInt(boundsArray[1]);
-                                const x2 = parseInt(boundsArray[2]);
-                                const y2 = parseInt(boundsArray[3]);
-                                click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                // Parse bounds format: "[2025,113][2157,245]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
                             } catch (e) {
                                 console.warn('Error parsing bounds for other element:', bounds, e);
                             }
@@ -674,6 +852,195 @@ const getLastClickCoordinates = (steps) => {
                 debug_images: data.coordinates?.debug_images || {},
             };
         } 
+        else if (actionType === 'search') {
+            
+          let requestBody = {
+              command: stepDescription // This will be like "search python"
+          };
+
+          console.log('Sending search command:', {
+              command: stepDescription,
+              requestBody: requestBody
+          });
+
+          // Use the same endpoint as other commands
+          const response = await fetch('http://localhost:8000/installer/command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+          });
+
+          console.log("Search Command:", stepDescription);
+
+          if (!response.ok) {
+              throw new Error('Failed to execute search command');
+          }
+
+          const data = await response.json();
+          console.log("Search response:", data);
+
+          // Process screen elements same as other commands
+          let androidElementData = {};
+          
+          if (data.screen_elements) {
+              // Process all UI elements and create suggestions from content_desc
+              const allElements = [
+                  ...data.screen_elements.buttons.map(btn => {
+                      const bounds = btn.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for button:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: btn.description?.replace(/"/g, '') || '',
+                          displayName: btn.content_desc || btn.description?.replace(/"/g, '') || '',
+                          content_desc: btn.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: btn.resource_id,
+                          class: btn.class,
+                          clickable: btn.clickable
+                      };
+                  }),
+                  ...data.screen_elements.text_fields.map(field => {
+                      const bounds = field.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for text field:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: field.description?.replace(/"/g, '') || '',
+                          displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                          content_desc: field.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: field.resource_id,
+                          class: field.class,
+                          clickable: field.clickable
+                      };
+                  }),
+                  ...data.screen_elements.icons.map(icon => {
+                      const bounds = icon.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for icon:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: icon.description?.replace(/"/g, '') || '',
+                          displayName: icon.content_desc || icon.description?.replace(/"/g, '') || '',
+                          content_desc: icon.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: icon.resource_id,
+                          class: icon.class,
+                          clickable: icon.clickable
+                      };
+                  }),
+                  ...data.screen_elements.other.map(other => {
+                      const bounds = other.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for other element:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: other.description?.replace(/"/g, '') || '',
+                          displayName: other.content_desc || other.description?.replace(/"/g, '') || '',
+                          content_desc: other.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: other.resource_id,
+                          class: other.class,
+                          clickable: other.clickable
+                      };
+                  })
+              ];
+
+              androidElementData = {
+                  elements: allElements
+              };
+              
+              // Create suggestions from content_desc (filter out empty ones)
+              const suggestions = allElements
+                  .filter(element => element.content_desc && element.content_desc.trim() !== '')
+                  .map(element => element.content_desc);
+              
+              setElementData(androidElementData);
+              sessionStorage.setItem('latestElementData', JSON.stringify(androidElementData));
+              setSuggestions(suggestions);
+          } else {
+              setSuggestions([]);
+          }
+
+          const screenshotUrl = data.screenshot_result?.url
+              ? `http://localhost:8000${data.screenshot_result.url}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
+
+          return {
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.action_result?.message || 'Search command executed successfully',
+              screenshot: screenshotUrl,
+              coordinates: androidElementData,
+              requestBody,
+              debug_images: data.coordinates?.debug_images || {},
+          };
+        }
         else if (actionType === 'verify') {
           const selectedElement = stepObj.selectedElement;
             
@@ -843,9 +1210,9 @@ const getLastClickCoordinates = (steps) => {
     const actionType = words[0].toLowerCase();
 
     // Add 'wait' to the list of allowed commands
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait'];
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search'];
     if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
+      alert("Unknown command. Please use: click, open, scroll, search, or type.");
       return;
     }
     
@@ -973,26 +1340,22 @@ const getLastClickCoordinates = (steps) => {
   };
 
 
-useEffect(() => {
-  if (pendingWaitStep && newStep.includes('wait')) {
-    addTestStep();
-    setPendingWaitStep(false); 
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [newStep, pendingWaitStep]);
+  useEffect(() => {
+    if (pendingWaitStep && newStep.includes('wait')) {
+      addTestStep();
+      setPendingWaitStep(false); 
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newStep, pendingWaitStep]);
 
-const handleWaitConfirm = (waitCommand, waitRequestData) => {
-  setStepWaitData(waitRequestData);
-  setNewStep(waitCommand);
-  setWaitModalOpen(false);
-};
-
+  const handleWaitConfirm = (waitCommand, waitRequestData) => {
+    setStepWaitData(waitRequestData);
+    setNewStep(waitCommand);
+    setWaitModalOpen(false);
+  };
 
   const handleSuggestionClick = (suggestion) => {
-    // Flag to indicate a suggestion was just selected
-    // This will help prevent the useEffect from reopening the dropdown
     const handleSelection = () => {
-      // Store the selected element ID in previouslySelectedElements
       setPreviouslySelectedElements(prev => ({
         ...prev,
         [suggestion.id]: {
@@ -1029,7 +1392,7 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
       }
     } else if (commandType === 'verify') {
       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
+
       // Close suggestions dropdown
       setShowSuggestions(false);
       handleSelection();
@@ -1063,6 +1426,10 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
       setSelectedElement(suggestion);
       
       return;
+    } else if (commandType === 'open') {
+      // For apps, display the app name but store the package name in the step
+      // This way the step will contain the package name for execution
+      updatedStep = `open ${suggestion.displayName}`;
     }
     
     // Immediately close suggestions dropdown and disable its reopening
@@ -1411,7 +1778,7 @@ const SuggestionsDropdown = () => {
   const shouldShowNoDataMessage =
     suggestions.length === 0 &&
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd)); // Removed 'open' from here
   
   if (shouldShowNoDataMessage) {
     return (
@@ -1427,6 +1794,33 @@ const SuggestionsDropdown = () => {
           <button 
             onClick={() => setShowSuggestions(false)}
             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const shouldShowNoAppsMessage =
+    suggestions.length === 0 &&
+    newStep?.trim() !== '' &&
+    newStep.startsWith('open');
+
+  if (shouldShowNoAppsMessage) {
+    return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+        <div className="p-4 text-center">
+          <div className="text-orange-600 font-medium mb-2 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            No apps available
+          </div>
+          <p className="text-sm text-gray-700">
+            No installed apps found or apps are still loading. Please wait a moment and try again.
+          </p>
+          <button 
+            onClick={() => setShowSuggestions(false)}
+            className="mt-3 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors text-sm"
           >
             Dismiss
           </button>
@@ -1456,13 +1850,18 @@ const SuggestionsDropdown = () => {
             <>
               <span className="mr-2">📄</span> Get text from page:
             </>
+          ) : commandType === 'open' ? (
+              <>
+                  <span className="mr-2">📱</span> Select an app to open:
+              </>
           ) : null}
+
         </h4>
         <p className="text-xs text-gray-600">
-          Found {suggestions.length} matching elements
+          Found {suggestions.length} matching {commandType === 'open' ? 'apps' : 'elements'}
           {suggestions.some(s => s.isDuplicate) && 
             " (highlighted items have duplicate names)"}
-          {lastClickCoordinates && " (ordered by proximity to last click)"}
+          {lastClickCoordinates && commandType !== 'open' && " (ordered by proximity to last click)"}
         </p>
       </div>
       <ul className="divide-y divide-gray-100">
@@ -1501,7 +1900,7 @@ const SuggestionsDropdown = () => {
           >
             <div className="flex justify-between items-center">
               <span className="font-medium">
-                {suggestion.displayName || suggestion.name}
+                {suggestion.packageName || suggestion.name}
                 {suggestion.usageInfo && (
                   <span className={`ml-2 text-xs font-semibold ${
                     suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
@@ -1523,6 +1922,8 @@ const SuggestionsDropdown = () => {
                       ? 'bg-purple-100 text-purple-700'
                       : suggestion.type === 'text'
                       ? 'bg-gray-100 text-gray-700'
+                      : suggestion.type === 'app'
+                      ? 'bg-orange-100 text-orange-700'
                       : 'bg-gray-100 text-gray-700'
                 }`}>
                   {suggestion.type || suggestion.tag || "Element"}
@@ -1531,7 +1932,11 @@ const SuggestionsDropdown = () => {
             </div>
             
             <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+              {suggestion.type === 'app' ? (
+                <span>Package: {suggestion.packageName}</span>
+              ) : (
+                <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+              )}
               {suggestion.isDuplicate && !suggestion.usageInfo && (
                 <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
                   Multiple matches
@@ -1626,6 +2031,126 @@ const InstructionModal = ({ isOpen, onClose }) => {
     </div>
   );
 };
+
+  const ConnectDeviceModal = () => {
+    if (!showConnectModal) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+          <div className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <WifiOff className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold mb-3 text-gray-800">Connect Your Android Device</h2>
+            <p className="text-gray-600 mb-6">
+              Please connect your Android device and enable the required options to continue with testing.
+            </p>
+            
+            <div className="text-left mb-6">
+              <h3 className="font-medium text-gray-800 mb-2">Required Steps:</h3>
+              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                <li>Enable Developer Options on your device</li>
+                <li>Enable USB Debugging</li>
+                <li>Connect your device via USB</li>
+                <li>Allow USB debugging when prompted</li>
+              </ul>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={checkDeviceConnection}
+                disabled={connectionLoading}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {connectionLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Checking...
+                  </div>
+                ) : (
+                  'Check Connection'
+                )}
+              </button>
+              <button
+                onClick={() => navigate('/test-cases')}
+                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ConnectionLoadingModal = () => {
+    if (!showConnectionLoadingModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            {!connectionSteps.isSuccess ? (
+              <>
+                <div className="mb-6">
+                  <div className="text-4xl mb-4">
+                    {connectionSteps.steps[connectionSteps.currentStep]?.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
+                    Connecting to Device...
+                  </h3>
+                  <p className="text-gray-600">
+                    {connectionSteps.steps[connectionSteps.currentStep]?.message}
+                  </p>
+                </div>
+                
+                {/* Progress steps */}
+                <div className="mb-6">
+                  {connectionSteps.steps.map((step, index) => (
+                    <div key={step.id} className="flex items-center mb-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                        index <= connectionSteps.currentStep 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {index < connectionSteps.currentStep ? '✓' : index + 1}
+                      </div>
+                      <span className={`text-sm ${
+                        index <= connectionSteps.currentStep 
+                          ? 'text-gray-800 font-medium' 
+                          : 'text-gray-500'
+                      }`}>
+                        {step.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Loading spinner */}
+                <div className="flex justify-center">
+                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-green-500 text-4xl mb-4">✅</div>
+                <h3 className="text-xl font-semibold mb-2 text-green-600">
+                  Success!
+                </h3>
+                <p className="text-gray-600">
+                  {connectionSteps.successMessage}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
 const WaitModal = ({ isOpen, onClose, onConfirm }) => {
   const [waitCondition, setWaitCondition] = useState('static_wait');
@@ -1921,7 +2446,8 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                     <div className="text-xs text-gray-500 mt-1">
                       {commandType === 'click' && "Click command - type element name or select from suggestions"}
                       {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
-                      {commandType === 'open' && "Navigation command - enter a URL"}
+                      {commandType === 'open' && "Navigation command - enter App Name"}
+                      {commandType === 'search' && "Navigation command - search [text]"}
                       {commandType === 'scroll' && "Scroll command - use 'scrollup' or 'scrolldown'"}
                     </div>
                   )}
@@ -2136,6 +2662,8 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   isOpen={instructionModalOpen}
                   onClose={() => setInstructionModalOpen(false)}
                 />
+                <ConnectDeviceModal />  
+                <ConnectionLoadingModal />
                 <WaitModal
                   isOpen={waitModalOpen}
                   onClose={() => setWaitModalOpen(false)}
