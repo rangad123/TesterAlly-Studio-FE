@@ -29,12 +29,12 @@ const AndroidTestSteps = () => {
   const [showRunInstructions, setShowRunInstructions] = useState(false);
   const [waitTime, setWaitTime] = useState("");
   const [showConnectModal, setShowConnectModal] = useState(false);
-    const [deviceConnected, setDeviceConnected] = useState(false);
-    const [installedApps, setInstalledApps] = useState({});
-    const [connectionLoading, setConnectionLoading] = useState(false);
-    const [showConnectionMessage, setShowConnectionMessage] = useState(false);
-    const [addStepLoading, setAddStepLoading] = useState({});
-    const [editingStepLoading, setEditingStepLoading] = useState(null);
+  const [deviceConnected, setDeviceConnected] = useState(false);
+  const [installedApps, setInstalledApps] = useState({});
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [showConnectionMessage, setShowConnectionMessage] = useState(false);
+  const [addStepLoading, setAddStepLoading] = useState({});
+  const [editingStepLoading, setEditingStepLoading] = useState(null);
 
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
@@ -55,6 +55,19 @@ const AndroidTestSteps = () => {
       setError("Failed to fetch test case details");
     }
   }, []);
+
+  const displayCommand = (command) => {
+    if (command.toLowerCase().startsWith('open ')) {
+      const words = command.trim().split(' ');
+      if (words.length > 1) {
+        const packageName = words[1];
+        const parts = packageName.split('.'); 
+        const lastPart = parts[parts.length - 1];
+        return `open ${lastPart}`; 
+      }
+    }
+    return command; 
+  };
 
   const fetchTestCaseMetadata = useCallback(async () => {
     try {
@@ -131,6 +144,42 @@ const handleUpdateTestCase = async () => {
     console.error("Error updating test case:", err);
     setError("Failed to update test case: " + err.message);
   }
+};
+
+const checkConnectionOnly = async () => {
+    setConnectionLoading(true);
+    try {
+        const response = await fetch("http://localhost:8000/android/connection/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Connection API Data:", data);
+            
+            if (data.status === "success" && data.device_info) {
+                setDeviceConnected(true);
+                setShowConnectModal(false);
+                return true;
+            } else {
+                setDeviceConnected(false);
+                setShowConnectModal(true);
+                return false;
+            }
+        } else {
+            setDeviceConnected(false);
+            setShowConnectModal(true);
+            return false;
+        }
+    } catch (error) {
+        console.error("Error checking device connection:", error);
+        setDeviceConnected(false);
+        setShowConnectModal(true);
+        return false;
+    } finally {
+        setConnectionLoading(false);
+    }
 };
 
 const checkDeviceConnectionAndReturn = async (command = "") => {
@@ -552,6 +601,12 @@ const handleModalOkClick = async () => {
     return;
   }
 
+  const isConnected = await checkConnectionOnly();
+  if (!isConnected) {
+    alert("Please connect your Android device before running the test case.");
+    return;
+  }
+
   setIsExecuting(true);
   setError(null);
   setExecutionResults({});
@@ -563,7 +618,7 @@ const handleModalOkClick = async () => {
   });
 
   try {
-    const response = await fetch("http://127.0.0.1:8000/integrate/run_testcase/", {
+    const response = await fetch("http://127.0.0.1:8000/android/run_testcase/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -596,7 +651,8 @@ const handleModalOkClick = async () => {
           newExecutionResults[step.step_number] = {
             status: 'complete',
             message: executedStep.response.status,
-            screenshot: executedStep.response.screenshot ? `http://127.0.0.1:8000${executedStep.response.screenshot}` : null,
+            screenshot: executedStep.screenshot?.url ? 
+              `http://127.0.0.1:8000${executedStep.screenshot.url}` : null,
             duration: null,
             url: executedStep.response.url || null,
             activeWindow: executedStep.response.active_window || null
@@ -887,7 +943,7 @@ const selectAllSteps = () => {
               
               <div className="flex gap-3">
               <button
-                  onClick={checkDeviceConnectionAndReturn}
+                  onClick={checkConnectionOnly}
                   disabled={connectionLoading}
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
@@ -1129,7 +1185,7 @@ const selectAllSteps = () => {
                             Loading...
                             </div>
                         ) : (
-                            step.step_description
+                            displayCommand(step.step_description)
                         )}
                       {executionResults[step.step_number] && (
                         <div className={`mt-2 text-sm p-2 rounded ${

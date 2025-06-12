@@ -77,7 +77,7 @@ const AndroidManually = () => {
       { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
       { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
       { id: 3, message: "Checking device connection...", icon: "🔍" },
-      { id: 4, message: "Installing ATX agent...", icon: "⚙️" },
+      { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
       { id: 5, message: "Verifying ATX installation...", icon: "✓" }
     ],
     isSuccess: false,
@@ -236,6 +236,7 @@ const AndroidManually = () => {
           
           setTimeout(() => {
             setShowConnectionLoadingModal(false);
+            setShowConnectModal(false);
           }, 2000);
         } else {
           setDeviceConnected(false);
@@ -303,7 +304,7 @@ const handleCreateTestCase = async () => {
             // Format each step for the teststep API
             return {
                 step_number: index + 1,
-                step_description: step.choice,
+                step_description: step.step_description || step.choice,
                 teststep_result: "not_executed",
                 step_coordinates: coordinates,
                 expected_result: step.expectedResult || "",
@@ -861,31 +862,102 @@ const convertAndroidElements = (screenElements) => {
     let filtered = [];
   
     // Process the elements and ensure coordinates are available
-    if (command === "click") {
-      (filtered = elements.filter(el => (el.interactivity === true && el.type === "icon") || el.type === "text"))
-        .map(el => {
-          // Fix: Ensure coordinates are processed correctly
-          let coordinates;
+    // if (command === "click") {
+    //   (filtered = elements.filter(el => (el.interactivity === true && el.type === "icon") || el.type === "text"))
+    //     .map(el => {
+    //       // Fix: Ensure coordinates are processed correctly
+    //       let coordinates;
           
-          if (el.click_point && Array.isArray(el.click_point)) {
-            coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
-          } else if (el.coordinates) {
-            if (Array.isArray(el.coordinates)) {
-              coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
-            } else {
-              coordinates = [
-                parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
-                parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
-              ];
-            }
-          }
+    //       if (el.click_point && Array.isArray(el.click_point)) {
+    //         coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
+    //       } else if (el.coordinates) {
+    //         if (Array.isArray(el.coordinates)) {
+    //           coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
+    //         } else {
+    //           coordinates = [
+    //             parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
+    //             parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
+    //           ];
+    //         }
+    //       }
           
-          return {
-            ...el,
-            click_point: coordinates || [0, 0]
-          };
-        });
+    //       return {
+    //         ...el,
+    //         click_point: coordinates || [0, 0]
+    //       };
+    //     });
         
+    //   if (words.length > 1) {
+    //     const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+    //     if (searchTerm) {
+    //       filtered = filtered.filter(el => 
+    //         (el.name && el.name.toLowerCase().includes(searchTerm)) || 
+    //         (el.text && el.text.toLowerCase().includes(searchTerm))
+    //       );
+    //     }
+    //   }
+    // } 
+    // else if (command === "type") {
+    //   filtered = elements.filter(el => el.type === "text" || el.type === "icon")
+    //     .map(el => {
+    //       // Fix: Ensure coordinates are processed correctly
+    //       let coordinates;
+          
+    //       if (el.click_point && Array.isArray(el.click_point)) {
+    //         coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+    //       } else if (el.coordinates) {
+    //         if (Array.isArray(el.coordinates)) {
+    //           coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+    //         } else {
+    //           coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
+    //         }
+    //       }
+          
+    //       return {
+    //         ...el,
+    //         click_point: coordinates || [0, 0]
+    //       };
+    //     });
+  
+    //   if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
+    //     const inIndex = inputValue.toLowerCase().indexOf(" in ");
+    //     const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+  
+    //     if (afterInText) {
+    //       filtered = filtered.filter(el => 
+    //         (el.name && el.name.toLowerCase().includes(afterInText)) || 
+    //         (el.text && el.text.toLowerCase().includes(afterInText))
+    //       );
+    //     }
+    //   }
+    // } 
+
+    if (command === "click") {
+      // Remove the restrictive filter - show ALL elements
+      filtered = elements.map(el => {
+        // Fix: Ensure coordinates are processed correctly
+        let coordinates;
+        
+        if (el.click_point && Array.isArray(el.click_point)) {
+          coordinates = [parseFloat(el.click_point[0]), parseFloat(el.click_point[1])];
+        } else if (el.coordinates) {
+          if (Array.isArray(el.coordinates)) {
+            coordinates = [parseFloat(el.coordinates[0]), parseFloat(el.coordinates[1])];
+          } else {
+            coordinates = [
+              parseFloat(el.coordinates.x || el.coordinates.click_x || 0), 
+              parseFloat(el.coordinates.y || el.coordinates.click_y || 0)
+            ];
+          }
+        }
+        
+        return {
+          ...el,
+          click_point: coordinates || [0, 0]
+        };
+      });
+      
+      // Keep the search term filtering
       if (words.length > 1) {
         const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
         if (searchTerm) {
@@ -895,32 +967,34 @@ const convertAndroidElements = (screenElements) => {
           );
         }
       }
-    } else if (command === "type") {
-      filtered = elements.filter(el => el.type === "text" || el.type === "icon")
-        .map(el => {
-          // Fix: Ensure coordinates are processed correctly
-          let coordinates;
-          
-          if (el.click_point && Array.isArray(el.click_point)) {
-            coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
-          } else if (el.coordinates) {
-            if (Array.isArray(el.coordinates)) {
-              coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
-            } else {
-              coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
-            }
+    }
+    else if (command === "type") {
+      // Remove the restrictive filter - show ALL elements
+      filtered = elements.map(el => {
+        // Fix: Ensure coordinates are processed correctly
+        let coordinates;
+        
+        if (el.click_point && Array.isArray(el.click_point)) {
+          coordinates = [Number(el.click_point[0]), Number(el.click_point[1])];
+        } else if (el.coordinates) {
+          if (Array.isArray(el.coordinates)) {
+            coordinates = [Number(el.coordinates[0]), Number(el.coordinates[1])];
+          } else {
+            coordinates = [Number(el.coordinates.x || 0), Number(el.coordinates.y || 0)];
           }
-          
-          return {
-            ...el,
-            click_point: coordinates || [0, 0]
-          };
-        });
-  
+        }
+        
+        return {
+          ...el,
+          click_point: coordinates || [0, 0]
+        };
+      });
+
+      // Keep the "in" keyword filtering
       if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
         const inIndex = inputValue.toLowerCase().indexOf(" in ");
         const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
-  
+
         if (afterInText) {
           filtered = filtered.filter(el => 
             (el.name && el.name.toLowerCase().includes(afterInText)) || 
@@ -928,7 +1002,8 @@ const convertAndroidElements = (screenElements) => {
           );
         }
       }
-    } else if (command === "verify") {
+    }
+    else if (command === "verify") {
       filtered = elements.filter(el => el.type === "text" || el.type === "textarea" || el.text)
         .map(el => {
           // Fix: Ensure coordinates are processed correctly
@@ -1058,9 +1133,10 @@ const convertAndroidElements = (screenElements) => {
     const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
   
     if (commandType === 'open' && suggestion.type === 'app') {
-      updatedStepValue = `open ${suggestion.package}`; 
-      // step.appPackage = suggestion.package;
-      step.step_description = suggestion.package;
+      updatedStepValue = `open ${suggestion.name}`; 
+      step.step_description = `open ${suggestion.package}`; 
+      step.packageName = suggestion.package; 
+
     } else if (commandType === 'click') {
       updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
     } else if (commandType === 'type') {

@@ -57,7 +57,7 @@ const AndroidRecord = () => {
       { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
       { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
       { id: 3, message: "Checking device connection...", icon: "🔍" },
-      { id: 4, message: "Installing ATX agent...", icon: "⚙️" },
+      { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
       { id: 5, message: "Verifying ATX installation...", icon: "✓" }
     ],
     isSuccess: false,
@@ -142,8 +142,9 @@ useEffect(() => {
     }
 
     if (selectedElement && commandType === 'open' && selectedElement.type === 'app') {
-        if (newStep.includes(selectedElement.packageName)) {
-            return;
+        if (newStep.includes(selectedElement.displayName || selectedElement.name)) {
+          setShowSuggestions(false);
+          return;
         }
     } else if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
         return;
@@ -171,7 +172,7 @@ useEffect(() => {
             if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
                 const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
                 
-                let appSuggestions = Object.entries(installedApps).map(([packageName, appName]) => ({
+                let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
                     id: packageName,
                     name: appName,
                     displayName: appName,
@@ -256,7 +257,6 @@ useEffect(() => {
     }
   }
 }, [showSuggestions, suggestions.length]);
-
 
   const checkDeviceConnection = async () => {
     console.log("checkDeviceConnection")
@@ -1252,7 +1252,9 @@ const getLastClickCoordinates = (steps) => {
     
     const newStepObj = {
       id: Date.now(),
-      description: newStep,
+      description: commandType === 'open' && selectedElement?.packageName 
+      ? `open ${selectedElement.packageName}` 
+      : newStep,
       status: 'pending',
       duration: '00:00',
       screenshot: null,
@@ -1339,6 +1341,16 @@ const getLastClickCoordinates = (steps) => {
     }, 100);
   };
 
+  const getDisplayName = (description, selectedElement) => {
+    if (description.startsWith('open ') && selectedElement?.packageName) {
+      // Extract app name from package name
+      const packageName = selectedElement.packageName;
+      const parts = packageName.split('.');
+      const appName = parts[parts.length - 1]; // Get last part
+      return `open ${appName}`;
+    }
+    return description;
+  };
 
   useEffect(() => {
     if (pendingWaitStep && newStep.includes('wait')) {
@@ -1427,20 +1439,30 @@ const getLastClickCoordinates = (steps) => {
       
       return;
     } else if (commandType === 'open') {
-      // For apps, display the app name but store the package name in the step
-      // This way the step will contain the package name for execution
-      updatedStep = `open ${suggestion.displayName}`;
-    }
-    
-    // Immediately close suggestions dropdown and disable its reopening
+        updatedStep = `open ${suggestion.displayName}`;
+        
+        setShowSuggestions(false);
+        handleSelection();
+        setNewStep(updatedStep);
+        setSelectedElement(suggestion);
+        
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+            const length = updatedStep.length;
+            inputRef.current.setSelectionRange(length, length);
+          }
+        }, 0);
+        
+        return; 
+      }
+
     setShowSuggestions(false);
     handleSelection();
-    
-    // Batching state updates to minimize effect re-runs
+
     setNewStep(updatedStep);
     setSelectedElement(suggestion);
-    
-    // Focus input after state updates
+  
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -1900,7 +1922,7 @@ const SuggestionsDropdown = () => {
           >
             <div className="flex justify-between items-center">
               <span className="font-medium">
-                {suggestion.packageName || suggestion.name}
+                {suggestion.displayName || suggestion.name}
                 {suggestion.usageInfo && (
                   <span className={`ml-2 text-xs font-semibold ${
                     suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
@@ -2379,7 +2401,9 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                           {step.status === 'error' && <XCircle className="w-4 h-4 text-red-500" />}
                         </div>
                       </div>
-                      <p className="text-gray-600 text-sm">{step.description}</p>
+                      <p className="text-gray-600 text-sm">
+                        {getDisplayName(step.description, step.selectedElement)}
+                      </p>
                       {step.elementClicked && (
                         <div className="mt-1 text-xs text-blue-600">
                           Clicked element: {step.elementClicked.name} at x:{step.elementClicked.click_point[0]}, y:{step.elementClicked.click_point[1]}

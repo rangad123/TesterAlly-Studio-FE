@@ -229,11 +229,13 @@ const handleCommandInputChange = (e) => {
   } else if (command === 'open') {
     setCommandType('open');
     if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
-      const appSuggestions = Object.entries(installedApps).map(([packageName, appName]) => ({
-        name: appName,
-        packageName: packageName,
+      const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+        name: appName,  
+        displayName: appName, 
+        packageName: packageName, 
         type: 'app'
       }));
+      console.log("Setting app suggestions:", appSuggestions);
       setCommandSuggestions(appSuggestions);
       setShowSuggestions(true);
     } else {
@@ -267,9 +269,10 @@ const handleEditCommandInput = (stepNumber, stepDescription, commandType) => {
     
     if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
       console.log("🔥 All conditions met, creating suggestions");
-      const appSuggestions = Object.entries(installedApps).map(([packageName, appName]) => ({
-        name: appName,
-        packageName: packageName,
+      const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+        name: appName,  
+        displayName: appName, 
+        packageName: packageName, 
         type: 'app'
       }));
       console.log("🔥 Setting app suggestions:", appSuggestions);
@@ -357,8 +360,7 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
   let filtered = [];
 
   if (command === "click") {
-    filtered = allElements.filter(el => el.interactivity === true)
-      .map(el => {
+    filtered = allElements.map(el => {
         // Normalize coordinates
         let coordinates;
         
@@ -382,10 +384,7 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
       });
   } else if (command === "type") {
     // Include elements that can receive input
-    filtered = allElements.filter(el => 
-      el.type === "text" ||
-      el.interactivity === true
-    ).map(el => {
+    filtered = allElements.map(el => {
       // Normalize coordinates
       let coordinates;
       
@@ -538,6 +537,18 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       return;
     }
 
+    let finalStepDescription = stepDescription;
+
+    if (stepDescription.startsWith('open ') && selectedElement && selectedElement.type === 'app') {
+      const displayName = stepDescription.replace('open ', '');
+      console.log("displayName:", displayName)
+      const packageName = selectedElement.packageName; 
+      console.log("packageName:", packageName)
+      if (packageName) {
+        finalStepDescription = `open ${packageName}`;
+      }
+    }
+
     // Use the new API endpoint with correct payload structure
     const payload = {
       user_id: parseInt(userId),
@@ -546,7 +557,7 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       steps: [
         {
           step_number: newStepNumber,
-          step_description: stepDescription,
+          step_description: finalStepDescription,
           teststep_result: "not_executed",
           step_coordinates: coordinates
         }
@@ -613,7 +624,12 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
     } else if (commandType === 'get') {
       updatedStep = `get ${suggestion.text || suggestion.name || 'element'}`;
     } else if (commandType === 'open' && suggestion.type === 'app') {
-        updatedStep = `open ${suggestion.packageName}`;
+        updatedStep = `open ${suggestion.displayName}`; 
+        setSelectedElement({
+          ...suggestion,
+          displayName: suggestion.displayName || suggestion.name,
+          backendValue: suggestion.packageName 
+        });
     }
 
     setNewInsertedStepValue(updatedStep);
@@ -768,7 +784,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
               } else if (commandType === 'get') {
                 updatedStep = `get ${element.text || element.name || 'element'}`;
               } else if (commandType === 'open') {
-                updatedStep = `open ${element.name || element.packageName || element.text || 'app'}`;
+                updatedStep = `open ${element.displayName || element.name || 'app'}`;
               }
               
               // Update the edit input value
@@ -1344,7 +1360,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                       commandType === 'verify' ? 'bg-yellow-100' :
                       commandType === 'open' ? 'bg-orange-100' : 'bg-purple-100'
                     }`}></div>
-                    <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
+                    <span>{element.displayName || element.name || element.text || 'Element ' + (index + 1)}</span>
                     {element.packageName && (
                       <span className="text-xs text-gray-500 truncate max-w-xs">
                         {element.packageName}

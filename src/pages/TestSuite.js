@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, ArrowLeft, Play, RefreshCw } from "lucide-react";
+import { Save, X, Edit2, ArrowLeft, Play, RefreshCw, WifiOff } from "lucide-react";
 // CheckSquare
 
 const TestSuite = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testSuiteName, projectId, testSuite: passedTestSuite } = location.state || {};
+  const { testSuiteName, projectId, testSuite: passedTestSuite, ProjectType } = location.state || {};
 
   const [testSuite, setTestSuite] = useState(passedTestSuite || {});
   const [testCases, setTestCases] = useState([]);
@@ -28,7 +28,10 @@ const TestSuite = () => {
   const [showExecutionModal, setShowExecutionModal] = useState(false);
   const [waitBetweenSteps, setWaitBetweenSteps] = useState("1000");
   const [waitBetweenCases, setWaitBetweenCases] = useState("3000");
-
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [deviceConnected, setDeviceConnected] = useState(false);
+  const [showConnectionMessage, setShowConnectionMessage] = useState(false);
+  const [connectionLoading, setConnectionLoading] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -124,6 +127,49 @@ const TestSuite = () => {
   useEffect(() => {
     fetchTestCases();
   }, [fetchTestCases]);
+
+const checkConnectionOnly = async () => {
+    setConnectionLoading(true);
+    try {
+        const response = await fetch("http://localhost:8000/android/connection/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Connection API Data:", data);
+            
+            if (data.status === "success" && data.device_info) {
+                setDeviceConnected(true);
+                setShowConnectModal(false);
+                setShowConnectionMessage(true);
+                setTimeout(() => {
+                    setShowConnectionMessage(false);
+                }, 5000);
+                return true;
+            } else {
+                setDeviceConnected(false);
+                setShowConnectModal(true);
+                setShowConnectionMessage(false);
+                return false;
+            }
+        } else {
+            setDeviceConnected(false);
+            setShowConnectModal(true);
+            setShowConnectionMessage(false);
+            return false;
+        }
+    } catch (error) {
+        console.error("Error checking device connection:", error);
+        setDeviceConnected(false);
+        setShowConnectModal(true);
+        setShowConnectionMessage(false);
+        return false;
+    } finally {
+        setConnectionLoading(false);
+    }
+};
 
   const handleEditTestSuite = () => {
     setEditingTestSuite(true);
@@ -228,6 +274,12 @@ const handleRunTestSuite = async () => {
       return;
     }
 
+    const isConnected = await checkConnectionOnly();
+    if (!isConnected) {
+      alert("Please connect your Android device before running the test case.");
+      return;
+    }
+
     const requestBody = {
       testsuite_title: testSuiteName,
       project_name: projectId,
@@ -236,7 +288,13 @@ const handleRunTestSuite = async () => {
       wait_between_cases: waitCasesMs,
     };
 
-    const response = await fetch("http://127.0.0.1:8000/integrate/run_testsuite/", {
+    console.log("Project Type:",ProjectType)
+
+    const apiUrl = ProjectType === "Mobile Application" 
+      ? "http://127.0.0.1:8000/android/run_testsuite/"
+      : "http://127.0.0.1:8000/integrate/run_testsuite/";
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -711,6 +769,61 @@ const handleRunTestSuite = async () => {
     );
   };
 
+  const ConnectDeviceModal = () => {
+      if (!showConnectModal) return null;
+      
+      return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full relative">
+          <div className="text-center">
+              <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                  <WifiOff className="w-8 h-8 text-red-600" />
+              </div>
+              </div>
+              <h2 className="text-xl font-semibold mb-3 text-gray-800">Connect Your Android Device</h2>
+              <p className="text-gray-600 mb-6">
+              Please connect your Android device and enable the required options to continue with testing.
+              </p>
+              
+              <div className="text-left mb-6">
+              <h3 className="font-medium text-gray-800 mb-2">Required Steps:</h3>
+              <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                  <li>Enable Developer Options on your device</li>
+                  <li>Enable USB Debugging</li>
+                  <li>Connect your device via USB</li>
+                  <li>Allow USB debugging when prompted</li>
+              </ul>
+              </div>
+              
+              <div className="flex gap-3">
+              <button
+                  onClick={checkConnectionOnly}
+                  disabled={connectionLoading}
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                  {connectionLoading ? (
+                  <div className="flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Checking...
+                  </div>
+                  ) : (
+                  'Check Connection'
+                  )}
+              </button>
+              <button
+                  onClick={() => navigate('/test-suites')}
+                  className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+              >
+                  Cancel
+              </button>
+              </div>
+          </div>
+          </div>
+      </div>
+      );
+  };
+
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
@@ -725,7 +838,18 @@ const handleRunTestSuite = async () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">{testSuite.title}</h1>
-
+            {showConnectionMessage && (
+              <div className="mt-2 flex items-center text-sm text-green-600 bg-green-50 px-3 py-1 rounded-md">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                  Device Connected Successfully
+              </div>
+          )}
+          {deviceConnected && !showConnectionMessage && (
+              <div className="mt-2 flex items-center text-xs text-green-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Device Ready
+              </div>
+          )}
             <div className="flex space-x-2">
               {executionInProgress ? (
                 <button
@@ -802,7 +926,7 @@ const handleRunTestSuite = async () => {
 
       {testSuiteSummary && (
         <div className="p-6">
-          <div className="bg-white rounded-lg shadow-sm border max-w-4xl">
+          <div className="bg-white rounded-lg shadow-sm border w-full">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Execution Summary</h3>
@@ -853,6 +977,7 @@ const handleRunTestSuite = async () => {
       )}
       
       {expandedScreenshot && <ScreenshotModal />}
+      <ConnectDeviceModal />
       <ExecutionModal
         show={showExecutionModal}
         onClose={handleCloseExecutionModal}

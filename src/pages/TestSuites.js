@@ -88,7 +88,8 @@ const TestSuites = () => {
       state: {
         testSuiteName: testSuite.title,
         projectId: selectedProject?.project_name,
-        testSuite: testSuite
+        testSuite: testSuite,
+        ProjectType: selectedProject?.project_type
       }
     });
   };
