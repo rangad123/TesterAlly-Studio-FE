@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle, XCircle, Plus, Clock, X, Loader, WifiOff } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, X, Loader, WifiOff, MonitorSmartphone, Smartphone, Tag } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSuggestedElements } from '../pages/elementSuggestionUtils';
 import { HelpCircle, Link, MousePointer, Info, AlertCircle } from 'lucide-react';
@@ -18,7 +18,8 @@ const AndroidRecord = () => {
     testcase_type: '',
     testcase_priority: '',
     projectId: '',
-    project_type: ''
+    project_type: '',
+    platform:''
   });
 
   const [verificationModal, setVerificationModal] = useState({
@@ -166,39 +167,51 @@ useEffect(() => {
         }
 
         if (firstWord === 'open') {
-            console.log("Open command detected!");
-            console.log("installedApps:", installedApps);
-            
-            if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
-                const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
-                
-                let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
-                    id: packageName,
-                    name: appName,
-                    displayName: appName,
-                    packageName: packageName,
-                    type: 'app',
-                    click_point: [0, 0]
-                }));
+          console.log("Open command detected!");
+          console.log("installedApps:", installedApps);
+        
+          if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
+              const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
+              
+              let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+                  id: packageName,
+                  name: appName,
+                  displayName: appName,
+                  packageName: packageName,
+                  type: 'app',
+                  click_point: [0, 0]
+              }));
 
-                if (appSearchTerm) {
-                    appSuggestions = appSuggestions.filter(app => 
-                        app.name.toLowerCase().includes(appSearchTerm) ||
-                        app.packageName.toLowerCase().includes(appSearchTerm)
-                    );
-                }
+              // Filter for Chrome only if platform is Mobile
+              if (testCaseInfo.platform === 'Mobile') {
+                console.log("Platform is Mobile, filtering for Chrome only");
+                console.log("Before Chrome filter:", appSuggestions);
                 
-                console.log("App suggestions created:", appSuggestions);
-                setSuggestions(appSuggestions);
-                setShowSuggestions(appSuggestions.length > 0);
-            } else {
-                console.log("No installed apps available");
-                setSuggestions([]);
-                setShowSuggestions(false);
-            }
-            return; 
+                appSuggestions = appSuggestions.filter(app => 
+                  app.name.toLowerCase().includes('chrome') ||
+                  app.packageName.toLowerCase().includes('chrome')
+                );
+                
+                console.log("After Chrome filter:", appSuggestions);
+                console.log("testCaseInfo.platform:", testCaseInfo.platform);
+              } else if (appSearchTerm) {
+                appSuggestions = appSuggestions.filter(app => 
+                    app.name.toLowerCase().includes(appSearchTerm) ||
+                    app.packageName.toLowerCase().includes(appSearchTerm)
+                );
+              }
+              
+              console.log("App suggestions created:", appSuggestions);
+              setSuggestions(appSuggestions);
+              setShowSuggestions(appSuggestions.length > 0);
+          } else {
+              console.log("No installed apps available");
+              setSuggestions([]);
+              setShowSuggestions(false);
+          }
+          return; 
         }
-      
+ 
         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
             setSuggestions([]);
             setShowSuggestions(false);
@@ -247,7 +260,7 @@ useEffect(() => {
         setShowSuggestions(false);
     }
 
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType]);
+}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, testCaseInfo.platform]);
 
 useEffect(() => {
   if (showSuggestions && suggestions.length > 0) {
@@ -283,6 +296,7 @@ useEffect(() => {
       });
 
       if (!connectResponse.ok) {
+
         setDeviceConnected(false);
         setShowConnectionLoadingModal(false);
         setShowConnectModal(true);
@@ -318,7 +332,6 @@ useEffect(() => {
             ...connectData["System Apps"],
             ...connectData["User Apps"]
           };
-          console.log("Setting installedApps:", combinedApps); 
           setInstalledApps(combinedApps);
           
           setConnectionSteps(prev => ({
@@ -329,7 +342,8 @@ useEffect(() => {
           
           setTimeout(() => {
             setShowConnectionLoadingModal(false);
-          }, 3000);
+            setShowConnectModal(false);
+          }, 2000);
         } else {
           setDeviceConnected(false);
           setShowConnectionLoadingModal(false);
@@ -354,9 +368,105 @@ useEffect(() => {
     }
   };
 
+  const checkChromeAvailability = async () => {
+    console.log("checkDeviceConnection");
+    setConnectionLoading(true);
+    setShowConnectionLoadingModal(true); 
+    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+
+    try {
+      // Step 1: USB Connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Step 2: USB Debugging 
+      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Step 3: Actually check device connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+
+      // First API call - connect-ui
+      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!connectResponse.ok) {
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(true);
+        return;
+      }
+
+      const connectData = await connectResponse.json();
+      console.log("connect-ui response:", connectData);
+
+      // Step 4 (simulate ATX setup delay only)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
+
+      if (connectData.Message === "Device Already Connected" &&
+          (connectData["System Apps"] || connectData["User Apps"])) {
+
+        setDeviceConnected(true);
+        const combinedApps = {
+          ...connectData["System Apps"],
+          ...connectData["User Apps"]
+        };
+        console.log("Setting installedApps:", combinedApps);
+        setInstalledApps(combinedApps);
+
+        console.log("Searching for Chrome in installed apps...");
+        const chromeEntry = Object.entries(combinedApps).find(
+          ([appName, packageName]) =>
+            appName.toLowerCase().includes("chrome") ||
+            packageName.toLowerCase().includes("chrome")
+        );
+
+        if (chromeEntry) {
+          console.log("✅ Chrome is installed:", chromeEntry);
+          setConnectionSteps(prev => ({
+            ...prev,
+            isSuccess: true,
+            successMessage: "Chrome is available!"
+          }));
+        } else {
+          alert("🚫 Chrome is not available on this device.");
+        }
+
+        setTimeout(() => {
+          setShowConnectionLoadingModal(false);
+          setShowConnectModal(false);
+        }, 2000);
+      } else {
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(false);
+      }
+
+    } catch (error) {
+      console.error("Error checking device connection:", error);
+      setDeviceConnected(false);
+      setShowConnectionLoadingModal(false);
+      setShowConnectModal(true);
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
   useEffect(() => {
-    checkDeviceConnection();
-  }, []);
+    if (!testCaseInfo || !testCaseInfo.platform) return;
+
+    const platform = testCaseInfo.platform;
+    console.log("platform-recordpage:", platform)
+
+    if (platform === "Android") {
+      checkDeviceConnection();
+    } else if (platform === "Mobile") {
+      checkChromeAvailability();
+    }
+  }, [testCaseInfo]);
 
 const getLastClickCoordinates = (steps) => {
   // Loop backwards through steps to find the last successful click action
@@ -864,7 +974,7 @@ const getLastClickCoordinates = (steps) => {
           });
 
           // Use the same endpoint as other commands
-          const response = await fetch('http://localhost:8000/installer/command/', {
+          const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody),
@@ -2346,6 +2456,31 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                     Priority: {testCaseInfo.testcase_priority}
                   </span>
                 </div>
+              </div>
+
+              {/* Right side - Project and Platform info */}
+              <div className="flex flex-col items-end gap-2 ml-auto">
+                <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-md text-sm font-medium">
+                  <Tag className="w-4 h-4" />
+                  {testCaseInfo.project_type}
+                </span>
+
+                <span className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium ${
+                  testCaseInfo.platform === 'Mobile' 
+                    ? 'bg-orange-100 text-orange-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {testCaseInfo.platform === 'Mobile' 
+                    ? <>
+                        <Smartphone className="w-4 h-4" />
+                        Mobile (Chrome Only)
+                      </>
+                    : <>
+                        <MonitorSmartphone className="w-4 h-4" />
+                        {testCaseInfo.platform}
+                      </>
+                  }
+                </span>
               </div>
             </div>
           </div>

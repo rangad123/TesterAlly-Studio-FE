@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone } from 'lucide-react';
+import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone, MonitorSmartphone } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
@@ -40,7 +40,8 @@ const AndroidManually = () => {
   const [testCaseInfo, setTestCaseInfo] = useState({
     name: '',
     type: '',
-    priority: ''
+    project_type: '',
+    platform:''
   });
   const navigate = useNavigate();
   const location = useLocation();
@@ -262,9 +263,106 @@ const AndroidManually = () => {
     }
   };
 
+  const checkChromeAvailability = async () => {
+    console.log("checkDeviceConnection");
+    setConnectionLoading(true);
+    setShowConnectionLoadingModal(true); 
+    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+
+    try {
+      // Step 1: USB Connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Step 2: USB Debugging 
+      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Step 3: Actually check device connection
+      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+
+      // First API call - connect-ui
+      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      if (!connectResponse.ok) {
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(true);
+        return;
+      }
+
+      const connectData = await connectResponse.json();
+      console.log("connect-ui response:", connectData);
+
+      // Step 4 (simulate ATX setup delay only)
+      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+      await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
+
+      if (connectData.Message === "Device Already Connected" &&
+          (connectData["System Apps"] || connectData["User Apps"])) {
+
+        setDeviceConnected(true);
+        const combinedApps = {
+          ...connectData["System Apps"],
+          ...connectData["User Apps"]
+        };
+        console.log("Setting installedApps:", combinedApps);
+        setInstalledApps(combinedApps);
+
+        console.log("Searching for Chrome in installed apps...");
+        const chromeEntry = Object.entries(combinedApps).find(
+          ([appName, packageName]) =>
+            appName.toLowerCase().includes("chrome") ||
+            packageName.toLowerCase().includes("chrome")
+        );
+
+        if (chromeEntry) {
+          console.log("✅ Chrome is installed:", chromeEntry);
+          setConnectionSteps(prev => ({
+            ...prev,
+            isSuccess: true,
+            successMessage: "Chrome is available!"
+          }));
+        } else {
+          alert("🚫 Chrome is not available on this device.");
+        }
+
+        setTimeout(() => {
+          setShowConnectionLoadingModal(false);
+          setShowConnectModal(false);
+        }, 2000);
+      } else {
+        setDeviceConnected(false);
+        setShowConnectionLoadingModal(false);
+        setShowConnectModal(false);
+      }
+
+    } catch (error) {
+      console.error("Error checking device connection:", error);
+      setDeviceConnected(false);
+      setShowConnectionLoadingModal(false);
+      setShowConnectModal(true);
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
   useEffect(() => {
-    checkDeviceConnection();
-  }, []);
+    if (!testCaseInfo || !testCaseInfo.platform) return;
+
+    const platform = testCaseInfo.platform;
+    console.log("platform-recordpage:", platform)
+
+    if (platform === "Android") {
+      checkDeviceConnection();
+    } else if (platform === "Mobile") {
+      checkChromeAvailability();
+    }
+  }, [testCaseInfo]);
+
 
 const handleCreateTestCase = async () => {
     setIsLoading(true);
@@ -1106,18 +1204,27 @@ const convertAndroidElements = (screenElements) => {
       return;
     }
 
-    const suggestions = Object.entries(installedApps)
-      .filter(([appName, packageName]) => 
-        appName.toLowerCase().includes(searchTerm)
-      )
+    let suggestions = Object.entries(installedApps)
       .map(([appName, packageName]) => ({
         name: appName,
         package: packageName,
         type: 'app'
-      }))
-      .slice(0, 10);
+      }));
 
-    setCommandSuggestions(suggestions);
+    // Filter for Chrome only if platform is Mobile
+    if (testCaseInfo.platform === 'Mobile') {
+      console.log("Platform is Mobile, filtering for Chrome only");
+      suggestions = suggestions.filter(app => 
+        app.name.toLowerCase().includes('chrome') ||
+        app.package.toLowerCase().includes('chrome')
+      );
+    } else if (searchTerm) {
+      suggestions = suggestions.filter(app => 
+        app.name.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    setCommandSuggestions(suggestions.slice(0, 10));
   };
 
   const handleSuggestionClick = (suggestion, index) => {
@@ -1566,6 +1673,25 @@ const convertAndroidElements = (screenElements) => {
           <div className="bg-white shadow rounded-lg p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Write Test Manually</h2>
+              {/* Right side - Project and Platform info */}
+              <div className="flex flex-col items-end gap-2 ml-auto mr-3">
+                <span className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium ${
+                  testCaseInfo.platform === 'Mobile' 
+                    ? 'bg-orange-100 text-orange-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {testCaseInfo.platform === 'Mobile' 
+                    ? <>
+                        <Smartphone className="w-4 h-4" />
+                        Mobile (Chrome Only)
+                      </>
+                    : <>
+                        <MonitorSmartphone className="w-4 h-4" />
+                        {testCaseInfo.platform}
+                      </>
+                  }
+                </span>
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowNoteModal(true)}

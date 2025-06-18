@@ -355,9 +355,9 @@ import MemberGithub from "./Members/MemberGithub";
 import MemberRecord from "./Members/MemberRecord";
 import MemberSuiteDetails from "./Members/MemberSuiteDetails";
 import MemberCreateSuite from "./Members/MemberCreateSuite";
-import RecordSelector from "./pages/RecordSelector";
-import ManuallySelector from "./pages/ManuallySelector";
-import TestStepSelector from "./pages/TestStepSelector";
+import RecordSelector from "./Android/RecordSelector";
+import ManuallySelector from "./Android/ManuallySelector";
+import TestStepSelector from "./Android/TestStepSelector";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";

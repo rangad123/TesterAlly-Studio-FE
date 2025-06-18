@@ -4,7 +4,8 @@ import {
   Globe, 
   Smartphone, 
   ServerCog,
-  BarChart3
+  BarChart3,
+  Laptop 
 } from "lucide-react";
 import "./CreateProject.css";
 
@@ -12,6 +13,7 @@ const CreateProject = ({ onProjectCreated }) => {
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const [projectType, setProjectType] = useState("");
+  const [subType, setSubType] = useState("");
   const [showDescription, setShowDescription] = useState(false);
   const [errors, setErrors] = useState({ projectName: "", projectType: "" });
   const [userProjects, setUserProjects] = useState([]);
@@ -25,6 +27,18 @@ const CreateProject = ({ onProjectCreated }) => {
     { value: "API Development", icon: <ServerCog className="w-5 h-5" /> },
     { value: "Data Analysis", icon: <BarChart3 className="w-5 h-5" /> }
   ];
+
+  const subTypeOptions = {
+    "Mobile Application": ["Android", "iOS"],
+    "Web Application": ["Laptop/PC", "Mobile"]
+  };
+
+  const subTypeIcons = {
+    "Android": <Smartphone className="w-4 h-4" />,
+    "iOS": <Smartphone className="w-4 h-4" />,
+    "Laptop/PC": <Laptop  className="w-4 h-4" />,
+    "Mobile": <Smartphone className="w-4 h-4" />
+  };
 
   useEffect(() => {
     const fetchUserProjects = async () => {
@@ -99,10 +113,16 @@ const CreateProject = ({ onProjectCreated }) => {
     }
   };
 
-
   useEffect(() => {
     fetchProjects();
   }, []); 
+
+  const handleProjectTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setProjectType(selectedType);
+    setSubType("");
+    setErrors((prevErrors) => ({ ...prevErrors, projectType: "" }));
+  };
 
   const handleCreateProject = async () => {
     if (!validateFields()) return;
@@ -112,14 +132,18 @@ const CreateProject = ({ onProjectCreated }) => {
       console.warn("No userId found in localStorage");
       return;
     }
-  
+
+    const finalProjectType = subType ? `${projectType} - ${subType}` : projectType;
+    console.log("final project_type:",finalProjectType)
+
     const projectData = {
       user_id: parseInt(userId),
       project_name: projectName,
       description: description || "No description provided",
       project_type: projectType,
+      platform: subType, 
     };
-  
+    console.log("create project:",projectData)
     setIsLoading(true);
   
     try {
@@ -148,6 +172,7 @@ const CreateProject = ({ onProjectCreated }) => {
         name: projectName,
         description: description || "No description provided",
         project_type: projectType,
+        platform: subType, 
       };
 
       try {
@@ -187,6 +212,7 @@ const CreateProject = ({ onProjectCreated }) => {
       setProjectName("");
       setDescription("");
       setProjectType("");
+      setSubType("");
       setShowDescription(false);
     } catch (error) {
       console.error("Error creating project:", error);
@@ -203,6 +229,8 @@ const CreateProject = ({ onProjectCreated }) => {
   const toggleDescription = () => {
     setShowDescription(!showDescription);
   };
+
+  const showSubTypeDropdown = projectType && subTypeOptions[projectType];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -275,10 +303,7 @@ const CreateProject = ({ onProjectCreated }) => {
                   <select
                     id="projectType"
                     value={projectType}
-                    onChange={(e) => {
-                      setProjectType(e.target.value);
-                      setErrors((prevErrors) => ({ ...prevErrors, projectType: "" }));
-                    }}
+                    onChange={handleProjectTypeChange}
                     className={`create-project-select ${
                       errors.projectType ? "create-project-error-border" : ""
                     }`}
@@ -300,6 +325,38 @@ const CreateProject = ({ onProjectCreated }) => {
                   <span className="create-project-error">{errors.projectType}</span>
                 )}
               </div>
+
+              {showSubTypeDropdown && (
+                <div className="create-project-input-group">
+                  <label htmlFor="subType" className="create-project-label">
+                    Platform<span className="create-project-required">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="subType"
+                      value={subType}
+                      onChange={(e) => setSubType(e.target.value)}
+                      className="create-project-select"
+                    >
+                      <option value="" disabled hidden>
+                        Select Platform
+                      </option>
+                      {subTypeOptions[projectType].map((option) => (
+                        <option 
+                          key={option} 
+                          value={option}
+                          disabled={option === "iOS"}  
+                        >
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                      {subType && subTypeIcons[subType]}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

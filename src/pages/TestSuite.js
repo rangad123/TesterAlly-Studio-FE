@@ -194,6 +194,18 @@ const checkConnectionOnly = async () => {
     try {
       const formattedLabels = Array.isArray(editedLabels) ? editedLabels : editedLabels.split(',').map(label => label.trim());
 
+      const requestBody = {
+        user_id: userId,
+        project_name: projectId,
+        title: passedTestSuite?.title,
+        new_title: editedTitle,
+        description: editedDescription,
+        labels: formattedLabels,
+        pre_requisite: editedPreRequisite,
+      };
+
+      console.log("PUT Request Body:", requestBody);
+
       const response = await fetch(
         `http://127.0.0.1:8000/integrate/testsuite/`,
         {
@@ -201,14 +213,15 @@ const checkConnectionOnly = async () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            user_id: userId,
-            project_name: projectId,
-            title: editedTitle,
-            description: editedDescription,
-            labels: formattedLabels,
-            pre_requisite: editedPreRequisite,
-          }),
+          body: JSON.stringify(requestBody),
+          // body: JSON.stringify({
+          //   user_id: userId,
+          //   project_name: projectId,
+          //   title: editedTitle,
+          //   description: editedDescription,
+          //   labels: formattedLabels,
+          //   pre_requisite: editedPreRequisite,
+          // }),
         }
       );
 

@@ -147,9 +147,14 @@ const TestSuites = () => {
   };
 
   const handleSave = async (testSuiteTitle) => {
+    const userId = localStorage.getItem("userId");
+
     console.log('Saving test suite with title:', testSuiteTitle);
-    console.log('Edited data:', {
-      title: editedTitle,
+    console.log('Edited Requestbody:', {
+      user_id: userId,
+      project_name: selectedProject.project_name,
+      title: testSuiteTitle, 
+      new_title: editedTitle,
       description: editedDescription,
       labels: editedLabels,
       pre_requisite: editedPreRequisite,
@@ -163,7 +168,6 @@ const TestSuites = () => {
     }
   
     setLoading(true);
-    const userId = localStorage.getItem("userId");
     
     try {
       const response = await fetch(
@@ -176,7 +180,8 @@ const TestSuites = () => {
           body: JSON.stringify({
             user_id: userId,
             project_name: selectedProject.project_name,
-            title: testSuiteTitle, // Original title for identification
+            title: testSuiteTitle, 
+            new_title: editedTitle,
             description: editedDescription,
             labels: formattedLabels, 
             pre_requisite: editedPreRequisite,

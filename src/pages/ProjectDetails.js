@@ -10,6 +10,7 @@ import {
   User,
   Clock,
   Tag,
+  MonitorSmartphone,
 } from "lucide-react";
 
 const ProjectDetails = () => {
@@ -23,11 +24,24 @@ const ProjectDetails = () => {
   const userName = localStorage.getItem("userName") || "User Name";
   const userId = localStorage.getItem("userId");
   const projectTypes = [
-    "Web Development",
+    "Web Application",
     "Mobile Application",
     "API Development",
     "Data Analysis",
   ];
+
+const subTypeOptions = {
+  "Mobile Application": ["Android", "iOS"],
+  "Web Application": ["Laptop/PC", "Mobile"]
+};
+
+const subTypeIcons = {
+  "Android": null,
+  "iOS": null,
+  "Laptop/PC": null,
+  "Mobile": null
+};
+
 
 useEffect(() => {
   const userId = localStorage.getItem("userId");
@@ -192,11 +206,19 @@ useEffect(() => {
   };
 
   const handleChange = (field, value) => {
-    setSelectedProject((prev) => ({
-      ...prev,
-      [field]: value,
-      original_project_name: prev.original_project_name,
-    }));
+    setSelectedProject((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+        original_project_name: prev.original_project_name,
+      };
+
+      if (field === 'project_type') {
+        updated.platform = '';
+      }
+      
+      return updated;
+    });
   };
 
   const handleSave = async () => { 
@@ -210,6 +232,7 @@ useEffect(() => {
         new_project_name: selectedProject.project_name, 
         new_description: selectedProject.description, 
         new_project_type: selectedProject.project_type, 
+        new_platform: selectedProject.platform,
       }; 
       console.log("Local API Request Body before PUT:", localRequestBody); 
 
@@ -218,6 +241,7 @@ useEffect(() => {
         name: selectedProject.project_name, 
         description: selectedProject.description,
         project_type: selectedProject.project_type,
+        platform: selectedProject.platform,
       };
       console.log("DB API Request Body before PUT:", dbRequestBody);
 
@@ -344,6 +368,34 @@ useEffect(() => {
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
+              {selectedProject.project_type && subTypeOptions[selectedProject.project_type] && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Platform
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedProject.platform || ""}
+                      onChange={(e) => handleChange("platform", e.target.value)}
+                      className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none transition-all duration-200 pr-8"
+                    >
+                      {subTypeOptions[selectedProject.project_type].map((option) => (
+                        <option 
+                          key={option} 
+                          value={option}
+                          disabled={option === "iOS"}
+                        >
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                      {selectedProject.platform && subTypeIcons[selectedProject.platform]}
+                    </div>
+                    <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+              )}
               <div className="flex space-x-2">
                 <button
                   onClick={handleSave}
@@ -401,6 +453,11 @@ useEffect(() => {
                 <Tag className="w-5 h-5 mr-2" />
                 <span className="font-medium mr-2">Type:</span>
                 <span>{selectedProject.project_type || "Not specified"}</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <MonitorSmartphone  className="w-5 h-5 mr-2" />
+                <span className="font-medium mr-2">Platform:</span>
+                <span>{selectedProject.platform || "Not specified"}</span>
               </div>
               <div className="flex items-center text-gray-600">
                 <User className="w-5 h-5 mr-2" />
@@ -548,6 +605,7 @@ useEffect(() => {
       </div>
     );
   };
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">

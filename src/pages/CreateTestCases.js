@@ -125,10 +125,12 @@ const CreateTestCases = () => {
           testcase_type: testCaseType,
           testcase_priority: testCasePriority,
           projectId: selectedProject.project_name,
-          project_type: selectedProject.project_type
+          project_type: selectedProject.project_type,
+          platform: selectedProject.platform
         }
       }
     });
+    console.log("Platform:", selectedProject.platform)
   };
 
   const handleCancel = () => {

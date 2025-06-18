@@ -8,7 +8,7 @@ import MobileAddStep from "./MobileAddStep";
 const AndroidTestSteps = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testCaseId, testCaseName, projectName } = location.state || {};
+  const { testCaseId, testCaseName, projectName, Platform } = location.state || {};
   const [steps, setSteps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -35,6 +35,7 @@ const AndroidTestSteps = () => {
   const [showConnectionMessage, setShowConnectionMessage] = useState(false);
   const [addStepLoading, setAddStepLoading] = useState({});
   const [editingStepLoading, setEditingStepLoading] = useState(null);
+  const [isUpdatingTestCase, setIsUpdatingTestCase] = useState(false);
 
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
@@ -105,6 +106,7 @@ const AndroidTestSteps = () => {
   };
 
 const handleUpdateTestCase = async () => {
+  setIsUpdatingTestCase(true); 
   try {
     const userId = localStorage.getItem("userId");
     
@@ -127,6 +129,11 @@ const handleUpdateTestCase = async () => {
     if (!response.ok) {
       const errorData = await response.json();
       console.error("Update failed:", errorData);
+      if (errorData.message && errorData.message.includes("already exists")) {
+        setError(`Test case name "${editingTestCase.name}" already exists. Please choose a different name.`);
+      } else {
+        setError(errorData.message || "Failed to update test case");
+      }
       throw new Error(errorData.message || "Failed to update test case");
     }
     
@@ -137,12 +144,29 @@ const handleUpdateTestCase = async () => {
       testcase_priority: editingTestCase.priority
     }));
 
+    // Update location state
+    const updatedState = {
+      ...location.state,
+      testCaseName: editingTestCase.name
+    };
+    navigate(location.pathname, { 
+      state: updatedState, 
+      replace: true 
+    });
+
     setIsEditing(false);
     setEditingTestCase(null);
+    setError(null);
 
   } catch (err) {
     console.error("Error updating test case:", err);
-    setError("Failed to update test case: " + err.message);
+    if (err.message && err.message.includes("already exists")) {
+      setError(`Test case name "${editingTestCase.name}" already exists. Please choose a different name.`);
+    } else {
+      setError(err.message || "Failed to update test case. Please try again.");
+    }
+  } finally {
+    setIsUpdatingTestCase(false); 
   }
 };
 
@@ -217,22 +241,35 @@ const checkDeviceConnectionAndReturn = async (command = "") => {
                     return false;
                 }
             } else {
-                // Handle existing slow API response (for "open" commands)
-                if (data.Message === "Device Already Connected" && 
-                    (data["System Apps"] || data["User Apps"])) {
-                    setDeviceConnected(true);
-                    const combinedApps = {
-                        ...data["System Apps"],
-                        ...data["User Apps"]
-                    };
-                    setInstalledApps(combinedApps);
-                    setShowConnectModal(false);
-                    return true;
-                } else {
-                    setDeviceConnected(false);
-                    setShowConnectModal(true);
-                    return false;
-                }
+              if (data.Message === "Device Already Connected" && 
+                  (data["System Apps"] || data["User Apps"])) {
+                  setDeviceConnected(true);
+                  let combinedApps = {
+                      ...data["System Apps"],
+                      ...data["User Apps"]
+                  };
+                  
+                  // Filter for Chrome only if platform is Mobile
+                  if (Platform === 'Mobile') {
+                    console.log("Platform is Mobile, filtering for Chrome only");
+                    const filteredApps = {};
+                    Object.entries(combinedApps).forEach(([appName, packageName]) => {
+                      if (appName.toLowerCase().includes('chrome') || 
+                        packageName.toLowerCase().includes('chrome')) {
+                        filteredApps[appName] = packageName;
+                      }
+                    });
+                    combinedApps = filteredApps;
+                  }
+                  
+                  setInstalledApps(combinedApps);
+                  setShowConnectModal(false);
+                  return true;
+              } else {
+                  setDeviceConnected(false);
+                  setShowConnectModal(true);
+                  return false;
+              }
             }
         } else {
             setDeviceConnected(false);
@@ -794,9 +831,16 @@ const selectAllSteps = () => {
   const renderTestCaseInfo = () => {
     if (!testCase) return <div>Loading test case details...</div>;
 
+    const errorDisplay = error && (
+      <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md">
+        {error}
+      </div>
+    );
+
     if (isEditing) {
       return (
         <div className="space-y-6">
+          {errorDisplay} 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Name<span className="text-red-500">*</span>
@@ -804,7 +848,10 @@ const selectAllSteps = () => {
             <input
               type="text"
               value={editingTestCase.name}
-              onChange={(e) => setEditingTestCase(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => {
+                setEditingTestCase(prev => ({ ...prev, name: e.target.value }));
+                setError(null); 
+              }}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
           </div>
@@ -846,10 +893,20 @@ const selectAllSteps = () => {
           <div className="flex justify-end gap-2">
             <button
               onClick={handleUpdateTestCase}
-              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              disabled={isUpdatingTestCase} 
+              className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50" // ADD disabled:opacity-50
             >
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              {isUpdatingTestCase ? ( 
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
             </button>
             <button
               onClick={() => {

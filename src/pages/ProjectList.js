@@ -22,6 +22,8 @@ const ProjectList = () => {
         const dbData = await dbResponse.json();
         const localData = await localResponse.json();
 
+        console.log("project-list:",localData)
+
         // Only show matching projects
         const matchingProjects = localData.projects.filter(localProject =>
           dbData.some(dbProject => dbProject.name === localProject.project_name)
