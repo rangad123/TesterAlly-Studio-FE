@@ -62,6 +62,11 @@ const AndroidTestSteps = () => {
       const words = command.trim().split(' ');
       if (words.length > 1) {
         const packageName = words[1];
+        
+        if (Platform === 'Mobile') {
+          return command;
+        }
+        
         const parts = packageName.split('.'); 
         const lastPart = parts[parts.length - 1];
         return `open ${lastPart}`; 
@@ -241,8 +246,7 @@ const checkDeviceConnectionAndReturn = async (command = "") => {
                     return false;
                 }
             } else {
-              if (data.Message === "Device Already Connected" && 
-                  (data["System Apps"] || data["User Apps"])) {
+              if ((data["System Apps"] || data["User Apps"])) {
                   setDeviceConnected(true);
                   let combinedApps = {
                       ...data["System Apps"],
@@ -260,9 +264,15 @@ const checkDeviceConnectionAndReturn = async (command = "") => {
                       }
                     });
                     combinedApps = filteredApps;
+
+                    console.log("Mobile platform - not setting installedApps to prevent suggestions");
+                  } else {
+
+                    setInstalledApps(combinedApps);
+                    if (typeof window.refreshAppSuggestions === 'function') {
+                      window.refreshAppSuggestions();
+                    }
                   }
-                  
-                  setInstalledApps(combinedApps);
                   setShowConnectModal(false);
                   return true;
               } else {

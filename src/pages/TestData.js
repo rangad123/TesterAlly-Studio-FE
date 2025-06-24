@@ -258,25 +258,25 @@ const TestData = () => {
     if (!uploadedData) return null;
 
     return (
-      <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+      <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-md">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-green-800 mb-3 flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <h3 className="text-base font-semibold text-green-800 mb-2 flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
               Test Data Successfully Uploaded
             </h3>
             
             {uploadedData.url && (
-              <div className="mb-3">
+              <div className="mb-2">
                 <span className="text-sm font-medium text-gray-600">URL:</span>
-                <div className="mt-1 p-3 bg-white rounded border border-green-200">
+                <div className="mt-1 p-2 bg-white rounded border border-green-200">
                   <a 
                     href={uploadedData.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 break-all"
+                    className="text-blue-600 hover:text-blue-800 break-all text-sm"
                   >
                     {uploadedData.url}
                   </a>
@@ -285,29 +285,29 @@ const TestData = () => {
             )}
             
             {uploadedData.filename && (
-              <div className="mb-3">
+              <div className="mb-2">
                 <span className="text-sm font-medium text-gray-600">File:</span>
-                <div className="mt-1 p-3 bg-white rounded border border-green-200 flex items-center">
+                <div className="mt-1 p-2 bg-white rounded border border-green-200 flex items-center">
                   <svg className="w-4 h-4 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-gray-700">{uploadedData.filename}</span>
+                  <span className="text-gray-700 text-sm">{uploadedData.filename}</span>
                 </div>
               </div>
             )}
             
             {uploadedData.created_at && (
-              <div className="text-sm text-gray-600">
+              <div className="text-xs text-gray-600">
                 <span className="font-medium">Uploaded:</span> {new Date(uploadedData.created_at).toLocaleString()}
               </div>
             )}
           </div>
         </div>
         
-        <div className="mt-4 flex space-x-3">
+        <div className="mt-3 flex space-x-2">
           <button 
             onClick={handleEdit} 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center text-sm"
             disabled={isDeleting}
           >
             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -317,7 +317,7 @@ const TestData = () => {
           </button>
           <button 
             onClick={handleDelete} 
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center" 
+            className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center text-sm" 
             disabled={isDeleting}
           >
             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -333,13 +333,13 @@ const TestData = () => {
 
   const renderInputForm = () => {
     return (
-      <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="mt-4 bg-white rounded-md shadow-sm border border-gray-200">
         {/* Tab Navigation */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+          <nav className="flex space-x-6 px-4" aria-label="Tabs">
             <button
               onClick={() => setActiveTab("url")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                 activeTab === "url"
                   ? "border-purple-500 text-purple-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -355,7 +355,7 @@ const TestData = () => {
             </button>
             <button
               onClick={() => setActiveTab("file")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                 activeTab === "file"
                   ? "border-purple-500 text-purple-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -372,9 +372,9 @@ const TestData = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="p-6">
+        <div className="p-4">
           {activeTab === "url" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Website URL<span className="text-red-500">*</span>
@@ -388,13 +388,13 @@ const TestData = () => {
                       setErrors((prev) => ({ ...prev, url: "" }));
                     }}
                     placeholder="Enter website URL (e.g., https://example.com)"
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
                       errors.url ? "border-red-500 bg-red-50" : "border-gray-300"
                     }`}
                     disabled={isUploading}
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -408,7 +408,7 @@ const TestData = () => {
                   </p>
                 )}
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <p className="text-sm text-blue-800">
                   <strong>Note:</strong> Enter the URL of the website you want to test. The system will analyze the website and generate appropriate test cases.
                 </p>
@@ -417,14 +417,14 @@ const TestData = () => {
           )}
 
           {activeTab === "file" && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Test Cases File<span className="text-red-500">*</span>
                 </label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-purple-400 transition-colors duration-200">
+                <div className="mt-1 flex justify-center px-4 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-md hover:border-purple-400 transition-colors duration-200">
                   <div className="space-y-1 text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                    <svg className="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                       <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     <div className="flex text-sm text-gray-600">
@@ -456,10 +456,10 @@ const TestData = () => {
               </div>
 
               {selectedFile && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                       </svg>
                       <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
@@ -480,9 +480,9 @@ const TestData = () => {
                     Size: {(selectedFile.size / 1024).toFixed(2)} KB | Type: {selectedFile.type || 'Unknown'}
                   </div>
                   {filePreview && (
-                    <div className="mt-3">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">File Preview:</h4>
-                      <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-x-auto whitespace-pre-wrap">
+                    <div className="mt-2">
+                      <h4 className="text-sm font-medium text-gray-700 mb-1">File Preview:</h4>
+                      <pre className="text-xs text-gray-600 bg-white p-2 rounded border overflow-x-auto whitespace-pre-wrap max-h-32">
                         {filePreview}
                       </pre>
                     </div>
@@ -490,7 +490,7 @@ const TestData = () => {
                 </div>
               )}
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
                 <p className="text-sm text-amber-800">
                   <strong>Supported formats:</strong> Upload test case files in CSV, JSON, TXT, or Excel format. The system will parse and integrate them into your test suite.
                 </p>
@@ -499,15 +499,15 @@ const TestData = () => {
           )}
 
           {/* Action Buttons */}
-          <div className="mt-6 flex space-x-4">
+          <div className="mt-4 flex space-x-3">
             <button
               onClick={handleCreateTestCase}
               disabled={isUploading}
-              className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+              className="flex-1 bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-sm font-medium"
             >
               {isUploading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -515,7 +515,7 @@ const TestData = () => {
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                   </svg>
                   Save Test Data
@@ -531,13 +531,13 @@ const TestData = () => {
   const renderContent = () => {
     if (!hasCheckedInitialData || isLoading) {
       return (
-        <div className="flex items-center justify-center p-8">
+        <div className="flex items-center justify-center p-6">
           <div className="text-center">
-            <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-6 w-6 text-purple-600 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="text-gray-600">Loading test data...</p>
+            <p className="text-gray-600 text-sm">Loading test data...</p>
           </div>
         </div>
       );
@@ -545,12 +545,12 @@ const TestData = () => {
 
     if (!selectedProject) {
       return (
-        <div className="text-center p-8">
-          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="text-center p-6">
+          <svg className="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Project Selected</h3>
-          <p className="text-gray-600">Please select a project from the dropdown to manage test data.</p>
+          <h3 className="text-base font-medium text-gray-900 mb-2">No Project Selected</h3>
+          <p className="text-gray-600 text-sm">Please select a project from the dropdown to manage test data.</p>
         </div>
       );
     }
@@ -568,34 +568,35 @@ const TestData = () => {
         <div className="lg:p-6 sm:p-4">
           <div className="max-w-4xl mx-auto">
             {/* Header */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="bg-white rounded-md shadow-sm border border-gray-200 mb-4">
+              <div className="px-4 py-3 border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                      <svg className="w-6 h-6 mr-3 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                    <h1 className="text-lg font-semibold text-gray-800 flex items-center">
+                      {/* Correct Test Data Management Icon - Database/Storage icon */}
+                      <svg className="w-5 h-5 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/>
                       </svg>
                       Test Data Management
                     </h1>
                     {selectedProject && (
-                      <div className="mt-2 flex items-center text-sm text-gray-600">
+                      <div className="mt-1 flex items-center text-sm text-gray-600">
                         <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
                         </svg>
                         <span className="font-medium">Project:</span>
-                        <span className="ml-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                        <span className="ml-1 px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
                           {selectedProject.name}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="mt-4 sm:mt-0">
+                  <div className="mt-3 sm:mt-0">
                     <button 
                       onClick={handleCancel} 
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200 flex items-center"
+                      className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors duration-200 flex items-center"
                     >
-                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                       Cancel
@@ -605,14 +606,14 @@ const TestData = () => {
               </div>
               
               {/* Info Section */}
-              <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-blue-50">
-                <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+              <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-blue-50">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                   <div>
                     <h3 className="text-sm font-medium text-blue-900">Test Data Options</h3>
-                    <p className="text-sm text-blue-700 mt-1">
+                    <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
                       Upload test data by providing a website URL for automated analysis or by uploading test case files directly. 
                       Supported file formats include CSV, JSON, TXT, and Excel files.
                     </p>

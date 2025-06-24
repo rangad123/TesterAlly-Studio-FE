@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone, MonitorSmartphone } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
@@ -218,8 +218,7 @@ const AndroidManually = () => {
         console.log("setup-device response:", setupData);
 
         // Check if both APIs succeeded and device is connected with apps
-        if (connectData.Message === "Device Already Connected" && 
-            (connectData["System Apps"] || connectData["User Apps"]) &&
+        if ((connectData["System Apps"] || connectData["User Apps"]) &&
             setupData.status === "success") {
           
           setDeviceConnected(true);
@@ -301,8 +300,7 @@ const AndroidManually = () => {
       setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
       await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
 
-      if (connectData.Message === "Device Already Connected" &&
-          (connectData["System Apps"] || connectData["User Apps"])) {
+      if ((connectData["System Apps"] || connectData["User Apps"])) {
 
         setDeviceConnected(true);
         const combinedApps = {
@@ -310,7 +308,7 @@ const AndroidManually = () => {
           ...connectData["User Apps"]
         };
         console.log("Setting installedApps:", combinedApps);
-        setInstalledApps(combinedApps);
+        // setInstalledApps(combinedApps);
 
         console.log("Searching for Chrome in installed apps...");
         const chromeEntry = Object.entries(combinedApps).find(
@@ -349,6 +347,48 @@ const AndroidManually = () => {
       setConnectionLoading(false);
     }
   };
+
+  const fetchAppSuggestions = useCallback((searchTerm, index) => {
+    // console.log('🔍 fetchAppSuggestions called:', { 
+    //   deviceConnected, 
+    //   installedAppsCount: Object.keys(installedApps).length,
+    //   searchTerm 
+    // });
+
+    if (!deviceConnected || !installedApps) {
+      setCommandSuggestions([]);
+      return;
+    }
+
+    let suggestions = Object.entries(installedApps)
+      .map(([appName, packageName]) => ({
+        name: appName,
+        package: packageName,
+        type: 'app'
+      }));
+
+    if (testCaseInfo.platform === 'Mobile') {
+      console.log("Platform is Mobile, filtering for Chrome only");
+      suggestions = suggestions.filter(app => 
+        app.name.toLowerCase().includes('chrome') ||
+        app.package.toLowerCase().includes('chrome')
+      );
+    } else if (searchTerm) {
+      suggestions = suggestions.filter(app => 
+        app.name.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    setCommandSuggestions(suggestions.slice(0, 10));
+  }, [deviceConnected, installedApps, testCaseInfo.platform]);
+
+  useEffect(() => {
+    // Re-fetch suggestions for the current input when installedApps updates
+    if (deviceConnected && Object.keys(installedApps).length > 0 && showSuggestions) {
+      const currentInput = inputRef.current?.value || '';
+      fetchAppSuggestions(currentInput.toLowerCase(), currentStepId);
+    }
+  }, [installedApps, deviceConnected, currentStepId, fetchAppSuggestions, showSuggestions]); 
 
   useEffect(() => {
     if (!testCaseInfo || !testCaseInfo.platform) return;
@@ -1196,35 +1236,6 @@ const convertAndroidElements = (screenElements) => {
     console.log("Filtered elements with coordinates:", filtered);
     
     setCommandSuggestions(filtered);
-  };
-
-  const fetchAppSuggestions = (searchTerm, index) => {
-    if (!deviceConnected || !installedApps) {
-      setCommandSuggestions([]);
-      return;
-    }
-
-    let suggestions = Object.entries(installedApps)
-      .map(([appName, packageName]) => ({
-        name: appName,
-        package: packageName,
-        type: 'app'
-      }));
-
-    // Filter for Chrome only if platform is Mobile
-    if (testCaseInfo.platform === 'Mobile') {
-      console.log("Platform is Mobile, filtering for Chrome only");
-      suggestions = suggestions.filter(app => 
-        app.name.toLowerCase().includes('chrome') ||
-        app.package.toLowerCase().includes('chrome')
-      );
-    } else if (searchTerm) {
-      suggestions = suggestions.filter(app => 
-        app.name.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    setCommandSuggestions(suggestions.slice(0, 10));
   };
 
   const handleSuggestionClick = (suggestion, index) => {

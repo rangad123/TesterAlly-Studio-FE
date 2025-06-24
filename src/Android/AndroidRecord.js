@@ -52,6 +52,8 @@ const AndroidRecord = () => {
   const [installedApps, setInstalledApps] = useState({});
   const [connectionLoading, setConnectionLoading] = useState(false);
   const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
+  const [appsLoaded, setAppsLoaded] = useState(false);
+  const [pendingOpenCommand, setPendingOpenCommand] = useState(false);
   const [connectionSteps, setConnectionSteps] = useState({
     currentStep: 0,
     steps: [
@@ -170,7 +172,15 @@ useEffect(() => {
           console.log("Open command detected!");
           console.log("installedApps:", installedApps);
         
+          if (!appsLoaded || !installedApps || Object.keys(installedApps).length === 0) {
+            console.log("Apps not yet loaded, setting pending command");
+            setPendingOpenCommand(true);
+            setShowSuggestions(false);
+            return;
+          }
+
           if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
+            setPendingOpenCommand(false);
               const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
               
               let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
@@ -260,7 +270,7 @@ useEffect(() => {
         setShowSuggestions(false);
     }
 
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, testCaseInfo.platform]);
+}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, appsLoaded, testCaseInfo.platform]);
 
 useEffect(() => {
   if (showSuggestions && suggestions.length > 0) {
@@ -270,6 +280,25 @@ useEffect(() => {
     }
   }
 }, [showSuggestions, suggestions.length]);
+
+useEffect(() => {
+  if (appsLoaded && pendingOpenCommand && newStep && newStep.trim().toLowerCase().startsWith('open')) {
+    console.log("Apps loaded, processing pending open command");
+    setPendingOpenCommand(false);
+
+    const event = new Event('triggerSuggestions');
+    window.dispatchEvent(event);
+  }
+}, [appsLoaded, pendingOpenCommand, newStep]);
+
+useEffect(() => {
+  const handleTriggerSuggestions = () => {
+    setNewStep(prev => prev + '');
+  };
+
+  window.addEventListener('triggerSuggestions', handleTriggerSuggestions);
+  return () => window.removeEventListener('triggerSuggestions', handleTriggerSuggestions);
+}, []);
 
   const checkDeviceConnection = async () => {
     console.log("checkDeviceConnection")
@@ -322,9 +351,8 @@ useEffect(() => {
         const setupData = await setupResponse.json();
         console.log("setup-device response:", setupData);
 
-        // Check if both APIs succeeded and device is connected with apps
-        if (connectData.Message === "Device Already Connected" && 
-            (connectData["System Apps"] || connectData["User Apps"]) &&
+        // Instead of checking for exact "Device Already Connected"
+        if ((connectData["System Apps"] || connectData["User Apps"]) &&
             setupData.status === "success") {
           
           setDeviceConnected(true);
@@ -333,6 +361,7 @@ useEffect(() => {
             ...connectData["User Apps"]
           };
           setInstalledApps(combinedApps);
+          setAppsLoaded(true);
           
           setConnectionSteps(prev => ({
             ...prev,
@@ -406,16 +435,15 @@ useEffect(() => {
       setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
       await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
 
-      if (connectData.Message === "Device Already Connected" &&
-          (connectData["System Apps"] || connectData["User Apps"])) {
-
+      if ((connectData["System Apps"] || connectData["User Apps"])) {
         setDeviceConnected(true);
         const combinedApps = {
           ...connectData["System Apps"],
           ...connectData["User Apps"]
         };
         console.log("Setting installedApps:", combinedApps);
-        setInstalledApps(combinedApps);
+        // Don't set installedApps to prevent suggestions// setInstalledApps(combinedApps);
+        // Don't set appsLoaded to prevent open command suggestions// setAppsLoaded(true); 
 
         console.log("Searching for Chrome in installed apps...");
         const chromeEntry = Object.entries(combinedApps).find(
@@ -468,19 +496,186 @@ useEffect(() => {
     }
   }, [testCaseInfo]);
 
-const getLastClickCoordinates = (steps) => {
-  // Loop backwards through steps to find the last successful click action
-  for (let i = steps.length - 1; i >= 0; i--) {
-      const step = steps[i];
-      if (step.status === 'complete' && 
-          step.description.toLowerCase().startsWith('click') && 
-          step.selectedElement && 
-          step.selectedElement.click_point) {
-          return step.selectedElement.click_point;
+  const getLastClickCoordinates = (steps) => {
+    // Loop backwards through steps to find the last successful click action
+    for (let i = steps.length - 1; i >= 0; i--) {
+        const step = steps[i];
+        if (step.status === 'complete' && 
+            step.description.toLowerCase().startsWith('click') && 
+            step.selectedElement && 
+            step.selectedElement.click_point) {
+            return step.selectedElement.click_point;
+        }
+    }
+    return null;
+  };
+
+  const addTestStep = async () => {
+    if (!newStep.trim() || isProcessing) return;
+    
+    setShowSuggestions(false);
+    
+    const words = newStep.trim().split(' ');
+    const actionType = words[0].toLowerCase();
+
+    if (actionType === 'open' && testCaseInfo?.platform === 'Mobile') {
+      // No special handling needed - let it go through normal flow
+      // This will pass the command directly to executeStep
+    }
+
+    // Add 'wait' to the list of allowed commands
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search'];
+    if (!allowedCommands.includes(actionType)) {
+      alert("Unknown command. Please use: click, open, scroll, search, or type.");
+      return;
+    }
+    
+    // If it's a wait command but no configuration has been done yet, show the wait modal
+    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
+      setWaitModalOpen(true);
+      return;
+    }
+    
+    // Existing verification logic
+    if (actionType === 'verify') {
+      const textToVerify = words.slice(1).join(' ');
+      
+      // Always try to find matching elements by text, even if an element is selected
+      const matchingElements = checkTextInElementData(textToVerify);
+      
+      if (matchingElements && matchingElements.length > 0) {
+        // Always open confirmation modal for verify commands
+        setVerificationModal({
+          isOpen: true,
+          textToVerify,
+          matchingElements,
+          selectedElement: selectedElement || matchingElements[0]
+        });
+        return;
+      } else {
+        alert("Text not found on the current page. Please try a different text or command.");
+        return;
       }
-  }
-  return null;
-};
+    }
+    
+    // For commands that require element selection
+    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
+      alert("Please select an element from the suggestions before adding this step.");
+      return;
+    }
+    
+    // Create step object for execution (but don't add to testSteps yet)
+    const newStepObj = {
+      id: Date.now(),
+      description: commandType === 'open' && selectedElement?.packageName 
+      ? `open ${selectedElement.packageName}` 
+      : newStep,
+      status: 'pending',
+      duration: '00:00',
+      screenshot: null,
+      selectedElement: selectedElement,
+      verificationType: selectedElement?.verificationType || 'text',
+      waitRequestData: stepWaitData || null
+    };
+    
+    // Clear selections
+    setSelectedElement(null);
+    setStepWaitData(null);
+    setNewStep('');
+    
+    setTestSteps(prev => [...prev, newStepObj]);
+    
+    try {
+      // Execute the step first
+      const executionResult = await executeStep(newStepObj);
+
+      // Check if execution was aborted (undefined) or failed
+      if (executionResult === undefined) {
+        console.log("Step execution was aborted, not adding to test case");
+        return;
+      }
+      
+      if (executionResult.status === 'error') {
+        console.log("Step execution failed:", executionResult.error);
+        alert(`Step execution failed: ${executionResult.error}\nThis step will not be added to the test case.`);
+        setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id)); 
+        return;
+      }
+      
+      // Only update testSteps if execution was successful
+      if (executionResult.status === 'complete') {
+        console.log("Step executed successfully, updating test case");
+        
+        // Update the existing step with execution results
+        setTestSteps(prev => prev.map(step => 
+          step.id === newStepObj.id ? {
+            ...step,
+            ...executionResult,
+            elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
+            elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
+            waitCondition: executionResult.waitCondition,
+            waitText: executionResult.waitText,
+            waitTimeout: executionResult.waitTimeout
+          } : step
+        ));
+        
+        // Update previouslySelectedElements after successful execution
+        if (newStepObj.selectedElement?.click_point) {
+          setLastClickCoordinates(newStepObj.selectedElement.click_point);
+          const element = newStepObj.selectedElement;
+
+          if (element.click_point) {
+            const x = Math.round(element.click_point[0]);
+            const y = Math.round(element.click_point[1]);
+            const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+
+            console.log('Generated key for element:', exactCoordinateKey);
+            
+            setPreviouslySelectedElements(prev => {
+              const updatedPrev = {};
+              Object.keys(prev).forEach(key => {
+                updatedPrev[key] = {
+                  ...prev[key],
+                  lastExecutedElement: false 
+                };
+              });
+              
+              return {
+                ...updatedPrev,
+                [exactCoordinateKey]: {
+                  lastSelected: Date.now(),
+                  count: (prev[exactCoordinateKey]?.count || 0) + 1,
+                  element: element,
+                  lastExecutedElement: true,
+                  coordinates: [x, y]
+                }
+              };
+            });
+          }
+        }
+        
+        // Scroll to bottom after successful addition
+        setTimeout(() => {
+          if (previewRef.current) {
+            previewRef.current.scrollTo({
+              top: previewRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+          if (stepsRef.current) {
+            stepsRef.current.scrollTo({
+              top: stepsRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      }
+      
+    } catch (error) {
+      console.error('Unexpected error during step execution:', error);
+      alert(`Unexpected error: ${error.message}\nThis step will not be added to the test case.`);
+    }
+  };
 
   const executeStep = async (stepObj) => {
     setIsProcessing(true);
@@ -1309,146 +1504,6 @@ const getLastClickCoordinates = (steps) => {
         setIsProcessing(false);
         setLoadingMessage('');
     }
-  };
-
-  const addTestStep = async () => {
-    if (!newStep.trim() || isProcessing) return;
-    
-    setShowSuggestions(false);
-    
-    const words = newStep.trim().split(' ');
-    const actionType = words[0].toLowerCase();
-
-    // Add 'wait' to the list of allowed commands
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search'];
-    if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, open, scroll, search, or type.");
-      return;
-    }
-    
-    // If it's a wait command but no configuration has been done yet, show the wait modal
-    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
-      setWaitModalOpen(true);
-      return;
-    }
-    
-    // Existing verification logic
-    if (actionType === 'verify') {
-      const textToVerify = words.slice(1).join(' ');
-      
-      // Always try to find matching elements by text, even if an element is selected
-      const matchingElements = checkTextInElementData(textToVerify);
-      
-      if (matchingElements && matchingElements.length > 0) {
-        // Always open confirmation modal for verify commands
-        setVerificationModal({
-          isOpen: true,
-          textToVerify,
-          matchingElements,
-          selectedElement: selectedElement || matchingElements[0]
-        });
-        return;
-      } else {
-        alert("Text not found on the current page. Please try a different text or command.");
-        return;
-      }
-    }
-    
-    // For commands that require element selection
-    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
-      alert("Please select an element from the suggestions before adding this step.");
-      return;
-    }
-    
-    const newStepObj = {
-      id: Date.now(),
-      description: commandType === 'open' && selectedElement?.packageName 
-      ? `open ${selectedElement.packageName}` 
-      : newStep,
-      status: 'pending',
-      duration: '00:00',
-      screenshot: null,
-      selectedElement: selectedElement,
-      verificationType: selectedElement?.verificationType || 'text',
-      waitRequestData: stepWaitData || null
-    };
-    
-    setSelectedElement(null);
-    setStepWaitData(null);
-    
-    setTestSteps(prev => [...prev, newStepObj]);
-    setNewStep('');
-    
-    const executionResult = await executeStep(newStepObj);
-
-      if (executionResult === undefined) {
-        setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
-        return;
-      }
-    
-    // After successful execution, update the previouslySelectedElements
-    if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
-      setLastClickCoordinates(newStepObj.selectedElement.click_point);
-      const element = newStepObj.selectedElement;
-  
-      if (element.click_point) {
-        const x = Math.round(element.click_point[0]);
-        const y = Math.round(element.click_point[1]);
-        const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
-  
-        console.log('Generated key for element:', exactCoordinateKey);
-        
-        setPreviouslySelectedElements(prev => {
-          const updatedPrev = {};
-          Object.keys(prev).forEach(key => {
-            updatedPrev[key] = {
-              ...prev[key],
-              lastExecutedElement: false 
-            };
-          });
-          
-          return {
-            ...updatedPrev,
-            [exactCoordinateKey]: {
-              lastSelected: Date.now(),
-              count: (prev[exactCoordinateKey]?.count || 0) + 1,
-              element: element,
-              lastExecutedElement: true,
-              coordinates: [x, y]
-            }
-          };
-        });
-      }
-    }
-    
-    setTestSteps(prev => prev.map(step => 
-      step.id === newStepObj.id ? {
-        ...step,
-        ...executionResult,
-        elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
-        elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-        waitCondition: executionResult.waitCondition,
-        waitText: executionResult.waitText,
-        waitTimeout: executionResult.waitTimeout
-      } : step
-    ));
-    
-    setNewStep('');
-    
-    setTimeout(() => {
-      if (previewRef.current) {
-        previewRef.current.scrollTo({
-          top: previewRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-      if (stepsRef.current) {
-        stepsRef.current.scrollTo({
-          top: stepsRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    }, 100);
   };
 
   const getDisplayName = (description, selectedElement) => {
@@ -2605,7 +2660,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                     <div className="text-xs text-gray-500 mt-1">
                       {commandType === 'click' && "Click command - type element name or select from suggestions"}
                       {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
-                      {commandType === 'open' && "Navigation command - enter App Name"}
+                      {commandType === 'open' && "Navigation command - Enter URL"}
                       {commandType === 'search' && "Navigation command - search [text]"}
                       {commandType === 'scroll' && "Scroll command - use 'scrollup' or 'scrolldown'"}
                     </div>
