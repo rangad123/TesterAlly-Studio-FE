@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import AndroidManually from './AndroidManually';
 import WriteManually from '../pages/WriteManually';
+import MobileManually from './MobileManually';
 
 const ManuallySelector = () => {
   const location = useLocation();
@@ -21,7 +22,7 @@ const ManuallySelector = () => {
     if (Platform === 'Laptop/PC') {
       return <WriteManually />;
     } else if (Platform === 'Mobile') {
-      return <AndroidManually />;
+      return <MobileManually />;
     }
   }
 

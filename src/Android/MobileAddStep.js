@@ -12,8 +12,7 @@ const MobileAddStep = ({
   executionResults,
   resetEditState, 
   updateEditValue,
-  installedApps, 
-  deviceConnected,
+  checkDeviceConnectionAndReturn,
   setHoveredStep 
 }) => {
     
@@ -87,10 +86,17 @@ const MobileAddStep = ({
   }, [capturedSteps, testCaseName]);
 
 const handleCaptureElement = async (stepNumber) => {
+
+    const isConnected = await checkDeviceConnectionAndReturn();
+    if (!isConnected) {
+    setError("Device is not connected. Please connect and try again.");
+    return;
+    }
+
   setCaptureLoading(prev => ({ ...prev, [stepNumber]: true }));
   
   try {
-    const response = await fetch('http://localhost:8000/android/sync_scr/', {
+    const response = await fetch('http://localhost:8000/android/sync_screen_webapp/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -102,14 +108,17 @@ const handleCaptureElement = async (stepNumber) => {
     }
 
     const data = await response.json();
-    console.log("Android screen capture response:", data);
+    console.log("Mobile screen capture response:", data);
+
+    const coordinates = { click_x: 0, click_y: 0 };
+    const convertedElements = convertOmniaParserElements(data.omniparser_response?.elements || []);
     
     // Process the Android response
     const capturedStepData = {
-      coordinates: {},
-      screenshot: data.screenshot_result?.url ? `http://localhost:8000${data.screenshot_result.url}` : null,
+      coordinates: coordinates,
+      screenshot: data.screenshot_result ? `http://localhost:8000${data.screenshot_result}` : null,
       timestamp: new Date().toISOString(),
-      elements: processAndroidElements(data.screen_elements || {}),
+      elements: convertedElements,
       current_app: data.current_app
     };
     
@@ -148,52 +157,22 @@ const handleCaptureElement = async (stepNumber) => {
   }
 };
 
-const processAndroidElements = (screenElements) => {
-  const allElements = [];
-  
-  // Process each category of elements
-  Object.entries(screenElements).forEach(([category, elements]) => {
-    if (Array.isArray(elements)) {
-      elements.forEach(element => {
-        // Parse bounds to get coordinates
-        let coordinates = [0, 0];
-        if (element.bounds) {
-          // bounds format: "[503,2025][540,2062]"
-          const boundsMatch = element.bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-          if (boundsMatch) {
-            const x1 = parseInt(boundsMatch[1]);
-            const y1 = parseInt(boundsMatch[2]);
-            const x2 = parseInt(boundsMatch[3]);
-            const y2 = parseInt(boundsMatch[4]);
-            
-            // Calculate center point
-            coordinates = [
-              Math.round((x1 + x2) / 2),
-              Math.round((y1 + y2) / 2)
-            ];
-          }
-        }
-        
-        allElements.push({
-          name: element.content_desc || element.text || element.description || `${category} element`,
-          text: element.text || element.content_desc || element.description || '',
-          type: category,
-          class: element.class,
-          resource_id: element.resource_id,
-          bounds: element.bounds,
-          click_point: coordinates,
-          coordinates: coordinates,
-          interactivity: element.clickable || element.focusable || false,
-          clickable: element.clickable || false,
-          focusable: element.focusable || false,
-          scrollable: element.scrollable || false,
-          category: category
-        });
-      });
-    }
+const convertOmniaParserElements = (elements) => {
+  if (!Array.isArray(elements)) return [];
+
+  return elements.map(el => {
+    return {
+      name: el.name || '',
+      text: el.name || '',
+      type: el.type || 'text',
+      interactivity: el.interactivity || false,
+      click_point: el.click_point || [0, 0],
+      coordinates: el.click_point || [0, 0], 
+      clickable: el.interactivity || false,
+      focusable: el.interactivity || false,
+      scrollable: false,
+    };
   });
-  
-  return allElements;
 };
   
 const handleCommandInputChange = (e) => {
@@ -226,22 +205,24 @@ const handleCommandInputChange = (e) => {
     setShowWaitModal(true)
     setShowSuggestions(false);
 
-  } else if (command === 'open') {
-    setCommandType('open');
-    if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
-      const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
-        name: appName,  
-        displayName: appName, 
-        packageName: packageName, 
-        type: 'app'
-      }));
-      console.log("Setting app suggestions:", appSuggestions);
-      setCommandSuggestions(appSuggestions);
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
-    }
-  } else {
+  } 
+//   else if (command === 'open') {
+//     setCommandType('open');
+//     if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
+//       const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+//         name: appName,  
+//         displayName: appName, 
+//         packageName: packageName, 
+//         type: 'app'
+//       }));
+//       console.log("Setting app suggestions:", appSuggestions);
+//       setCommandSuggestions(appSuggestions);
+//       setShowSuggestions(true);
+//     } else {
+//       setShowSuggestions(false);
+//     }
+//   } 
+  else {
     setCommandType("");
     setShowSuggestions(false);
   }
@@ -262,27 +243,29 @@ const handleEditCommandInput = (stepNumber, stepDescription, commandType) => {
   const words = stepDescription.trim().split(' ');
 
   if (['click', 'type', 'verify', 'get'].includes(commandType)) {
-    console.log("🔥 Should show suggestions - setting showSuggestions to true");
+    console.log(" Should show suggestions - setting showSuggestions to true");
     setShowSuggestions(true);
     fetchElementSuggestions(commandType, stepDescription, words, stepNumber);
-  } else if (commandType === 'open') {
+  } 
+//   else if (commandType === 'open') {
     
-    if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
-      console.log("🔥 All conditions met, creating suggestions");
-      const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
-        name: appName,  
-        displayName: appName, 
-        packageName: packageName, 
-        type: 'app'
-      }));
-      console.log("🔥 Setting app suggestions:", appSuggestions);
-      setCommandSuggestions(appSuggestions);
-      setShowSuggestions(true);
-    } else {
-      console.log("🔥 Conditions not met for showing suggestions");
-      setShowSuggestions(false);
-    }
-  } else if (commandType === 'wait') {
+//     if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
+//       console.log(" All conditions met, creating suggestions");
+//       const appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+//         name: appName,  
+//         displayName: appName, 
+//         packageName: packageName, 
+//         type: 'app'
+//       }));
+//       console.log(" Setting app suggestions:", appSuggestions);
+//       setCommandSuggestions(appSuggestions);
+//       setShowSuggestions(true);
+//     } else {
+//       console.log(" Conditions not met for showing suggestions");
+//       setShowSuggestions(false);
+//     }
+//   } 
+  else if (commandType === 'wait') {
     setShowWaitModal(true);
   }
 };
@@ -360,8 +343,10 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
   let filtered = [];
 
   if (command === "click") {
-    filtered = allElements.map(el => {
-        // Normalize coordinates
+    filtered = allElements
+    .filter(el => el.interactivity === true) 
+    .map(el => {
+
         let coordinates;
         
         if (el.click_point && Array.isArray(el.click_point)) {
@@ -382,10 +367,13 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
           click_point: coordinates || [0, 0]
         };
       });
-  } else if (command === "type") {
-    // Include elements that can receive input
-    filtered = allElements.map(el => {
-      // Normalize coordinates
+  } 
+  else if (command === "type") {
+
+    filtered = allElements
+    .filter(el => el.type === "text" || el.interactivity === true) 
+    .map(el => {
+
       let coordinates;
       
       if (el.click_point && Array.isArray(el.click_point)) {
@@ -414,7 +402,8 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
         );
       }
     }
-  } else if (command === "verify" || command === "get") {
+  } 
+  else if (command === "verify" || command === "get") {
     filtered = allElements.filter(el => el.type === "text" || el.type === "textarea" || el.text)
       .map(el => {
         // Normalize coordinates

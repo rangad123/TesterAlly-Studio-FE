@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw, WifiOff } from "lucide-react";
-import MobileAddStep from "./MobileAddStep";
+import AndroidAddStep from "./AndroidAddStep";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const AndroidTestSteps = () => {
@@ -411,7 +411,7 @@ const handleAddStepClick = async (stepNumber, command = "") => {
     setEditValue(newValue);
   };
 
-  const addStepComponent = MobileAddStep({
+  const addStepComponent = AndroidAddStep({
     testCaseId,
     testCaseName,        
     projectName,
@@ -425,7 +425,8 @@ const handleAddStepClick = async (stepNumber, command = "") => {
     resetEditState,
     updateEditValue,
     installedApps,
-    deviceConnected 
+    deviceConnected,
+    checkConnectionOnly
   });
 
   const handleViewExecutionScreenshot = (screenshot) => {

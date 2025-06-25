@@ -397,91 +397,91 @@ useEffect(() => {
     }
   };
 
-  const checkChromeAvailability = async () => {
-    console.log("checkDeviceConnection");
-    setConnectionLoading(true);
-    setShowConnectionLoadingModal(true); 
-    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+  // const checkChromeAvailability = async () => {
+  //   console.log("checkDeviceConnection");
+  //   setConnectionLoading(true);
+  //   setShowConnectionLoadingModal(true); 
+  //   setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
 
-    try {
-      // Step 1: USB Connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  //   try {
+  //     // Step 1: USB Connection
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Step 2: USB Debugging 
-      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  //     // Step 2: USB Debugging 
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Step 3: Actually check device connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+  //     // Step 3: Actually check device connection
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
 
-      // First API call - connect-ui
-      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
+  //     // First API call - connect-ui
+  //     const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" }
+  //     });
 
-      if (!connectResponse.ok) {
-        setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
-        setShowConnectModal(true);
-        return;
-      }
+  //     if (!connectResponse.ok) {
+  //       setDeviceConnected(false);
+  //       setShowConnectionLoadingModal(false);
+  //       setShowConnectModal(true);
+  //       return;
+  //     }
 
-      const connectData = await connectResponse.json();
-      console.log("connect-ui response:", connectData);
+  //     const connectData = await connectResponse.json();
+  //     console.log("connect-ui response:", connectData);
 
-      // Step 4 (simulate ATX setup delay only)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
+  //     // Step 4 (simulate ATX setup delay only)
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
 
-      if ((connectData["System Apps"] || connectData["User Apps"])) {
-        setDeviceConnected(true);
-        const combinedApps = {
-          ...connectData["System Apps"],
-          ...connectData["User Apps"]
-        };
-        console.log("Setting installedApps:", combinedApps);
-        // Don't set installedApps to prevent suggestions// setInstalledApps(combinedApps);
-        // Don't set appsLoaded to prevent open command suggestions// setAppsLoaded(true); 
+  //     if ((connectData["System Apps"] || connectData["User Apps"])) {
+  //       setDeviceConnected(true);
+  //       const combinedApps = {
+  //         ...connectData["System Apps"],
+  //         ...connectData["User Apps"]
+  //       };
+  //       console.log("Setting installedApps:", combinedApps);
+  //       // Don't set installedApps to prevent suggestions// setInstalledApps(combinedApps);
+  //       // Don't set appsLoaded to prevent open command suggestions// setAppsLoaded(true); 
 
-        console.log("Searching for Chrome in installed apps...");
-        const chromeEntry = Object.entries(combinedApps).find(
-          ([appName, packageName]) =>
-            appName.toLowerCase().includes("chrome") ||
-            packageName.toLowerCase().includes("chrome")
-        );
+  //       console.log("Searching for Chrome in installed apps...");
+  //       const chromeEntry = Object.entries(combinedApps).find(
+  //         ([appName, packageName]) =>
+  //           appName.toLowerCase().includes("chrome") ||
+  //           packageName.toLowerCase().includes("chrome")
+  //       );
 
-        if (chromeEntry) {
-          console.log("✅ Chrome is installed:", chromeEntry);
-          setConnectionSteps(prev => ({
-            ...prev,
-            isSuccess: true,
-            successMessage: "Chrome is available!"
-          }));
-        } else {
-          alert("🚫 Chrome is not available on this device.");
-        }
+  //       if (chromeEntry) {
+  //         console.log("✅ Chrome is installed:", chromeEntry);
+  //         setConnectionSteps(prev => ({
+  //           ...prev,
+  //           isSuccess: true,
+  //           successMessage: "Chrome is available!"
+  //         }));
+  //       } else {
+  //         alert("🚫 Chrome is not available on this device.");
+  //       }
 
-        setTimeout(() => {
-          setShowConnectionLoadingModal(false);
-          setShowConnectModal(false);
-        }, 2000);
-      } else {
-        setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
-        setShowConnectModal(false);
-      }
+  //       setTimeout(() => {
+  //         setShowConnectionLoadingModal(false);
+  //         setShowConnectModal(false);
+  //       }, 2000);
+  //     } else {
+  //       setDeviceConnected(false);
+  //       setShowConnectionLoadingModal(false);
+  //       setShowConnectModal(false);
+  //     }
 
-    } catch (error) {
-      console.error("Error checking device connection:", error);
-      setDeviceConnected(false);
-      setShowConnectionLoadingModal(false);
-      setShowConnectModal(true);
-    } finally {
-      setConnectionLoading(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Error checking device connection:", error);
+  //     setDeviceConnected(false);
+  //     setShowConnectionLoadingModal(false);
+  //     setShowConnectModal(true);
+  //   } finally {
+  //     setConnectionLoading(false);
+  //   }
+  // };
 
   useEffect(() => {
     if (!testCaseInfo || !testCaseInfo.platform) return;
@@ -491,9 +491,11 @@ useEffect(() => {
 
     if (platform === "Android") {
       checkDeviceConnection();
-    } else if (platform === "Mobile") {
-      checkChromeAvailability();
-    }
+    } 
+    // else if (platform === "Mobile") {
+    //   checkChromeAvailability();
+    // }
+    
   }, [testCaseInfo]);
 
   const getLastClickCoordinates = (steps) => {

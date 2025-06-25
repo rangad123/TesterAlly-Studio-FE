@@ -5,7 +5,6 @@ import {
   X,
   Edit2,
   Trash2,
-  ChevronDown,
   Calendar,
   User,
   Clock,
@@ -23,24 +22,24 @@ const ProjectDetails = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const userName = localStorage.getItem("userName") || "User Name";
   const userId = localStorage.getItem("userId");
-  const projectTypes = [
-    "Web Application",
-    "Mobile Application",
-    "API Development",
-    "Data Analysis",
-  ];
+//   const projectTypes = [
+//     "Web Application",
+//     "Mobile Application",
+//     "API Development",
+//     "Data Analysis",
+//   ];
 
-const subTypeOptions = {
-  "Mobile Application": ["Android", "iOS"],
-  "Web Application": ["Laptop/PC", "Mobile"]
-};
+// const subTypeOptions = {
+//   "Mobile Application": ["Android", "iOS"],
+//   "Web Application": ["Laptop/PC", "Mobile"]
+// };
 
-const subTypeIcons = {
-  "Android": null,
-  "iOS": null,
-  "Laptop/PC": null,
-  "Mobile": null
-};
+// const subTypeIcons = {
+//   "Android": null,
+//   "iOS": null,
+//   "Laptop/PC": null,
+//   "Mobile": null
+// };
 
 
 useEffect(() => {
@@ -347,7 +346,7 @@ useEffect(() => {
                   rows={3}
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Project Type
                 </label>
@@ -395,7 +394,7 @@ useEffect(() => {
                     <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   </div>
                 </div>
-              )}
+              )} */}
               <div className="flex space-x-2">
                 <button
                   onClick={handleSave}

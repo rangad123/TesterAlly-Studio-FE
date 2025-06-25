@@ -3,6 +3,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import WriteRecord from '../pages/WriteRecord';
 import AndroidRecord from './AndroidRecord';
+import MobileRecord from './MobileRecord';
 
 const RecordSelector = () => {
   const location = useLocation();
@@ -22,7 +23,7 @@ const RecordSelector = () => {
     if (Platform === 'Laptop/PC') {
       return <WriteRecord />;
     } else if (Platform === 'Mobile') {
-      return <AndroidRecord />;
+      return <MobileRecord />;
     }
   }
   

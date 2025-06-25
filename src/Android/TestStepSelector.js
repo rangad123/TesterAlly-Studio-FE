@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import TestSteps from '../pages/TestSteps';
 import AndroidTestSteps from './AndroidTestSteps';
+import MobileTestSteps from './MobileTestSteps';
 
 const TestStepSelector = () => {
   const location = useLocation();
@@ -22,7 +23,7 @@ const TestStepSelector = () => {
     if (Platform === 'Laptop/PC') {
       return <TestSteps />;
     } else if (Platform === 'Mobile') {
-      return <AndroidTestSteps />;
+      return <MobileTestSteps />;
     }
   }
 
