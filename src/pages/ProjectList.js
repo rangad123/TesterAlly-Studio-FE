@@ -22,12 +22,20 @@ const ProjectList = () => {
         const dbData = await dbResponse.json();
         const localData = await localResponse.json();
 
-        console.log("project-list:",localData)
+        console.log("project-localData list:",localData)
+        console.log("project-dbData list:",dbData)
 
         // Only show matching projects
-        const matchingProjects = localData.projects.filter(localProject =>
-          dbData.some(dbProject => dbProject.name === localProject.project_name)
-        );
+        const matchingProjects = localData.projects.map(localProject => {
+          const dbProject = dbData.find(dbProject => dbProject.name === localProject.project_name);
+          if (dbProject) {
+            return {
+              ...localProject,
+              created_at: dbProject.created_at 
+            };
+          }
+          return localProject;
+        });
 
         setAllProjects(matchingProjects.reverse());
       } else {
@@ -56,11 +64,21 @@ const ProjectList = () => {
         const dbData = await dbResponse.json();
         const localData = await localResponse.json();
 
-        const dbNotInLocal = dbData.filter(dbProject =>
-          !localData.projects.some(localProject =>
-            localProject.project_name === dbProject.name
-          )
-        );
+        // const dbNotInLocal = dbData.filter(dbProject =>
+        //   !localData.projects.some(localProject =>
+        //     localProject.project_name === dbProject.name
+        //   )
+        // );
+
+        const dbNotInLocal = dbData.filter(dbProject => {
+          const localMatch = localData.projects.find(localProject =>
+            localProject.project_name === dbProject.name &&
+            localProject.platform === dbProject.platform &&
+            localProject.project_type === dbProject.project_type &&
+            localProject.description === dbProject.description
+          );
+          return !localMatch;
+        });
 
         const localNotInDb = localData.projects.filter(localProject =>
           !dbData.some(dbProject =>
@@ -98,8 +116,10 @@ const ProjectList = () => {
           user_id: parseInt(userId),
           project_name: project.name,
           description: project.description || "No description provided",
-          project_type: project.project_type
+          project_type: project.project_type,
+          platform: project.platform
         };
+        console.log("DB to Local:",projectData)
 
         const response = await fetch("http://127.0.0.1:8000/integrate/project/", {
           method: "POST",
@@ -136,7 +156,6 @@ const ProjectList = () => {
 
     navigate("/test-cases");
   };
-
 
   const renderProjectRow = (project) => (
     <tr

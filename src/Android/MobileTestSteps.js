@@ -618,7 +618,7 @@ const handleModalOkClick = async () => {
   });
 
   try {
-    const response = await fetch("http://127.0.0.1:8000/android/run_testcase/", {
+    const response = await fetch("http://127.0.0.1:8000/android/web_run_testcase/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -1002,7 +1002,7 @@ const selectAllSteps = () => {
 
         <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{testCaseName}-Android</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{testCaseName}-Mobile</h1>
             {showConnectionMessage && (
                 <div className="mt-2 flex items-center text-sm text-green-600 bg-green-50 px-3 py-1 rounded-md">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>

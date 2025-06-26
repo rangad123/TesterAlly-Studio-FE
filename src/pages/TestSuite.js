@@ -6,7 +6,7 @@ import { Save, X, Edit2, ArrowLeft, Play, RefreshCw, WifiOff } from "lucide-reac
 const TestSuite = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { testSuiteName, projectId, testSuite: passedTestSuite, ProjectType } = location.state || {};
+  const { testSuiteName, projectId, testSuite: passedTestSuite, ProjectType, Platform } = location.state || {};
 
   const [testSuite, setTestSuite] = useState(passedTestSuite || {});
   const [testCases, setTestCases] = useState([]);
@@ -287,10 +287,15 @@ const handleRunTestSuite = async () => {
       return;
     }
 
-    const isConnected = await checkConnectionOnly();
-    if (!isConnected) {
-      alert("Please connect your Android device before running the test case.");
-      return;
+    if (
+      (ProjectType === "Mobile Application" && Platform === "Android") ||
+      (ProjectType === "Web Application" && Platform === "Mobile")
+    ) {
+      const isConnected = await checkConnectionOnly();
+      if (!isConnected) {
+        alert("Please connect your Android device before running the test case.");
+        return;
+      }
     }
 
     const requestBody = {
@@ -302,10 +307,22 @@ const handleRunTestSuite = async () => {
     };
 
     console.log("Project Type:",ProjectType)
+    console.log("Project Platform:",Platform)
 
-    const apiUrl = ProjectType === "Mobile Application" 
-      ? "http://127.0.0.1:8000/android/run_testsuite/"
-      : "http://127.0.0.1:8000/integrate/run_testsuite/";
+    let apiUrl = "";
+
+    if (ProjectType === "Mobile Application" && Platform === "Android") {
+      apiUrl = "http://127.0.0.1:8000/android/run_testsuite/";
+    } else if (ProjectType === "Web Application" && Platform === "Mobile") {
+      apiUrl = "http://127.0.0.1:8000/android/web_run_testsuite/";
+    } else if (ProjectType === "Web Application" && Platform === "Laptop/PC") {
+      apiUrl = "http://127.0.0.1:8000/integrate/run_testsuite/";
+    } else {
+      setError("Unsupported combination of project type and platform");
+      setExecutionInProgress(false);
+      setIsExecuting(false);
+      return;
+    }
 
     const response = await fetch(apiUrl, {
       method: "POST",

@@ -89,7 +89,8 @@ const TestSuites = () => {
         testSuiteName: testSuite.title,
         projectId: selectedProject?.project_name,
         testSuite: testSuite,
-        ProjectType: selectedProject?.project_type
+        ProjectType: selectedProject?.project_type,
+        Platform: selectedProject?.platform
       }
     });
   };

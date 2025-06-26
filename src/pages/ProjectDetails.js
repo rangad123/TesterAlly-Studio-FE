@@ -22,25 +22,7 @@ const ProjectDetails = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const userName = localStorage.getItem("userName") || "User Name";
   const userId = localStorage.getItem("userId");
-//   const projectTypes = [
-//     "Web Application",
-//     "Mobile Application",
-//     "API Development",
-//     "Data Analysis",
-//   ];
-
-// const subTypeOptions = {
-//   "Mobile Application": ["Android", "iOS"],
-//   "Web Application": ["Laptop/PC", "Mobile"]
-// };
-
-// const subTypeIcons = {
-//   "Android": null,
-//   "iOS": null,
-//   "Laptop/PC": null,
-//   "Mobile": null
-// };
-
+  const [isSaving, setIsSaving] = useState(false);
 
 useEffect(() => {
   const userId = localStorage.getItem("userId");
@@ -220,9 +202,35 @@ useEffect(() => {
     });
   };
 
+  const fetchProject = async (projectId) => {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/projects/${projectId}/?user_id=${userId}`
+      );
+      if (response.ok) {
+        const dbProject = await response.json();
+        console.log("Saved Project:", dbProject); 
+
+        const mappedProject = {
+          ...dbProject,
+          project_name: dbProject.name, 
+        };
+        
+        setSelectedProject(mappedProject);
+        
+        const savedProjectKey = `selectedProject_${userId}`;
+        localStorage.setItem(savedProjectKey, JSON.stringify(mappedProject));
+        localStorage.setItem("selectedProject", JSON.stringify(mappedProject));
+      }
+    } catch (error) {
+      console.error("Error fetching project:", error);
+    }
+  };
+
   const handleSave = async () => { 
     try { 
       console.log("Selected Project in Save:", selectedProject); 
+      setIsSaving(true);
       
       // Request body for local API (integrate)
       const localRequestBody = { 
@@ -266,24 +274,11 @@ useEffect(() => {
 
       // Check if both APIs succeeded
       if (localResponse.ok && dbResponse.ok) { 
-        const updatedLocalProject = await localResponse.json(); 
-        const updatedDbProject = await dbResponse.json();
 
-        // Merge the responses to ensure we have complete data
-        const mergedProject = {
-          ...updatedLocalProject,
-          id: updatedDbProject.id, // Ensure we keep the DB ID
-          project_name: updatedDbProject.name || updatedLocalProject.project_name
-        };
+        await fetchProject(selectedProject.id);
 
-        setSelectedProject(mergedProject); 
-
-        const savedProjectKey = `selectedProject_${userId}`; 
-        localStorage.setItem(savedProjectKey, JSON.stringify(mergedProject)); 
-        localStorage.setItem("selectedProject", JSON.stringify(mergedProject)); 
-
-        setIsEditModalOpen(false); 
-        alert("Project updated successfully in both local and database."); 
+        setIsEditModalOpen(false);
+        alert("Project updated successfully in both local and database.");
       } else {
         // Handle partial failures
         if (!localResponse.ok) {
@@ -299,7 +294,9 @@ useEffect(() => {
     } catch (err) { 
       console.error("Error updating project:", err); 
       alert("An error occurred while updating the project."); 
-    } 
+    }finally {
+      setIsSaving(false); 
+    }
   };
 
   const renderEditModal = () => {
@@ -346,62 +343,30 @@ useEffect(() => {
                   rows={3}
                 />
               </div>
-              {/* <div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Project Type
                 </label>
-                <div className="relative">
-                  <select
-                    value={selectedProject.project_type || ""}
-                    onChange={(e) =>
-                      handleChange("project_type", e.target.value)
-                    }
-                    className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none transition-all duration-200 pr-8"
-                  >
-                    {projectTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <div className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
+                  {selectedProject.project_type || "Not specified"}
                 </div>
               </div>
-              {selectedProject.project_type && subTypeOptions[selectedProject.project_type] && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Platform
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={selectedProject.platform || ""}
-                      onChange={(e) => handleChange("platform", e.target.value)}
-                      className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none transition-all duration-200 pr-8"
-                    >
-                      {subTypeOptions[selectedProject.project_type].map((option) => (
-                        <option 
-                          key={option} 
-                          value={option}
-                          disabled={option === "iOS"}
-                        >
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                      {selectedProject.platform && subTypeIcons[selectedProject.platform]}
-                    </div>
-                    <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Platform
+                </label>
+                <div className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
+                  {selectedProject.platform || "Not specified"}
                 </div>
-              )} */}
+              </div>
               <div className="flex space-x-2">
                 <button
                   onClick={handleSave}
-                  className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200"
+                  disabled={isSaving}
+                  className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors duration-200 disabled:opacity-50"
                 >
                   <Save className="w-4 h-4 mr-1" />
-                  Save
+                  {isSaving ? "Saving..." : "Save"}
                 </button>
                 <button
                   onClick={handleCancelEdit}
