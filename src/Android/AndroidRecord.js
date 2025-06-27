@@ -51,23 +51,11 @@ const AndroidRecord = () => {
   const [, setDeviceConnected] = useState(false);
   const [installedApps, setInstalledApps] = useState({});
   const [connectionLoading, setConnectionLoading] = useState(false);
-  const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
   const [appsLoaded, setAppsLoaded] = useState(false);
   const [pendingOpenCommand, setPendingOpenCommand] = useState(false);
-  const [connectionSteps, setConnectionSteps] = useState({
-    currentStep: 0,
-    steps: [
-      { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
-      { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
-      { id: 3, message: "Checking device connection...", icon: "🔍" },
-      { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
-      { id: 5, message: "Verifying ATX installation...", icon: "✓" }
-    ],
-    isSuccess: false,
-    successMessage: ""
-  });
+  const [headerLoading, setHeaderLoading] = useState(false);
+  const [syncButton, setSyncButton] = useState(false);
   
-
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -156,12 +144,22 @@ useEffect(() => {
     const inputText = newStep.trim().toLowerCase();
     const words = inputText.split(' ');
     const firstWord = words[0];
-    
-    console.log("Command detected:", firstWord);
-    
-    // Check if the command is a click, type, or open command
-    if (['click', 'type', 'verify', 'get', 'open'].includes(firstWord)) {
-        setCommandType(firstWord);
+    const fullCommand = (firstWord === 'scroll' || firstWord === 'swipe') && words.length > 1 
+        ? words.slice(0, firstWord === 'swipe' && words[1] === 'long' ? 3 : 2)
+        : firstWord;
+
+    console.log("Command detected:", fullCommand);
+
+      // Check if the command is a click, type, or open command
+      if (['click', 'type', 'verify', 'get', 'open', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
+        setCommandType(fullCommand);
+
+        if (
+            ['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)
+          ) {
+            setShowSuggestions(false);
+            return;
+          }
 
         if (firstWord === 'wait') {
             setShowSuggestions(false);
@@ -259,10 +257,13 @@ useEffect(() => {
         setSuggestions(suggestedElements);
         setShowSuggestions(suggestedElements.length > 0);
 
-    } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
+      } else if (firstWord === 'scroll') {
         setCommandType('scroll');
         setShowSuggestions(false);
-    } else if (firstWord === 'search') { 
+      } else if (firstWord === 'swipe') {
+        setCommandType('swipe');
+        setShowSuggestions(false);
+      } else if (firstWord === 'search') {
         setCommandType('search');
         setShowSuggestions(false);
     } else {
@@ -303,21 +304,10 @@ useEffect(() => {
   const checkDeviceConnection = async () => {
     console.log("checkDeviceConnection")
     setConnectionLoading(true);
-    setShowConnectionLoadingModal(true); 
-    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false })); 
-
+    setHeaderLoading(true); 
+    
     try {
-      // Step 1: USB Connection (show for 2-3 seconds)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Step 2: USB Debugging 
-      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Step 3: Actually check device connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
-
       // First API call - connect-ui
       const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
         method: "POST",
@@ -325,9 +315,8 @@ useEffect(() => {
       });
 
       if (!connectResponse.ok) {
-
         setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
+        setHeaderLoading(false); 
         setShowConnectModal(true);
         return;
       }
@@ -335,23 +324,16 @@ useEffect(() => {
       const connectData = await connectResponse.json();
       console.log("connect-ui response:", connectData);
 
-      // Move to step 4 (Installing ATX agent)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
-
       // Second API call - setup-device (ATX check)
       const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
         method: "POST", 
         headers: { "Content-Type": "application/json" }
       });
 
-      // Move to step 5 (Verifying ATX installation)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
-
       if (setupResponse.ok) {
         const setupData = await setupResponse.json();
         console.log("setup-device response:", setupData);
 
-        // Instead of checking for exact "Device Already Connected"
         if ((connectData["System Apps"] || connectData["User Apps"]) &&
             setupData.status === "success") {
           
@@ -361,127 +343,51 @@ useEffect(() => {
             ...connectData["User Apps"]
           };
           setInstalledApps(combinedApps);
+          sessionStorage.setItem('installedApps', JSON.stringify(combinedApps));
           setAppsLoaded(true);
-          
-          setConnectionSteps(prev => ({
-            ...prev,
-            isSuccess: true,
-            successMessage: "Device connected and ATX agent verified successfully!"
-          }));
-          
+          setSyncButton(true);
+
           setTimeout(() => {
-            setShowConnectionLoadingModal(false);
             setShowConnectModal(false);
-          }, 2000);
+          }, 1000);
+          
         } else {
           setDeviceConnected(false);
-          setShowConnectionLoadingModal(false);
           setShowConnectModal(false);
         }
       } else {
-        // ATX setup failed
         setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
         setShowConnectModal(false);
         alert("ATX agent installation failed. Please try again.");
       }
       
     } catch (error) {
-
       console.error("Error checking device connection:", error);
       setDeviceConnected(false);
-      setShowConnectionLoadingModal(false);
       setShowConnectModal(true);
     } finally {
       setConnectionLoading(false);
+      setHeaderLoading(false);
     }
   };
 
-  // const checkChromeAvailability = async () => {
-  //   console.log("checkDeviceConnection");
-  //   setConnectionLoading(true);
-  //   setShowConnectionLoadingModal(true); 
-  //   setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+  const checkConnectionStatus = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/android/connection/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
 
-  //   try {
-  //     // Step 1: USB Connection
-  //     setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-  //     await new Promise(resolve => setTimeout(resolve, 2000));
-
-  //     // Step 2: USB Debugging 
-  //     setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-  //     await new Promise(resolve => setTimeout(resolve, 2000));
-
-  //     // Step 3: Actually check device connection
-  //     setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
-
-  //     // First API call - connect-ui
-  //     const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" }
-  //     });
-
-  //     if (!connectResponse.ok) {
-  //       setDeviceConnected(false);
-  //       setShowConnectionLoadingModal(false);
-  //       setShowConnectModal(true);
-  //       return;
-  //     }
-
-  //     const connectData = await connectResponse.json();
-  //     console.log("connect-ui response:", connectData);
-
-  //     // Step 4 (simulate ATX setup delay only)
-  //     setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
-  //     await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
-
-  //     if ((connectData["System Apps"] || connectData["User Apps"])) {
-  //       setDeviceConnected(true);
-  //       const combinedApps = {
-  //         ...connectData["System Apps"],
-  //         ...connectData["User Apps"]
-  //       };
-  //       console.log("Setting installedApps:", combinedApps);
-  //       // Don't set installedApps to prevent suggestions// setInstalledApps(combinedApps);
-  //       // Don't set appsLoaded to prevent open command suggestions// setAppsLoaded(true); 
-
-  //       console.log("Searching for Chrome in installed apps...");
-  //       const chromeEntry = Object.entries(combinedApps).find(
-  //         ([appName, packageName]) =>
-  //           appName.toLowerCase().includes("chrome") ||
-  //           packageName.toLowerCase().includes("chrome")
-  //       );
-
-  //       if (chromeEntry) {
-  //         console.log("✅ Chrome is installed:", chromeEntry);
-  //         setConnectionSteps(prev => ({
-  //           ...prev,
-  //           isSuccess: true,
-  //           successMessage: "Chrome is available!"
-  //         }));
-  //       } else {
-  //         alert("🚫 Chrome is not available on this device.");
-  //       }
-
-  //       setTimeout(() => {
-  //         setShowConnectionLoadingModal(false);
-  //         setShowConnectModal(false);
-  //       }, 2000);
-  //     } else {
-  //       setDeviceConnected(false);
-  //       setShowConnectionLoadingModal(false);
-  //       setShowConnectModal(false);
-  //     }
-
-  //   } catch (error) {
-  //     console.error("Error checking device connection:", error);
-  //     setDeviceConnected(false);
-  //     setShowConnectionLoadingModal(false);
-  //     setShowConnectModal(true);
-  //   } finally {
-  //     setConnectionLoading(false);
-  //   }
-  // };
+      const data = await response.json();
+      console.log("Connection API Data:", data);
+      
+      // Return true if device is connected, false otherwise
+      return response.ok && data.status === "success" && data.serial;
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (!testCaseInfo || !testCaseInfo.platform) return;
@@ -490,13 +396,64 @@ useEffect(() => {
     console.log("platform-recordpage:", platform)
 
     if (platform === "Android") {
+      // Check sessionStorage first
+      const storedApps = sessionStorage.getItem('installedApps');
+      
+      if (storedApps) {
+        try {
+          const parsedApps = JSON.parse(storedApps);
+          if (Object.keys(parsedApps).length > 0) {
+            // Apps exist in storage, but verify device is still connected
+            checkConnectionStatus().then(isConnected => {
+              if (isConnected) {
+                // Device still connected, use stored apps
+                setInstalledApps(parsedApps);
+                setAppsLoaded(true);
+                setSyncButton(true);
+                setDeviceConnected(true);
+              } else {
+                // Device disconnected, but keep stored apps - just show connect modal
+                setInstalledApps(parsedApps); 
+                setAppsLoaded(true);
+                setDeviceConnected(false);
+                setSyncButton(false); 
+                setShowConnectModal(true);
+              }
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Error parsing stored apps:', error);
+          sessionStorage.removeItem('installedApps');
+        }
+      }
+
       checkDeviceConnection();
     } 
-    // else if (platform === "Mobile") {
-    //   checkChromeAvailability();
-    // }
-    
   }, [testCaseInfo]);
+
+  const handleSyncApps = async () => {
+    setHeaderLoading(true);
+    
+    // First check if device is still connected
+    const isConnected = await checkConnectionStatus();
+    
+    if (!isConnected) {
+      // Device disconnected, show connect modal but keep apps
+      setDeviceConnected(false);
+      setSyncButton(false);
+      setHeaderLoading(false);
+      setShowConnectModal(true);
+      return;
+    }
+    
+    // Device connected, force refresh apps (user manually requested sync)
+    sessionStorage.removeItem('installedApps');
+    setAppsLoaded(false);
+    setInstalledApps({});
+    setSyncButton(false);
+    await checkDeviceConnection();
+  };
 
   const getLastClickCoordinates = (steps) => {
     // Loop backwards through steps to find the last successful click action
@@ -525,20 +482,17 @@ useEffect(() => {
       // This will pass the command directly to executeStep
     }
 
-    // Add 'wait' to the list of allowed commands
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search'];
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search', 'swipe'];
     if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, open, scroll, search, or type.");
+      alert("Unknown command. Please use: click, open, scroll, search, swipe or type.");
       return;
     }
-    
-    // If it's a wait command but no configuration has been done yet, show the wait modal
+
     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
       setWaitModalOpen(true);
       return;
     }
     
-    // Existing verification logic
     if (actionType === 'verify') {
       const textToVerify = words.slice(1).join(' ');
       
@@ -560,13 +514,11 @@ useEffect(() => {
       }
     }
     
-    // For commands that require element selection
     if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
       alert("Please select an element from the suggestions before adding this step.");
       return;
     }
-    
-    // Create step object for execution (but don't add to testSteps yet)
+
     const newStepObj = {
       id: Date.now(),
       description: commandType === 'open' && selectedElement?.packageName 
@@ -686,16 +638,21 @@ useEffect(() => {
         const stepDescription = stepObj.description;
         
         const words = stepDescription.trim().split(' ');
-        const actionType = words[0].toLowerCase();
+        const actionType = (words[0].toLowerCase() === 'scroll' || words[0].toLowerCase() === 'swipe') && words.length > 1
+          ? (words[0].toLowerCase() === 'swipe' && words[1] && words[1].toLowerCase() === 'long' && words.length > 2
+              ? words.slice(0, 3).join(' ').toLowerCase()
+              : words.slice(0, 2).join(' ').toLowerCase())
+          : words[0].toLowerCase();
+
         words[0] = actionType;
   
         let updatedStepDescription = stepDescription;
     
-        if (actionType === 'scrollup') {
-          updatedStepDescription = "scroll_up page";
+        if (actionType === 'scroll up') {
+          updatedStepDescription = "scroll up";
           console.log("Converting 'scrollup' to 'scroll_up page'");
-        } else if (actionType === 'scrolldown') {
-          updatedStepDescription = "scroll_down page";
+        } else if (actionType === 'scroll down') {
+          updatedStepDescription = "scroll down";
           console.log("Converting 'scrolldown' to 'scroll_down page'");
         } else {
           words[0] = actionType;
@@ -705,9 +662,7 @@ useEffect(() => {
         console.log("Updated Step Description:", updatedStepDescription); 
         
         const stepIndex = testSteps.length;
-        if (actionType === 'scrollup' || actionType === 'scrolldown') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${actionType === 'scrollup' ? 'up' : 'down'}, please wait...`);
-        } else if (actionType === 'open') {
+        if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
         } else if (actionType === 'search') {
           setLoadingMessage(`Step ${stepIndex + 1}: Executing Search, please wait...`);
@@ -721,8 +676,18 @@ useEffect(() => {
           setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
         } else if (actionType === 'wait') {
           setLoadingMessage(`Step ${stepIndex + 1}: Waiting, please be patient...`);
-        } else {
-          setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
+        } else if (actionType === 'scroll up') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up, please wait...`);
+        } else if (actionType === 'scroll down') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down, please wait...`);
+        } else if (actionType === 'swipe left') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Swiping left, please wait...`);
+        } else if (actionType === 'swipe right') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Swiping right, please wait...`);
+        } else if (actionType === 'swipe long right') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Swiping long right, please wait...`);
+        } else if (actionType === 'swipe long left') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Swiping long left, please wait...`);
         }
 
         if (actionType === 'wait') {
@@ -1162,7 +1127,7 @@ useEffect(() => {
         else if (actionType === 'search') {
             
           let requestBody = {
-              command: stepDescription // This will be like "search python"
+              command: stepDescription
           };
 
           console.log('Sending search command:', {
@@ -1405,44 +1370,187 @@ useEffect(() => {
               debug_images: data.coordinates?.debug_images || {},
           };
         } 
-        else if (actionType === 'scrollup' || actionType === 'scrolldown') {
-          const requestBody = { 
-            command: updatedStepDescription, 
-            user_id: user_id
+        else if (actionType === 'scroll up' || actionType === 'scroll down' || actionType === 'swipe left' || actionType === 'swipe right' || actionType === 'swipe long right' || actionType === 'swipe long left') {
+
+          let modifiedCommand = actionType;
+
+          let requestBody = {
+              command: modifiedCommand
           };
 
-          console.log("Scroll Request Body:", requestBody);
-
-          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
+          console.log('Sending scroll/swipe command:', {
+              originalCommand: stepDescription,
+              modifiedCommand: modifiedCommand,
+              requestBody: requestBody
           });
 
-          if (!response.ok) throw new Error(`Failed to execute ${actionType} command`);
-            const data = await response.json();
-            
-            console.log("Scroll Response:", data);
+          const response = await fetch('http://localhost:8000/android/command/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody),
+          });
 
-          if (data.omniparser_data && data.omniparser_data.elements) {
-            setElementData(data.omniparser_data);
-            sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+          if (!response.ok) {
+              throw new Error(`Failed to execute ${actionType} command`);
           }
 
-          const screenshotUrl = data.screenshot
-            ? `http://127.0.0.1:8000${data.screenshot}`
-            : `/api/placeholder/800/300?text=No_Screenshot`;
+          const data = await response.json();
+          console.log(`${actionType} response:`, data);
+
+          // Process screen elements same as other commands
+          let androidElementData = {};
+          
+          if (data.screen_elements) {
+              const allElements = [
+                  ...data.screen_elements.buttons.map(btn => {
+                      const bounds = btn.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for button:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: btn.description?.replace(/"/g, '') || '',
+                          displayName: btn.content_desc || btn.description?.replace(/"/g, '') || '',
+                          content_desc: btn.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: btn.resource_id,
+                          class: btn.class,
+                          clickable: btn.clickable
+                      };
+                  }),
+                  ...data.screen_elements.text_fields.map(field => {
+                      const bounds = field.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for text field:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: field.description?.replace(/"/g, '') || '',
+                          displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                          content_desc: field.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: field.resource_id,
+                          class: field.class,
+                          clickable: field.clickable
+                      };
+                  }),
+                  ...data.screen_elements.icons.map(icon => {
+                      const bounds = icon.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for icon:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: icon.description?.replace(/"/g, '') || '',
+                          displayName: icon.content_desc || icon.description?.replace(/"/g, '') || '',
+                          content_desc: icon.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: icon.resource_id,
+                          class: icon.class,
+                          clickable: icon.clickable
+                      };
+                  }),
+                  ...data.screen_elements.other.map(other => {
+                      const bounds = other.bounds;
+                      let click_point = [0, 0];
+                      
+                      if (bounds && typeof bounds === 'string') {
+                          try {
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds for other element:', bounds, e);
+                          }
+                      }
+                      
+                      return {
+                          name: other.description?.replace(/"/g, '') || '',
+                          displayName: other.content_desc || other.description?.replace(/"/g, '') || '',
+                          content_desc: other.content_desc || '',
+                          click_point: click_point,
+                          bounds: bounds,
+                          resource_id: other.resource_id,
+                          class: other.class,
+                          clickable: other.clickable
+                      };
+                  })
+              ];
+
+              androidElementData = { elements: allElements };
+              
+              const suggestions = allElements
+                  .filter(element => element.content_desc && element.content_desc.trim() !== '')
+                  .map(element => element.content_desc);
+              
+              setElementData(androidElementData);
+              sessionStorage.setItem('latestElementData', JSON.stringify(androidElementData));
+              setSuggestions(suggestions);
+          } else {
+              setSuggestions([]);
+          }
+
+          const screenshotUrl = data.screenshot_result?.url
+              ? `http://localhost:8000${data.screenshot_result.url}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
 
           return {
-            status: 'complete',
-            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-            message: data.message || `${actionType} executed successfully`,
-            screenshot: screenshotUrl,
-            coordinates: data.coordinates || {},
-            requestBody,
-            debug_images: data.coordinates?.debug_images || {},
+              status: 'complete',
+              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              message: data.action_result?.message || `${actionType} command executed successfully`,
+              screenshot: screenshotUrl,
+              coordinates: androidElementData,
+              requestBody,
+              debug_images: data.coordinates?.debug_images || {},
           };
-        } 
+        }
         else if (actionType === 'get') {
             const selectedElement = stepObj.selectedElement;
                 
@@ -1967,7 +2075,7 @@ const SuggestionsDropdown = () => {
   const shouldShowNoDataMessage =
     suggestions.length === 0 &&
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd)); // Removed 'open' from here
+    ['click', 'type', 'verify', 'get',].some(cmd => newStep.startsWith(cmd)); 
   
   if (shouldShowNoDataMessage) {
     return (
@@ -2040,10 +2148,11 @@ const SuggestionsDropdown = () => {
               <span className="mr-2">📄</span> Get text from page:
             </>
           ) : commandType === 'open' ? (
-              <>
-                  <span className="mr-2">📱</span> Select an app to open:
-              </>
+            <>
+              <span className="mr-2">📱</span> Select an app to open:
+            </>
           ) : null}
+
 
         </h4>
         <p className="text-xs text-gray-600">
@@ -2250,7 +2359,23 @@ const InstructionModal = ({ isOpen, onClose }) => {
             
             <div className="flex gap-3">
               <button
-                onClick={checkDeviceConnection}
+                onClick={() => {
+                  // If apps are already loaded, only check connection status
+                  if (appsLoaded && Object.keys(installedApps).length > 0) {
+                    setConnectionLoading(true);
+                    checkConnectionStatus().then(isConnected => {
+                      if (isConnected) {
+                        setDeviceConnected(true);
+                        setSyncButton(true);
+                        setShowConnectModal(false);
+                      }
+                      setConnectionLoading(false);
+                    });
+                  } else {
+                    // No apps present, do full device connection check
+                    checkDeviceConnection();
+                  }
+                }}
                 disabled={connectionLoading}
                 className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
@@ -2270,71 +2395,6 @@ const InstructionModal = ({ isOpen, onClose }) => {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const ConnectionLoadingModal = () => {
-    if (!showConnectionLoadingModal) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            {!connectionSteps.isSuccess ? (
-              <>
-                <div className="mb-6">
-                  <div className="text-4xl mb-4">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Connecting to Device...
-                  </h3>
-                  <p className="text-gray-600">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.message}
-                  </p>
-                </div>
-                
-                {/* Progress steps */}
-                <div className="mb-6">
-                  {connectionSteps.steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center mb-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                        index <= connectionSteps.currentStep 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {index < connectionSteps.currentStep ? '✓' : index + 1}
-                      </div>
-                      <span className={`text-sm ${
-                        index <= connectionSteps.currentStep 
-                          ? 'text-gray-800 font-medium' 
-                          : 'text-gray-500'
-                      }`}>
-                        {step.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Loading spinner */}
-                <div className="flex justify-center">
-                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-green-500 text-4xl mb-4">✅</div>
-                <h3 className="text-xl font-semibold mb-2 text-green-600">
-                  Success!
-                </h3>
-                <p className="text-gray-600">
-                  {connectionSteps.successMessage}
-                </p>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -2522,22 +2582,43 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   {testCaseInfo.project_type}
                 </span>
 
-                <span className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium ${
-                  testCaseInfo.platform === 'Mobile' 
-                    ? 'bg-orange-100 text-orange-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {testCaseInfo.platform === 'Mobile' 
-                    ? <>
-                        <Smartphone className="w-4 h-4" />
-                        Mobile (Chrome Only)
-                      </>
-                    : <>
-                        <MonitorSmartphone className="w-4 h-4" />
-                        {testCaseInfo.platform}
-                      </>
-                  }
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium ${
+                    testCaseInfo.platform === 'Mobile' 
+                      ? 'bg-orange-100 text-orange-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {testCaseInfo.platform === 'Mobile' 
+                      ? <>
+                          <Smartphone className="w-4 h-4" />
+                          Mobile (Chrome Only)
+                        </>
+                      : <>
+                          <MonitorSmartphone className="w-4 h-4" />
+                          {testCaseInfo.platform}
+                        </>
+                    }
+                  </span>
+                  
+                  {/* Loading status or sync button */}
+                  {headerLoading ? (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Getting installed apps...
+                    </div>
+                  ) : syncButton ? (
+                    <button
+                      onClick={handleSyncApps}
+                      disabled={connectionLoading}
+                      className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-md text-sm hover:bg-purple-200 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Sync Apps
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -2664,7 +2745,8 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                       {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
                       {commandType === 'open' && "Navigation command - Enter URL"}
                       {commandType === 'search' && "Navigation command - search [text]"}
-                      {commandType === 'scroll' && "Scroll command - use 'scrollup' or 'scrolldown'"}
+                      {commandType === 'scroll' && "Scroll command - choose direction (scroll up / scroll down)"}
+                      {commandType === 'swipe' && "Swipe command - choose direction (swipe left / swipe right / swipe long left / swipe long right)"}
                     </div>
                   )}
                 </div>
@@ -2705,28 +2787,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
 
-                        {/* {step.description.toLowerCase().startsWith('wait') && (
-                          <div className="text-sm text-gray-600 mt-1">
-                            {step.waitCondition === 'static_wait' ? (
-                              <span>Static wait for {step.waitTimeout / 1000}s</span>
-                            ) : step.waitCondition === 'text_match' ? (
-                              <span>Waiting for text: "{step.waitText}"</span>
-                            ) : step.waitCondition === 'url_match' ? (
-                              <span>Waiting for URL containing: "{step.waitText}"</span>
-                            ) : (
-                              <span>Waiting...</span>
-                            )}
-                          </div>
-                        )}
-                        
-                        {step.message && (
-                          <div className={`text-sm ${
-                            step.status === 'error' ? 'text-red-600' : 'text-gray-500'
-                          }`}>
-                            {step.message}
-                          </div>
-                        )}  */}
-
+                      
                         {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
                             <img
@@ -2740,18 +2801,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                             </div>
                           </div>
                         )}
-{/*
-                        {step.status === 'complete' && (
-                          <div className="mt-3">
-                            {step.omniparser_data?.debug_images && Object.keys(step.omniparser_data.debug_images).length > 0 && (
-                              <DebugImagesViewer debugImages={step.omniparser_data.debug_images} />
-                            )}
-                            {step.coordinates?.debug_images && Object.keys(step.coordinates.debug_images).length > 0 && (
-                              <DebugImagesViewer debugImages={step.coordinates.debug_images} />
-                            )}
-                          </div>
-                        )}
-*/}
+
                         {step.message && (
                           <p className="text-xs text-gray-600 mt-1">
                             <span className="font-medium">Status:</span> {step.message}
@@ -2879,7 +2929,6 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   onClose={() => setInstructionModalOpen(false)}
                 />
                 <ConnectDeviceModal />  
-                <ConnectionLoadingModal />
                 <WaitModal
                   isOpen={waitModalOpen}
                   onClose={() => setWaitModalOpen(false)}

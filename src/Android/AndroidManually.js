@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone, MonitorSmartphone } from 'lucide-react';
+import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone, MonitorSmartphone, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
@@ -71,19 +71,8 @@ const AndroidManually = () => {
   const [deviceConnected, setDeviceConnected] = useState(false);
   const [installedApps, setInstalledApps] = useState({});
   const [connectionLoading, setConnectionLoading] = useState(false);
-  const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
-  const [connectionSteps, setConnectionSteps] = useState({
-    currentStep: 0,
-    steps: [
-      { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
-      { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
-      { id: 3, message: "Checking device connection...", icon: "🔍" },
-      { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
-      { id: 5, message: "Verifying ATX installation...", icon: "✓" }
-    ],
-    isSuccess: false,
-    successMessage: ""
-  });
+  const [headerLoading, setHeaderLoading] = useState(false);
+  const [syncButton, setSyncButton] = useState(false);
 
   const inputRef = useRef(null);
 
@@ -169,20 +158,9 @@ const AndroidManually = () => {
   const checkDeviceConnection = async () => {
     console.log("checkDeviceConnection")
     setConnectionLoading(true);
-    setShowConnectionLoadingModal(true); 
-    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false })); 
+    setHeaderLoading(true); 
 
     try {
-      // Step 1: USB Connection (show for 2-3 seconds)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Step 2: USB Debugging 
-      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Step 3: Actually check device connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
 
       // First API call - connect-ui
       const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
@@ -191,9 +169,8 @@ const AndroidManually = () => {
       });
 
       if (!connectResponse.ok) {
-
+        setHeaderLoading(false); 
         setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
         setShowConnectModal(true);
         return;
       }
@@ -201,8 +178,7 @@ const AndroidManually = () => {
       const connectData = await connectResponse.json();
       console.log("connect-ui response:", connectData);
 
-      // Move to step 4 (Installing ATX agent)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+      await new Promise(resolve => setTimeout(resolve, 1000));  
 
       // Second API call - setup-device (ATX check)
       const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
@@ -210,9 +186,7 @@ const AndroidManually = () => {
         headers: { "Content-Type": "application/json" }
       });
 
-      // Move to step 5 (Verifying ATX installation)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
-
+      
       if (setupResponse.ok) {
         const setupData = await setupResponse.json();
         console.log("setup-device response:", setupData);
@@ -227,26 +201,19 @@ const AndroidManually = () => {
             ...connectData["User Apps"]
           };
           setInstalledApps(combinedApps);
-          
-          setConnectionSteps(prev => ({
-            ...prev,
-            isSuccess: true,
-            successMessage: "Device connected and ATX agent verified successfully!"
-          }));
-          
+          sessionStorage.setItem('installedApps', JSON.stringify(combinedApps)); 
+          setSyncButton(true);
+
           setTimeout(() => {
-            setShowConnectionLoadingModal(false);
             setShowConnectModal(false);
-          }, 2000);
+          }, 1000);
         } else {
           setDeviceConnected(false);
-          setShowConnectionLoadingModal(false);
           setShowConnectModal(false);
         }
       } else {
         // ATX setup failed
         setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
         setShowConnectModal(false);
         alert("ATX agent installation failed. Please try again.");
       }
@@ -255,98 +222,98 @@ const AndroidManually = () => {
 
       console.error("Error checking device connection:", error);
       setDeviceConnected(false);
-      setShowConnectionLoadingModal(false);
       setShowConnectModal(true);
     } finally {
       setConnectionLoading(false);
+      setHeaderLoading(false);
     }
   };
 
-  const checkChromeAvailability = async () => {
-    console.log("checkDeviceConnection");
-    setConnectionLoading(true);
-    setShowConnectionLoadingModal(true); 
-    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+  // const checkChromeAvailability = async () => {
+  //   console.log("checkDeviceConnection");
+  //   setConnectionLoading(true);
+  //   // setShowConnectionLoadingModal(true); 
+  //   setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
 
-    try {
-      // Step 1: USB Connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  //   try {
+  //     // Step 1: USB Connection
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Step 2: USB Debugging 
-      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+  //     // Step 2: USB Debugging 
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Step 3: Actually check device connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+  //     // Step 3: Actually check device connection
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
 
-      // First API call - connect-ui
-      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
+  //     // First API call - connect-ui
+  //     const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" }
+  //     });
 
-      if (!connectResponse.ok) {
-        setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
-        setShowConnectModal(true);
-        return;
-      }
+  //     if (!connectResponse.ok) {
+  //       setDeviceConnected(false);
+  //       setShowConnectionLoadingModal(false);
+  //       setShowConnectModal(true);
+  //       return;
+  //     }
 
-      const connectData = await connectResponse.json();
-      console.log("connect-ui response:", connectData);
+  //     const connectData = await connectResponse.json();
+  //     console.log("connect-ui response:", connectData);
 
-      // Step 4 (simulate ATX setup delay only)
-      setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
+  //     // Step 4 (simulate ATX setup delay only)
+  //     setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+  //     await new Promise(resolve => setTimeout(resolve, 2000));  // simulate delay
 
-      if ((connectData["System Apps"] || connectData["User Apps"])) {
+  //     if ((connectData["System Apps"] || connectData["User Apps"])) {
 
-        setDeviceConnected(true);
-        const combinedApps = {
-          ...connectData["System Apps"],
-          ...connectData["User Apps"]
-        };
-        console.log("Setting installedApps:", combinedApps);
-        // setInstalledApps(combinedApps);
+  //       setDeviceConnected(true);
+  //       const combinedApps = {
+  //         ...connectData["System Apps"],
+  //         ...connectData["User Apps"]
+  //       };
+  //       console.log("Setting installedApps:", combinedApps);
+  //       // setInstalledApps(combinedApps);
 
-        console.log("Searching for Chrome in installed apps...");
-        const chromeEntry = Object.entries(combinedApps).find(
-          ([appName, packageName]) =>
-            appName.toLowerCase().includes("chrome") ||
-            packageName.toLowerCase().includes("chrome")
-        );
+  //       console.log("Searching for Chrome in installed apps...");
+  //       const chromeEntry = Object.entries(combinedApps).find(
+  //         ([appName, packageName]) =>
+  //           appName.toLowerCase().includes("chrome") ||
+  //           packageName.toLowerCase().includes("chrome")
+  //       );
 
-        if (chromeEntry) {
-          console.log("✅ Chrome is installed:", chromeEntry);
-          setConnectionSteps(prev => ({
-            ...prev,
-            isSuccess: true,
-            successMessage: "Chrome is available!"
-          }));
-        } else {
-          alert("🚫 Chrome is not available on this device.");
-        }
+  //       if (chromeEntry) {
+  //         console.log("✅ Chrome is installed:", chromeEntry);
+  //         setConnectionSteps(prev => ({
+  //           ...prev,
+  //           isSuccess: true,
+  //           successMessage: "Chrome is available!"
+  //         }));
+  //       } else {
+  //         alert("🚫 Chrome is not available on this device.");
+  //       }
 
-        setTimeout(() => {
-          setShowConnectionLoadingModal(false);
-          setShowConnectModal(false);
-        }, 2000);
-      } else {
-        setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
-        setShowConnectModal(false);
-      }
+  //       setTimeout(() => {
+  //         setShowConnectionLoadingModal(false);
+  //         setShowConnectModal(false);
+  //       }, 2000);
+  //     } else {
+  //       setDeviceConnected(false);
+  //       setShowConnectionLoadingModal(false);
+  //       setShowConnectModal(false);
+  //     }
 
-    } catch (error) {
-      console.error("Error checking device connection:", error);
-      setDeviceConnected(false);
-      setShowConnectionLoadingModal(false);
-      setShowConnectModal(true);
-    } finally {
-      setConnectionLoading(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Error checking device connection:", error);
+  //     setDeviceConnected(false);
+  //     setShowConnectionLoadingModal(false);
+  //     setShowConnectModal(true);
+  //   } finally {
+  //     setConnectionLoading(false);
+  //   }
+  // };
 
   const fetchAppSuggestions = useCallback((searchTerm, index) => {
     // console.log('🔍 fetchAppSuggestions called:', { 
@@ -390,6 +357,38 @@ const AndroidManually = () => {
     }
   }, [installedApps, deviceConnected, currentStepId, fetchAppSuggestions, showSuggestions]); 
 
+  // useEffect(() => {
+  //   if (!testCaseInfo || !testCaseInfo.platform) return;
+
+  //   const platform = testCaseInfo.platform;
+  //   console.log("platform-recordpage:", platform)
+
+  //   if (platform === "Android") {
+  //     checkDeviceConnection();
+  //   } 
+  //   // else if (platform === "Mobile") {
+  //   //   checkChromeAvailability();
+  //   // }
+  // }, [testCaseInfo]);
+
+  const checkConnectionStatus = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/android/connection/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+
+      const data = await response.json();
+      console.log("Connection API Data:", data);
+      
+      // Return true if device is connected, false otherwise
+      return response.ok && data.status === "success" && data.serial;
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (!testCaseInfo || !testCaseInfo.platform) return;
 
@@ -397,12 +396,61 @@ const AndroidManually = () => {
     console.log("platform-recordpage:", platform)
 
     if (platform === "Android") {
+      // Check sessionStorage first
+      const storedApps = sessionStorage.getItem('installedApps');
+      
+      if (storedApps) {
+        try {
+          const parsedApps = JSON.parse(storedApps);
+          if (Object.keys(parsedApps).length > 0) {
+            // Apps exist in storage, but verify device is still connected
+            checkConnectionStatus().then(isConnected => {
+              if (isConnected) {
+                // Device still connected, use stored apps
+                setInstalledApps(parsedApps);
+                setSyncButton(true);
+                setDeviceConnected(true);
+              } else {
+                // Device disconnected, but keep stored apps - just show connect modal
+                setInstalledApps(parsedApps); 
+                setDeviceConnected(false);
+                setSyncButton(false); 
+                setShowConnectModal(true);
+              }
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Error parsing stored apps:', error);
+          sessionStorage.removeItem('installedApps');
+        }
+      }
+
       checkDeviceConnection();
-    } else if (platform === "Mobile") {
-      checkChromeAvailability();
-    }
+    } 
   }, [testCaseInfo]);
 
+  const handleSyncApps = async () => {
+    setHeaderLoading(true);
+    
+    // First check if device is still connected
+    const isConnected = await checkConnectionStatus();
+    
+    if (!isConnected) {
+      // Device disconnected, show connect modal but keep apps
+      setDeviceConnected(false);
+      setSyncButton(false);
+      setHeaderLoading(false);
+      setShowConnectModal(true);
+      return;
+    }
+    
+    // Device connected, force refresh apps (user manually requested sync)
+    sessionStorage.removeItem('installedApps');
+    setInstalledApps({});
+    setSyncButton(false);
+    await checkDeviceConnection();
+  };
 
 const handleCreateTestCase = async () => {
     setIsLoading(true);
@@ -925,6 +973,12 @@ const convertAndroidElements = (screenElements) => {
   
     const words = input.trim().split(' ');
     const command = words[0].toLowerCase();
+    const wordsLowerCase = words.map(word => word.toLowerCase());
+    const fullCommand = (command === 'scroll' || command === 'swipe') && words.length > 1
+      ? (command === 'swipe' && wordsLowerCase[1] === 'long' && words.length > 2
+          ? wordsLowerCase.slice(0, 3).join(' ')
+          : wordsLowerCase.slice(0, 2).join(' '))
+      : command;
     
     if (['click', 'type', 'verify', 'get'].includes(command)) {
       setCommandType(command);
@@ -948,8 +1002,8 @@ const convertAndroidElements = (screenElements) => {
         setShowSuggestions(false);
         setCommandSuggestions([]);
       }
-    } else if (['scrollup', 'scrolldown', 'wait'].includes(command)) {
-      setCommandType(command);
+    } else if (['scroll up', 'scroll down', 'wait', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) { 
+      setCommandType(fullCommand); 
       setShowSuggestions(false);
 
       if (command === 'wait' && words.length === 1) {
@@ -1435,7 +1489,23 @@ const convertAndroidElements = (screenElements) => {
             
             <div className="flex gap-3">
               <button
-                onClick={checkDeviceConnection}
+                onClick={() => {
+                  // If apps are already loaded, only check connection status
+                  if (Object.keys(installedApps).length > 0) {
+                    setConnectionLoading(true);
+                    checkConnectionStatus().then(isConnected => {
+                      if (isConnected) {
+                        setDeviceConnected(true);
+                        setSyncButton(true);
+                        setShowConnectModal(false);
+                      }
+                      setConnectionLoading(false);
+                    });
+                  } else {
+                    // No apps present, do full device connection check
+                    checkDeviceConnection();
+                  }
+                }}
                 disabled={connectionLoading}
                 className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
@@ -1455,71 +1525,6 @@ const convertAndroidElements = (screenElements) => {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const ConnectionLoadingModal = () => {
-    if (!showConnectionLoadingModal) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            {!connectionSteps.isSuccess ? (
-              <>
-                <div className="mb-6">
-                  <div className="text-4xl mb-4">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Connecting to Device...
-                  </h3>
-                  <p className="text-gray-600">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.message}
-                  </p>
-                </div>
-                
-                {/* Progress steps */}
-                <div className="mb-6">
-                  {connectionSteps.steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center mb-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                        index <= connectionSteps.currentStep 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {index < connectionSteps.currentStep ? '✓' : index + 1}
-                      </div>
-                      <span className={`text-sm ${
-                        index <= connectionSteps.currentStep 
-                          ? 'text-gray-800 font-medium' 
-                          : 'text-gray-500'
-                      }`}>
-                        {step.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Loading spinner */}
-                <div className="flex justify-center">
-                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-green-500 text-4xl mb-4">✅</div>
-                <h3 className="text-xl font-semibold mb-2 text-green-600">
-                  Success!
-                </h3>
-                <p className="text-gray-600">
-                  {connectionSteps.successMessage}
-                </p>
-              </>
-            )}
           </div>
         </div>
       </div>
@@ -1702,6 +1707,25 @@ const convertAndroidElements = (screenElements) => {
                       </>
                   }
                 </span>
+
+                {/* Loading status or sync button */}
+                {headerLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Getting installed apps...
+                  </div>
+                ) : syncButton ? (
+                  <button
+                    onClick={handleSyncApps}
+                    disabled={connectionLoading}
+                    className="flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-md text-sm hover:bg-purple-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Sync Apps
+                  </button>
+                ) : null}
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -2050,7 +2074,7 @@ const convertAndroidElements = (screenElements) => {
       )}
       <InstructionsModal />
       <ConnectDeviceModal />  
-      <ConnectionLoadingModal />
+      {/* <ConnectionLoadingModal /> */}
       <WaitModal 
         isOpen={showWaitModal}
         onClose={() => setShowWaitModal(false)}

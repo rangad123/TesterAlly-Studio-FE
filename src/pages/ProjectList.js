@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { MonitorSmartphone, Smartphone, Monitor, BarChart3, Globe } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 
 const ProjectList = () => {
@@ -165,9 +166,36 @@ const ProjectList = () => {
     >
       <td className="px-6 py-4 text-sm text-gray-900 font-medium">{project.project_name}</td>
       <td className="px-6 py-4 text-sm text-gray-500">{project.description || "N/A"}</td>
-      <td className="px-6 py-4 text-sm text-gray-500">{project.project_type || "N/A"}</td>
+      <td className="px-6 py-4 text-sm text-gray-500 flex items-center gap-2">
+        {project.project_type === "Web Application" && <>
+          <Globe className="w-4 h-4 text-blue-600" /> Web App
+        </>}
+        {project.project_type === "Mobile Application" && <>
+          <Smartphone className="w-4 h-4 text-green-600" /> Mobile App
+        </>}
+        {project.project_type === "Desktop Application" && <>
+          <Monitor className="w-4 h-4 text-purple-600" /> Desktop App
+        </>}
+        {project.project_type === "Data Analyst" && <>
+          <BarChart3 className="w-4 h-4 text-orange-600" /> Analyst
+        </>}
+      </td>
       <td className="px-6 py-4 text-sm text-gray-500">
         {project.created_at ? new Date(project.created_at).toLocaleDateString() : "N/A"}
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-500 flex items-center gap-2">
+        {project.platform === "Android" && <>
+          <Smartphone className="w-4 h-4 text-green-600" /> Android
+        </>}
+        {project.platform === "IOS" && <>
+          <MonitorSmartphone className="w-4 h-4 text-gray-600" /> iOS
+        </>}
+        {project.platform === "Laptop/PC" && <>
+          <Monitor className="w-4 h-4 text-blue-600" /> Laptop
+        </>}
+        {project.platform === "Mobile" && <>
+          <Smartphone className="w-4 h-4 text-pink-500" /> Mobile
+        </>}
       </td>
     </tr>
   );
@@ -203,6 +231,7 @@ const ProjectList = () => {
                   <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase">Description</th>
                   <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase">Project Type</th>
                   <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase">Created At</th>
+                  <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase">Platform</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">

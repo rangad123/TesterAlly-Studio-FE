@@ -218,14 +218,20 @@ const handleCommandInputChange = (e) => {
 
   const words = input.trim().split(' ');
   const command = words[0].toLowerCase();
+  const wordsLowerCase = words.map(word => word.toLowerCase());
+  const fullCommand = (command === 'scroll' || command === 'swipe') && words.length > 1
+    ? (command === 'swipe' && wordsLowerCase[1] === 'long' && words.length > 2
+        ? wordsLowerCase.slice(0, 3).join(' ')
+        : wordsLowerCase.slice(0, 2).join(' '))
+    : command;
 
   if (['click', 'type', 'verify', 'get'].includes(command)) {
     setCommandType(command);
     fetchElementSuggestions(command, input, words);
     setShowSuggestions(true);
 
-  } else if (['scrollup', 'scrolldown'].includes(command)) {
-    setCommandType(command);
+  } else if (['scroll up', 'scroll down', 'wait', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) { 
+    setCommandType(fullCommand); 
     setShowSuggestions(false);
 
   } else if (command === 'wait') {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff,Smartphone, MonitorSmartphone } from 'lucide-react';
+import { X, Plus, Camera , RotateCw, Check, Info, Save, ChevronUp, ChevronDown, WifiOff, Wifi, Smartphone, MonitorSmartphone,Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 
@@ -70,19 +70,19 @@ const MobileManually = () => {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [deviceConnected, setDeviceConnected] = useState(false);
   const [connectionLoading, setConnectionLoading] = useState(false);
-  const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
-  const [connectionSteps, setConnectionSteps] = useState({
-    currentStep: 0,
-    steps: [
-      { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
-      { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
-      { id: 3, message: "Checking device connection...", icon: "🔍" },
-      { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
-      { id: 5, message: "Verifying ATX installation...", icon: "✓" }
-    ],
-    isSuccess: false,
-    successMessage: ""
-  });
+  // const [showConnectionLoadingModal, setShowConnectionLoadingModal] = useState(false);
+  // const [connectionSteps, setConnectionSteps] = useState({
+  //   currentStep: 0,
+  //   steps: [
+  //     { id: 1, message: "Please connect USB cable to your device", icon: "🔌" },
+  //     { id: 2, message: "Please allow USB debugging on your device", icon: "📱" },
+  //     { id: 3, message: "Checking device connection...", icon: "🔍" },
+  //     { id: 4, message: "Allow ATX agent in your Device...", icon: "⚙️" },
+  //     { id: 5, message: "Verifying ATX installation...", icon: "✓" }
+  //   ],
+  //   isSuccess: false,
+  //   successMessage: ""
+  // });
 
   const inputRef = useRef(null);
 
@@ -168,20 +168,20 @@ const MobileManually = () => {
   const checkChromeAvailability = async () => {
     console.log("checkDeviceConnection");
     setConnectionLoading(true);
-    setShowConnectionLoadingModal(true); 
-    setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
+    // setShowConnectionLoadingModal(true); 
+    // setConnectionSteps(prev => ({ ...prev, currentStep: 0, isSuccess: false }));
 
     try {
       // Step 1: USB Cable
-      setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // setConnectionSteps(prev => ({ ...prev, currentStep: 0 }));
+      // await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Step 2: USB Debugging
-      setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // setConnectionSteps(prev => ({ ...prev, currentStep: 1 }));
+      // await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Step 3: Device Connection
-      setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
+      // setConnectionSteps(prev => ({ ...prev, currentStep: 2 }));
       const response = await fetch("http://localhost:8000/android/connection/", {
         method: "POST",
         headers: { "Content-Type": "application/json" }
@@ -194,7 +194,7 @@ const MobileManually = () => {
         setDeviceConnected(true);
 
         // Step 4: Allow ATX agent
-        setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
+        // setConnectionSteps(prev => ({ ...prev, currentStep: 3 }));
         await new Promise(resolve => setTimeout(resolve, 1000));  
 
         // Step 5: Verifying ATX installation
@@ -207,38 +207,38 @@ const MobileManually = () => {
         console.log("ATX API Data:", data);
 
         if (setupResponse.ok) {
-          setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
-          await new Promise(resolve => setTimeout(resolve, 2000)); 
+          // setConnectionSteps(prev => ({ ...prev, currentStep: 4 }));
+          // await new Promise(resolve => setTimeout(resolve, 2000)); 
 
-          // ✅ Final: success
-          setConnectionSteps(prev => ({
-            ...prev,
-            isSuccess: true,
-            successMessage: "Device connected and ATX is ready!"
-          }));
+          // // ✅ Final: success
+          // setConnectionSteps(prev => ({
+          //   ...prev,
+          //   isSuccess: true,
+          //   successMessage: "Device connected and ATX is ready!"
+          // }));
 
           setTimeout(() => {
-            setShowConnectionLoadingModal(false);
+            // setShowConnectionLoadingModal(false);
             setShowConnectModal(false);
-          }, 2000);
+          }, 1000);
         } else {
           console.error("ATX setup failed.");
           setDeviceConnected(false);
-          setShowConnectionLoadingModal(false);
+          // setShowConnectionLoadingModal(false);
           setShowConnectModal(true);
         }
 
       } else {
         console.error("Device connection failed.");
         setDeviceConnected(false);
-        setShowConnectionLoadingModal(false);
+        // setShowConnectionLoadingModal(false);
         setShowConnectModal(true);
       }
 
     } catch (error) {
       console.error("Error during device connection:", error);
       setDeviceConnected(false);
-      setShowConnectionLoadingModal(false);
+      // setShowConnectionLoadingModal(false);
       setShowConnectModal(true);
     } finally {
       setConnectionLoading(false);
@@ -740,6 +740,12 @@ const convertOmniaParserElements = (elements) => {
   
     const words = input.trim().split(' ');
     const command = words[0].toLowerCase();
+    const wordsLowerCase = words.map(word => word.toLowerCase());
+    const fullCommand = (command === 'scroll' || command === 'swipe') && words.length > 1
+      ? (command === 'swipe' && wordsLowerCase[1] === 'long' && words.length > 2
+          ? wordsLowerCase.slice(0, 3).join(' ')
+          : wordsLowerCase.slice(0, 2).join(' '))
+      : command;
     
     if (['click', 'type', 'verify', 'get'].includes(command)) {
       setCommandType(command);
@@ -763,8 +769,8 @@ const convertOmniaParserElements = (elements) => {
         setShowSuggestions(false);
         setCommandSuggestions([]);
       }
-    } else if (['scrollup', 'scrolldown', 'wait'].includes(command)) {
-      setCommandType(command);
+    } else if (['scroll up', 'scroll down', 'wait', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) { 
+      setCommandType(fullCommand); 
       setShowSuggestions(false);
 
       if (command === 'wait' && words.length === 1) {
@@ -1242,70 +1248,70 @@ const convertOmniaParserElements = (elements) => {
     );
   };
 
-  const ConnectionLoadingModal = () => {
-    if (!showConnectionLoadingModal) return null;
+  // const ConnectionLoadingModal = () => {
+  //   if (!showConnectionLoadingModal) return null;
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center">
-            {!connectionSteps.isSuccess ? (
-              <>
-                <div className="mb-6">
-                  <div className="text-4xl mb-4">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.icon}
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Connecting to Device...
-                  </h3>
-                  <p className="text-gray-600">
-                    {connectionSteps.steps[connectionSteps.currentStep]?.message}
-                  </p>
-                </div>
+  //   return (
+  //     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  //       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+  //         <div className="text-center">
+  //           {!connectionSteps.isSuccess ? (
+  //             <>
+  //               <div className="mb-6">
+  //                 <div className="text-4xl mb-4">
+  //                   {connectionSteps.steps[connectionSteps.currentStep]?.icon}
+  //                 </div>
+  //                 <h3 className="text-xl font-semibold mb-2 text-gray-800">
+  //                   Connecting to Device...
+  //                 </h3>
+  //                 <p className="text-gray-600">
+  //                   {connectionSteps.steps[connectionSteps.currentStep]?.message}
+  //                 </p>
+  //               </div>
                 
-                {/* Progress steps */}
-                <div className="mb-6">
-                  {connectionSteps.steps.map((step, index) => (
-                    <div key={step.id} className="flex items-center mb-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                        index <= connectionSteps.currentStep 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-gray-200 text-gray-500'
-                      }`}>
-                        {index < connectionSteps.currentStep ? '✓' : index + 1}
-                      </div>
-                      <span className={`text-sm ${
-                        index <= connectionSteps.currentStep 
-                          ? 'text-gray-800 font-medium' 
-                          : 'text-gray-500'
-                      }`}>
-                        {step.message}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+  //               {/* Progress steps */}
+  //               <div className="mb-6">
+  //                 {connectionSteps.steps.map((step, index) => (
+  //                   <div key={step.id} className="flex items-center mb-3">
+  //                     <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+  //                       index <= connectionSteps.currentStep 
+  //                         ? 'bg-purple-600 text-white' 
+  //                         : 'bg-gray-200 text-gray-500'
+  //                     }`}>
+  //                       {index < connectionSteps.currentStep ? '✓' : index + 1}
+  //                     </div>
+  //                     <span className={`text-sm ${
+  //                       index <= connectionSteps.currentStep 
+  //                         ? 'text-gray-800 font-medium' 
+  //                         : 'text-gray-500'
+  //                     }`}>
+  //                       {step.message}
+  //                     </span>
+  //                   </div>
+  //                 ))}
+  //               </div>
                 
-                {/* Loading spinner */}
-                <div className="flex justify-center">
-                  <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-green-500 text-4xl mb-4">✅</div>
-                <h3 className="text-xl font-semibold mb-2 text-green-600">
-                  Success!
-                </h3>
-                <p className="text-gray-600">
-                  {connectionSteps.successMessage}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  //               {/* Loading spinner */}
+  //               <div className="flex justify-center">
+  //                 <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+  //               </div>
+  //             </>
+  //           ) : (
+  //             <>
+  //               <div className="text-green-500 text-4xl mb-4">✅</div>
+  //               <h3 className="text-xl font-semibold mb-2 text-green-600">
+  //                 Success!
+  //               </h3>
+  //               <p className="text-gray-600">
+  //                 {connectionSteps.successMessage}
+  //               </p>
+  //             </>
+  //           )}
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // };
 
   const WaitModal = ({ isOpen, onClose, onConfirm }) => {
     const [waitCondition, setWaitCondition] = useState('static_wait');
@@ -1484,6 +1490,32 @@ const convertOmniaParserElements = (elements) => {
                   }
                 </span>
               </div>
+                {testCaseInfo.platform === 'Mobile' && (
+                  <span className={`flex items-center gap-1 px-3 py-1 rounded-md text-sm font-medium ${
+                    deviceConnected 
+                      ? 'bg-green-100 text-green-800' 
+                      : connectionLoading
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                  }`}>
+                    {connectionLoading ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : deviceConnected ? (
+                      <>
+                        <Wifi className="w-4 h-4" />
+                        Connected
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-4 h-4" />
+                        Not Connected
+                      </>
+                    )}
+                  </span>
+                )}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowNoteModal(true)}
@@ -1564,85 +1596,7 @@ const convertOmniaParserElements = (elements) => {
                           }}
                         />
                       </div>
-                      {/* {showSuggestions === index && commandSuggestions.length > 0 && (
-                        <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
-                          {commandSuggestions.map((element, idx) => {
-                            const sameNameElements = commandSuggestions.filter((el, i) => 
-                              i < idx && 
-                              ((el.name && element.name && el.name === element.name) || 
-                              (el.text && element.text && el.text === element.text))
-                            );
-                            const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
-                            
-                            // Fix for coordinates display
-                            let coordinatesDisplay = "";
-                            if (element.click_point && Array.isArray(element.click_point)) {
-                              coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
-                            } else if (element.coordinates) {
-                              if (Array.isArray(element.coordinates)) {
-                                coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
-                              } else {
-                                const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
-                                const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
-                                coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
-                              }
-                            }
-                            
-                            return (
-                              <div 
-                                key={idx}
-                                onClick={() => handleSuggestionClick(element, index)}
-                                className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                              >
-                                <div className={`w-4 h-4 rounded-full ${
-                                  commandType === 'click' ? 'bg-blue-100' : 
-                                  commandType === 'type' ? 'bg-green-100' : 
-                                  commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                                }`}></div>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    {element.name || element.text || element.id || 'Element ' + (idx + 1)}
-                                    {position}
-                                  </span>
-                                  
-                                  <div className="flex items-center gap-2 text-xs">
-                                    {coordinatesDisplay && (
-                                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
-                                        {coordinatesDisplay}
-                                      </span>
-                                    )}
-                                    
-                                    {element.text && (
-                                      <span className="text-gray-500 truncate max-w-xs">
-                                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {showSuggestions === index && commandSuggestions.length === 0 && (
-                        <div className="absolute z-10 bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-                          <div className="p-4 text-center">
-                            <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-                              <AlertCircle className="w-5 h-5 mr-2" />
-                              No element data available
-                            </div>
-                            <p className="text-sm text-gray-700">
-                              Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-                            </p>
-                            <button 
-                              onClick={() => setShowSuggestions(false)}
-                              className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-                            >
-                              Dismiss
-                            </button>
-                          </div>
-                        </div>
-                      )} */}
+                      
 
                       {showSuggestions === index && commandSuggestions.length > 0 && (
                         <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
@@ -1831,7 +1785,7 @@ const convertOmniaParserElements = (elements) => {
       )}
       <InstructionsModal />
       <ConnectDeviceModal />  
-      <ConnectionLoadingModal />
+      {/* <ConnectionLoadingModal /> */}
       <WaitModal 
         isOpen={showWaitModal}
         onClose={() => setShowWaitModal(false)}
