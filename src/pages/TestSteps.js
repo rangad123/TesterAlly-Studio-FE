@@ -563,9 +563,9 @@ const handleModalOkClick = async () => {
     };
 
     if (detectedOtpType === 'email') {
-      payloadToSend.mail_config = {
+      payloadToSend.email_otp_config = {
         inbox_id: "29f7a099-d305-41d5-8e99-59c347674844",
-        email_address: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
+        email: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
       };
       console.log("📧 Added mail_config for email OTP");
     } else {
