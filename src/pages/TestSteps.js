@@ -27,6 +27,9 @@ const TestSteps = () => {
   const [updatingStepId, setUpdatingStepId] = useState(null);
   const [showRunInstructions, setShowRunInstructions] = useState(false);
   const [waitTime, setWaitTime] = useState("");
+  const [otpStepIndexInput, setOtpStepIndexInput] = useState("");
+  const [, setOtpStepArrayIndex] = useState(null);
+  const [, setOtpType] = useState(null);
 //  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
@@ -329,6 +332,12 @@ const handleDeleteStep = async (stepNumber) => {
 };
 
   const startEditing = (step) => {
+
+    if (step.step_description.includes("<otp>")) {
+      alert("OTP steps cannot be edited to maintain test integrity.");
+      return;
+    }
+
     setEditingStep(step.step_number);
     setEditValue(step.step_description);
     
@@ -435,6 +444,72 @@ const calculateExecutionTime = (executedSteps) => {
   return `${executedSteps.length * 2}s`;
 };
 
+const detectOtpTypeFromPreviousSteps = (steps, otpStepIndex) => {
+  console.log("🔍 Scanning previous steps for contact type...");
+  
+  // Look backwards from OTP step to find where contact was entered
+  for (let i = otpStepIndex - 1; i >= 0; i--) {
+    const step = steps[i];
+    const stepDesc = step?.step_description || "";
+    
+    console.log(`Step ${i + 1}: ${stepDesc}`);
+    
+    // Check for email pattern in previous steps
+    if (/@mailslurp\.biz|@.*\.(com|org|net|biz)/.test(stepDesc)) {
+      console.log("📧 Found email in step", i + 1);
+      return 'email';
+    }
+    
+    // Check for phone number pattern in previous steps
+    if (/\+\d{10,15}|\+1\d{10}/.test(stepDesc)) {
+      console.log("📱 Found phone number in step", i + 1);
+      return 'phone';
+    }
+    
+    // Also check for your specific test contacts
+    if (stepDesc.includes('+18777804236')) {
+      console.log("📱 Found test phone number in step", i + 1);
+      return 'phone';
+    }
+    
+    if (stepDesc.includes('29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz')) {
+      console.log("📧 Found test email in step", i + 1);
+      return 'email';
+    }
+  }
+  
+  console.log("❓ No contact type detected, defaulting to phone");
+  return 'phone'; // Default to phone if not detected
+};
+
+useEffect(() => {
+  if (showRunInstructions && steps.length > 0) {
+    const otpIndex = steps.findIndex((step) =>
+      step.step_description.includes("<otp>")
+    );
+
+    if (otpIndex !== -1) {
+      const userVisibleStepNumber = steps[otpIndex]?.step_number || (otpIndex + 1);
+      
+      // Detect OTP type by looking at previous steps
+      const detectedType = detectOtpTypeFromPreviousSteps(steps, otpIndex);
+      
+      console.log("✅ OTP step detected at array index:", otpIndex, "visible Step:", userVisibleStepNumber);
+      console.log("🎯 Detected OTP type:", detectedType);
+      
+      setOtpStepIndexInput(userVisibleStepNumber); 
+      setOtpStepArrayIndex(otpIndex);
+      setOtpType(detectedType); // Store the detected type
+    }
+    else {
+      console.log("❌ No OTP step found.");
+      setOtpStepIndexInput(""); 
+      setOtpStepArrayIndex(null);
+      setOtpType(null);
+    }
+  }
+}, [showRunInstructions, steps]);
+
 const handleModalOkClick = async () => {
   setShowRunInstructions(false);
 
@@ -449,24 +524,62 @@ const handleModalOkClick = async () => {
   setError(null);
   setExecutionResults({});
 
-  console.log("Sending payload:", {
-    user_id: userId,
-    project_name: projectName,
-    testcase_name: testCaseName
-  });
-
   try {
+    const defaultOtpStepIndex = steps.findIndex((step) =>
+      step.step_description.includes("<otp>")
+    );
+    
+    let otpIndexForBackend = null;
+    let otpStepNumberForDisplay = "";
+    let detectedOtpType = null;
+    
+    if (defaultOtpStepIndex !== -1) {
+      otpIndexForBackend = defaultOtpStepIndex; 
+      otpStepNumberForDisplay = steps[defaultOtpStepIndex].step_number;
+      
+      // Use the helper function to detect OTP type
+      detectedOtpType = detectOtpTypeFromPreviousSteps(steps, defaultOtpStepIndex);
+      
+      console.log("Detected OTP at array index:", otpIndexForBackend, "step number:", otpStepNumberForDisplay);
+      console.log("Final detected OTP type:", detectedOtpType);
+      
+      setOtpStepIndexInput(otpStepNumberForDisplay);
+    }
+
+    console.log("Sending payload:", {
+      user_id: userId,
+      project_name: projectName,
+      testcase_name: testCaseName,
+      wait_time: waitTime ? parseInt(waitTime) : 2,
+      otp_step_index: otpIndexForBackend, 
+    });
+
+    let payloadToSend = {
+      user_id: userId,
+      project_name: projectName,
+      testcase_name: testCaseName,
+      wait_time: waitTime ? parseInt(waitTime) : 2,
+      otp_step_index: otpIndexForBackend,
+    };
+
+    if (detectedOtpType === 'email') {
+      payloadToSend.mail_config = {
+        inbox_id: "29f7a099-d305-41d5-8e99-59c347674844",
+        email_address: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
+      };
+      console.log("📧 Added mail_config for email OTP");
+    } else {
+      console.log("📱 Phone OTP detected - using standard request body");
+    }
+
+    console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
+
     const response = await fetch("http://127.0.0.1:8000/integrate/run_testcase/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        user_id: userId,
-        project_name: projectName,
-        testcase_name: testCaseName,
-        wait_time: waitTime ? parseInt(waitTime) : 2
-      })
+      body: JSON.stringify(payloadToSend) 
     });
 
     if (!response.ok) {
@@ -796,9 +909,11 @@ const selectAllSteps = () => {
             <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-medium mb-2">Test Execution</h3>
               <p className="mb-4">Your test is now ready to run. The system will execute all selected steps in sequence.</p>
+
               <p className="mb-4">
                 For best results, please set Google Chrome as your default browser before starting the test.
               </p>
+
               {/* Wait Time Input Field */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -814,6 +929,25 @@ const selectAllSteps = () => {
                 />
               </div>
 
+              {/* OTP Step Input (editable) */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-red-600 mb-1">
+                  OTP Step Index (if applicable)
+                </label>
+                <input
+                  type="number"
+                  value={otpStepIndexInput}
+                  onChange={(e) => setOtpStepIndexInput(e.target.value)}
+                  placeholder="Detected step index with <otp>"
+                  className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring focus:border-red-400"
+                  min="1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Detected OTP step: <strong>{otpStepIndexInput || 'None'}</strong> (edit if wrong)
+                </p>
+              </div>
+
+              {/* Buttons */}
               <div className="flex justify-end space-x-2">
                 <button
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
@@ -953,10 +1087,15 @@ const selectAllSteps = () => {
                 ) : (
                   <>
                     <div 
-                      className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden"
+                      className={`flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden ${
+                        step.step_description.includes("<otp>") ? 'bg-orange-50 border-l-4 border-orange-400 pl-2' : ''
+                      }`}
                       onDoubleClick={() => startEditing(step)}
                     >
                       {step.step_description}
+                      {step.step_description.includes("<otp>") && (
+                        <span className="ml-2 text-xs text-orange-600 font-medium">(OTP - Protected)</span>
+                      )}
                       {executionResults[step.step_number] && (
                         <div className={`mt-2 text-sm p-2 rounded ${
                           executionResults[step.step_number].status === 'running' ? 'bg-yellow-50 text-yellow-700' : 
