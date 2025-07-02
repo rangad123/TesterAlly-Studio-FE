@@ -28,8 +28,8 @@ const TestSteps = () => {
   const [showRunInstructions, setShowRunInstructions] = useState(false);
   const [waitTime, setWaitTime] = useState("");
   const [otpStepIndexInput, setOtpStepIndexInput] = useState("");
-  const [, setOtpStepArrayIndex] = useState(null);
-  const [, setOtpType] = useState(null);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+
 //  const [elementData, setElementData] = useState(null);
 //  const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
 
@@ -444,71 +444,23 @@ const calculateExecutionTime = (executedSteps) => {
   return `${executedSteps.length * 2}s`;
 };
 
-const detectOtpTypeFromPreviousSteps = (steps, otpStepIndex) => {
-  console.log("🔍 Scanning previous steps for contact type...");
-  
-  // Look backwards from OTP step to find where contact was entered
-  for (let i = otpStepIndex - 1; i >= 0; i--) {
-    const step = steps[i];
-    const stepDesc = step?.step_description || "";
+const checkAndroidConnection = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/android/connection/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
     
-    console.log(`Step ${i + 1}: ${stepDesc}`);
-    
-    // Check for email pattern in previous steps
-    if (/@mailslurp\.biz|@.*\.(com|org|net|biz)/.test(stepDesc)) {
-      console.log("📧 Found email in step", i + 1);
-      return 'email';
+    if (response.ok) {
+      const data = await response.json();
+      return data.status === "success";
     }
-    
-    // Check for phone number pattern in previous steps
-    if (/\+\d{10,15}|\+1\d{10}/.test(stepDesc)) {
-      console.log("📱 Found phone number in step", i + 1);
-      return 'phone';
-    }
-    
-    // Also check for your specific test contacts
-    if (stepDesc.includes('+18777804236')) {
-      console.log("📱 Found test phone number in step", i + 1);
-      return 'phone';
-    }
-    
-    if (stepDesc.includes('29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz')) {
-      console.log("📧 Found test email in step", i + 1);
-      return 'email';
-    }
+    return false;
+  } catch (error) {
+    console.error('Error checking Android connection:', error);
+    return false;
   }
-  
-  console.log("❓ No contact type detected, defaulting to phone");
-  return 'phone'; // Default to phone if not detected
 };
-
-useEffect(() => {
-  if (showRunInstructions && steps.length > 0) {
-    const otpIndex = steps.findIndex((step) =>
-      step.step_description.includes("<otp>")
-    );
-
-    if (otpIndex !== -1) {
-      const userVisibleStepNumber = steps[otpIndex]?.step_number || (otpIndex + 1);
-      
-      // Detect OTP type by looking at previous steps
-      const detectedType = detectOtpTypeFromPreviousSteps(steps, otpIndex);
-      
-      console.log("✅ OTP step detected at array index:", otpIndex, "visible Step:", userVisibleStepNumber);
-      console.log("🎯 Detected OTP type:", detectedType);
-      
-      setOtpStepIndexInput(userVisibleStepNumber); 
-      setOtpStepArrayIndex(otpIndex);
-      setOtpType(detectedType); // Store the detected type
-    }
-    else {
-      console.log("❌ No OTP step found.");
-      setOtpStepIndexInput(""); 
-      setOtpStepArrayIndex(null);
-      setOtpType(null);
-    }
-  }
-}, [showRunInstructions, steps]);
 
 const handleModalOkClick = async () => {
   setShowRunInstructions(false);
@@ -525,25 +477,23 @@ const handleModalOkClick = async () => {
   setExecutionResults({});
 
   try {
-    const defaultOtpStepIndex = steps.findIndex((step) =>
-      step.step_description.includes("<otp>")
-    );
     
-    let otpIndexForBackend = null;
-    let otpStepNumberForDisplay = "";
-    let detectedOtpType = null;
-    
-    if (defaultOtpStepIndex !== -1) {
-      otpIndexForBackend = defaultOtpStepIndex; 
-      otpStepNumberForDisplay = steps[defaultOtpStepIndex].step_number;
-      
-      // Use the helper function to detect OTP type
-      detectedOtpType = detectOtpTypeFromPreviousSteps(steps, defaultOtpStepIndex);
-      
-      console.log("Detected OTP at array index:", otpIndexForBackend, "step number:", otpStepNumberForDisplay);
-      console.log("Final detected OTP type:", detectedOtpType);
-      
-      setOtpStepIndexInput(otpStepNumberForDisplay);
+    const otpStepIndex = steps.findIndex((step) => step.requires_otp === true);
+
+    let otpStep = otpStepIndex !== -1 ? steps[otpStepIndex] : null;
+
+    if (otpStep) {
+
+      const detectedOtpType = otpStep.otp_type;
+
+      if (detectedOtpType === "phone") {
+        const isConnected = await checkAndroidConnection();
+        if (!isConnected) {
+          setShowDeviceModal(true); 
+          setIsExecuting(false);
+          return;
+        }
+      }
     }
 
     console.log("Sending payload:", {
@@ -551,7 +501,7 @@ const handleModalOkClick = async () => {
       project_name: projectName,
       testcase_name: testCaseName,
       wait_time: waitTime ? parseInt(waitTime) : 2,
-      otp_step_index: otpIndexForBackend, 
+      otp_step_index: otpStepIndex, 
     });
 
     let payloadToSend = {
@@ -559,18 +509,15 @@ const handleModalOkClick = async () => {
       project_name: projectName,
       testcase_name: testCaseName,
       wait_time: waitTime ? parseInt(waitTime) : 2,
-      otp_step_index: otpIndexForBackend,
+      otp_step_index: otpStepIndex,
     };
 
-    if (detectedOtpType === 'email') {
-      payloadToSend.email_otp_config = {
-        inbox_id: "29f7a099-d305-41d5-8e99-59c347674844",
-        email: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
-      };
-      console.log("📧 Added mail_config for email OTP");
-    } else {
-      console.log("📱 Phone OTP detected - using standard request body");
-    }
+    // if (otpStep?.otp_type === "email") {
+    //   payloadToSend.email_otp_config = {
+    //     inbox_id: "29f7a099-d305-41d5-8e99-59c347674844",
+    //     email: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
+    //   };
+    // }
 
     console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
 
@@ -1181,6 +1128,29 @@ const selectAllSteps = () => {
       ) : (
         renderTestCaseInfo()
       )}
+      
+          {showDeviceModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+              backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+              <div style={{
+                backgroundColor: '#fff', padding: 20, borderRadius: 8,
+                maxWidth: 400, width: '90%', textAlign: 'center'
+              }}>
+                <h3>Connect Device</h3>
+                <p>Please connect your Android device via USB and enable USB debugging.</p>
+                <button
+                  style={{ marginTop: 10 }}
+                  onClick={() => setShowDeviceModal(false)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          )}
+
           <addStepComponent.BrowserTabsModal />
           <addStepComponent.ScreenshotModal />
           <addStepComponent.InstructionsModal />

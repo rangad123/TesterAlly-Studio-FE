@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateTestCases.css";
+import { Database } from "lucide-react";
 
 const TestData = () => {
   const [url, setUrl] = useState("");
-  const [errors, setErrors] = useState({ url: "", file: "" });
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [errors, setErrors] = useState({ url: "", email: "", phone: "", file: "", general: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [uploadedData, setUploadedData] = useState(null);
   const [hasCheckedInitialData, setHasCheckedInitialData] = useState(false);
-  
-  // New states for file upload
-  const [activeTab, setActiveTab] = useState("url"); // "url" or "file"
+  const [country, setCountry] = useState("");
+  const countries = [
+    "United States", 
+     "India", "Japan", "Switzerland", "Austria", "Ireland", "Other"
+  ];
+
   const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
   
   const navigate = useNavigate();
 
@@ -79,12 +84,12 @@ const TestData = () => {
       const newProject = event.detail;
       setSelectedProject(newProject);
       setUrl("");
+      setEmail("");
+      setPhone("");
       setSelectedFile(null);
-      setFilePreview(null);
-      setErrors({ url: "", file: "" });
+      setErrors({ url: "", email: "", phone: "", file: "", general: "" });
       setHasCheckedInitialData(false);
       if (newProject?.id) {
-       
         fetchTestData(newProject.id);
         window.dispatchEvent(new CustomEvent('testDataProjectChanged', {
           detail: { projectId: newProject.id }
@@ -102,23 +107,35 @@ const TestData = () => {
     const newErrors = {};
     let isValid = true;
 
-    if (activeTab === "url") {
-      if (!url.trim()) {
-        newErrors.url = "URL is required!";
-        isValid = false;
-      } else {
-        try {
-          new URL(url.startsWith("http") ? url : `https://${url}`);
-        } catch (error) {
-          newErrors.url = "Invalid URL format!";
-          isValid = false;
-        }
-      }
-    } else if (activeTab === "file") {
-      if (!selectedFile) {
-        newErrors.file = "Please select a file to upload!";
+    if (url.trim()) {
+      try {
+        new URL(url.startsWith("http") ? url : `https://${url}`);
+      } catch (error) {
+        newErrors.url = "Invalid URL format!";
         isValid = false;
       }
+    }
+
+    if (email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        newErrors.email = "Invalid email format!";
+        isValid = false;
+      }
+    }
+
+    if (phone.trim()) {
+      const phoneRegex = /^[\d\s\-+()]+$/;
+      if (!phoneRegex.test(phone) || phone.replace(/\D/g, '').length < 10) {
+        newErrors.phone = "Invalid phone number format!";
+        isValid = false;
+      }
+    }
+
+    // Check if at least one field is filled
+    if (!url.trim() && !email.trim() && !phone.trim() && !country.trim() && !selectedFile) {
+      newErrors.general = "Please fill at least one field or upload a file!";
+      isValid = false;
     }
 
     setErrors(newErrors);
@@ -129,23 +146,11 @@ const TestData = () => {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setErrors(prev => ({ ...prev, file: "" }));
-      
-      // Create preview for text files
-      if (file.type.includes('text') || file.name.endsWith('.json') || file.name.endsWith('.csv')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target.result;
-          setFilePreview(content.substring(0, 500) + (content.length > 500 ? '...' : ''));
-        };
-        reader.readAsText(file);
-      } else {
-        setFilePreview(null);
-      }
+      setErrors(prev => ({ ...prev, file: "", general: "" }));
     }
   };
 
-  const handleCreateTestCase = async () => {
+  const handleCreateTestCase = async (projectId) => {
     if (!validateFields()) return;
     if (!selectedProject?.id) {
       alert("Please select a project first.");
@@ -156,30 +161,36 @@ const TestData = () => {
     try {
       let response;
       
-      if (activeTab === "url") {
-        // Existing URL upload logic
-        const finalUrl = url.startsWith("http") ? url : `https://${url}`;
-        const payload = { url: finalUrl };
-
-        response = await fetch(
-          `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-      } else {
+      if (selectedFile) {
         // File upload logic
         const formData = new FormData();
         formData.append('file', selectedFile);
         formData.append('type', 'file');
+        console.log("Payload of formData upload:", formData);
 
         response = await fetch(
-          `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
+          `http://127.0.0.1:8000/api/testdata/${projectId}/`,
           {
             method: "POST",
             body: formData,
+          }
+        );
+      } else {
+        // Data upload logic - Updated payload structure
+        const payload = {
+          url: url.trim() || null,
+          email: email.trim() || null, 
+          phone_number: phone.trim() || null,  // Changed from 'phone' to 'phone_number'
+          region: country.trim() || null       // Changed from 'country' to 'region'
+        };
+        console.log("Payload of Data upload:", payload);
+
+        response = await fetch(
+          `http://127.0.0.1:8000/api/testdata/${projectId}/`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
           }
         );
       }
@@ -189,13 +200,16 @@ const TestData = () => {
       }
 
       const data = await response.json();
+      console.log("response of Data:", data);
       setUploadedData(data);
       alert("Test Data Uploaded Successfully");
       
       // Reset form
       setUrl("");
+      setEmail("");
+      setPhone("");
+      setCountry("");
       setSelectedFile(null);
-      setFilePreview(null);
       
     } catch (error) {
       console.error("Error during upload:", error);
@@ -205,20 +219,7 @@ const TestData = () => {
     }
   };
 
-  const handleEdit = () => {
-    if (uploadedData) {
-      if (uploadedData.url) {
-        setActiveTab("url");
-        setUrl(uploadedData.url);
-      } else if (uploadedData.filename) {
-        setActiveTab("file");
-        // For file edit, we might want to show file info but can't restore the actual file
-      }
-      setUploadedData(null);
-    }
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = async (projectId) => {
     if (!selectedProject?.id) return;
     if (!window.confirm("Are you sure you want to delete this test data?")) {
       return;
@@ -227,7 +228,7 @@ const TestData = () => {
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/testdata/${selectedProject.project_name}/`,
+        `http://127.0.0.1:8000/api/testdata/${projectId}/`,
         {
           method: "DELETE",
         }
@@ -236,8 +237,9 @@ const TestData = () => {
       if (response.ok || response.status === 404) {
         setUploadedData(null);
         setUrl("");
+        setEmail("");
+        setPhone("");
         setSelectedFile(null);
-        setFilePreview(null);
         alert("Test Data Deleted Successfully");
       } else {
         throw new Error(`Failed to delete test data: ${response.status}`);
@@ -254,256 +256,443 @@ const TestData = () => {
     navigate("/dashboard-user");
   };
 
-  const renderUploadedData = () => {
-    if (!uploadedData) return null;
+const renderUploadedData = () => {
+  if (!uploadedData) return null;
 
-    return (
-      <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-md">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-base font-semibold text-green-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Test Data Successfully Uploaded
-            </h3>
-            
-            {uploadedData.url && (
-              <div className="mb-2">
-                <span className="text-sm font-medium text-gray-600">URL:</span>
-                <div className="mt-1 p-2 bg-white rounded border border-green-200">
-                  <a 
-                    href={uploadedData.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 break-all text-sm"
-                  >
-                    {uploadedData.url}
-                  </a>
-                </div>
-              </div>
-            )}
-            
-            {uploadedData.filename && (
-              <div className="mb-2">
-                <span className="text-sm font-medium text-gray-600">File:</span>
-                <div className="mt-1 p-2 bg-white rounded border border-green-200 flex items-center">
-                  <svg className="w-4 h-4 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+  const handleEditField = (fieldType, currentValue) => {
+    // Preserve all existing saved data
+    if (uploadedData.url) setUrl(uploadedData.url);
+    if (uploadedData.email) setEmail(uploadedData.email);
+    if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
+    if (uploadedData.region) setCountry(uploadedData.region);
+    
+    // Then focus on the specific field being edited
+    if (fieldType === 'url') {
+      setUrl(currentValue);
+    } else if (fieldType === 'email') {
+      setEmail(currentValue);
+    } else if (fieldType === 'phone') {
+      setPhone(currentValue);
+    } else if (fieldType === 'country') {
+      setCountry(currentValue);
+    }
+    
+    setUploadedData(null); // Show the form for editing
+  };
+
+  const handleAddField = (fieldType) => {
+    // Preserve all existing saved data
+    if (uploadedData.url) setUrl(uploadedData.url);
+    if (uploadedData.email) setEmail(uploadedData.email);
+    if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
+    if (uploadedData.region) setCountry(uploadedData.region);
+    
+    // Set empty value for the field being added
+    if (fieldType === 'url') {
+      setUrl('');
+    } else if (fieldType === 'email') {
+      setEmail('');
+    } else if (fieldType === 'phone') {
+      setPhone('');
+    } else if (fieldType === 'country') {
+      setCountry('');
+    }
+    
+    setUploadedData(null); // Show the form for adding
+  };
+
+  return (
+    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-md">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <h3 className="text-base font-semibold text-green-800 mb-4 flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            Test Data Successfully Uploaded
+          </h3>
+          
+          {/* Website URL Field */}
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+            {uploadedData.url ? (
+              <div className="group relative p-2 bg-white rounded border border-green-200">
+                <a 
+                  href={uploadedData.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 break-all text-sm pr-8"
+                >
+                  {uploadedData.url}
+                </a>
+                <button 
+                  onClick={() => handleEditField('url', uploadedData.url)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                  title="Edit URL"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                   </svg>
-                  <span className="text-gray-700 text-sm">{uploadedData.filename}</span>
-                </div>
+                </button>
               </div>
-            )}
-            
-            {uploadedData.created_at && (
-              <div className="text-xs text-gray-600">
-                <span className="font-medium">Uploaded:</span> {new Date(uploadedData.created_at).toLocaleString()}
+            ) : (
+              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                <button 
+                  onClick={() => handleAddField('url')}
+                  className="w-full text-left text-gray-500 text-sm flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Click to add website URL
+                </button>
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="mt-3 flex space-x-2">
-          <button 
-            onClick={handleEdit} 
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center text-sm"
-            disabled={isDeleting}
-          >
-            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-            Edit
-          </button>
-          <button 
-            onClick={handleDelete} 
-            className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center text-sm" 
-            disabled={isDeleting}
-          >
-            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
-              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              {uploadedData.email ? (
+                <div className="group relative p-2 bg-white rounded border border-green-200">
+                  <span className="text-gray-700 text-sm pr-8">{uploadedData.email}</span>
+                  <button 
+                    onClick={() => handleEditField('email', uploadedData.email)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                    title="Edit email"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                  <button 
+                    onClick={() => handleAddField('email')}
+                    className="w-full text-left text-gray-500 text-sm flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Click to add email
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Phone Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              {uploadedData.phone_number ? (
+                <div className="group relative p-2 bg-white rounded border border-green-200">
+                  <span className="text-gray-700 text-sm pr-8">{uploadedData.phone_number}</span>
+                  <button 
+                    onClick={() => handleEditField('phone', uploadedData.phone_number)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                    title="Edit phone"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                  <button 
+                    onClick={() => handleAddField('phone')}
+                    className="w-full text-left text-gray-500 text-sm flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Click to add phone
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Country/Region Field */}
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Country/Region</label>
+            {uploadedData.region ? (
+              <div className="group relative p-2 bg-white rounded border border-green-200">
+                <span className="text-gray-700 text-sm pr-8">{uploadedData.region}</span>
+                <button 
+                  onClick={() => handleEditField('country', uploadedData.region)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                  title="Edit country"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                <button 
+                  onClick={() => handleAddField('country')}
+                  className="w-full text-left text-gray-500 text-sm flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Click to add country/region
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* File Display */}
+          {uploadedData.filename && (
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Uploaded File</label>
+              <div className="p-2 bg-white rounded border border-green-200 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-gray-700 text-sm">{uploadedData.filename}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Upload Timestamp */}
+          {uploadedData.created_at && (
+            <div className="text-xs text-gray-600 mt-3">
+              <span className="font-medium">Uploaded:</span> {new Date(uploadedData.created_at).toLocaleString()}
+            </div>
+          )}
         </div>
       </div>
-    );
-  };
+      
+      {/* Action Buttons */}
+      <div className="mt-4 flex space-x-2">
+        <button 
+          onClick={() => handleDelete(selectedProject.id)}
+          className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center text-sm" 
+          disabled={isDeleting}
+        >
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M10 5a1 1 0 00-1 1v3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          {isDeleting ? "Deleting..." : "Delete All Data"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
   const renderInputForm = () => {
     return (
-      <div className="mt-4 bg-white rounded-md shadow-sm border border-gray-200">
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-6 px-4" aria-label="Tabs">
-            <button
-              onClick={() => setActiveTab("url")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                activeTab === "url"
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+      <div className="mt-4 bg-white rounded-md shadow-sm border border-gray-200 p-6">
+        <div className="space-y-6">
+        {errors.general && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <p className="text-sm text-red-600 flex items-center">
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              {errors.general}
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Website URL Field */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Website URL
+            </label>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setErrors((prev) => ({ ...prev, url: "", general: "" }));
+              }}
+              placeholder="Enter website URL (e.g., https://example.com)"
+              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
+                errors.url ? "border-red-500 bg-red-50" : "border-gray-300"
               }`}
-            >
-              <div className="flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M7.414 15.414a2 2 0 01-2.828-2.828l3-3a2 2 0 012.828 0 1 1 0 001.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5z" clipRule="evenodd" />
+              disabled={isUploading}
+            />
+            {errors.url && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                URL Input
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("file")}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                activeTab === "file"
-                  ? "border-purple-500 text-purple-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                {errors.url}
+              </p>
+            )}
+          </div>
+
+          {/* Email Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrors((prev) => ({ ...prev, email: "", general: "" }));
+              }}
+              placeholder="Enter email address"
+              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
+                errors.email ? "border-red-500 bg-red-50" : "border-gray-300"
               }`}
-            >
-              <div className="flex items-center">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              disabled={isUploading}
+            />
+            {errors.email && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
-                File Upload
-              </div>
-            </button>
-          </nav>
+                {errors.email}
+              </p>
+            )}
+          </div>
+
+          {/* Phone Number Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setErrors((prev) => ({ ...prev, phone: "", general: "" }));
+              }}
+              placeholder="Enter phone number"
+              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
+                errors.phone ? "border-red-500 bg-red-50" : "border-gray-300"
+              }`}
+              disabled={isUploading}
+            />
+            {errors.phone && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors.phone}
+              </p>
+            )}
+          </div>
+
+          {/* Country/Region Field - NEW */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Country/Region
+            </label>
+            <div className="flex space-x-2">
+              <select
+                value={country}
+                onChange={(e) => {
+                  setCountry(e.target.value);
+                  setErrors((prev) => ({ ...prev, general: "" }));
+                }}
+                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                disabled={isUploading}
+              >
+                <option value="">Select a country</option>
+                {countries.map((countryName, index) => (
+                  <option key={index} value={countryName}>
+                    {countryName}
+                  </option>
+                ))}
+              </select>
+              {country === "Other" && (
+                <input
+                  type="text"
+                  placeholder="Enter country name"
+                  value={country === "Other" ? "" : country}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    setErrors((prev) => ({ ...prev, general: "" }));
+                  }}
+                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                  disabled={isUploading}
+                />
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="p-4">
-          {activeTab === "url" && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Website URL<span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
+
+          {/* File Upload Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Test File (Optional)
+            </label>
+            <div className="border-2 border-gray-300 border-dashed rounded-md p-4 hover:border-purple-400 transition-colors duration-200">
+              <div className="text-center">
+                <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <label htmlFor="file-upload" className="cursor-pointer">
+                  <span className="text-purple-600 hover:text-purple-500 font-medium">Upload a file</span>
+                  <span className="text-gray-500"> or drag and drop</span>
                   <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => {
-                      setUrl(e.target.value);
-                      setErrors((prev) => ({ ...prev, url: "" }));
-                    }}
-                    placeholder="Enter website URL (e.g., https://example.com)"
-                    className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      errors.url ? "border-red-500 bg-red-50" : "border-gray-300"
-                    }`}
+                    id="file-upload"
+                    type="file"
+                    className="sr-only"
+                    onChange={handleFileSelect}
+                    accept=".csv,.json,.txt,.xlsx,.xls"
                     disabled={isUploading}
                   />
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                </div>
-                {errors.url && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.url}
-                  </p>
-                )}
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Enter the URL of the website you want to test. The system will analyze the website and generate appropriate test cases.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "file" && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Test Cases File<span className="text-red-500">*</span>
                 </label>
-                <div className="mt-1 flex justify-center px-4 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-md hover:border-purple-400 transition-colors duration-200">
-                  <div className="space-y-1 text-center">
-                    <svg className="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <div className="flex text-sm text-gray-600">
-                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-purple-600 hover:text-purple-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-purple-500">
-                        <span>Upload a file</span>
-                        <input
-                          id="file-upload"
-                          name="file-upload"
-                          type="file"
-                          className="sr-only"
-                          onChange={handleFileSelect}
-                          accept=".csv,.json,.txt,.xlsx,.xls"
-                          disabled={isUploading}
-                        />
-                      </label>
-                      <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-gray-500">CSV, JSON, TXT, Excel files up to 10MB</p>
-                  </div>
-                </div>
-                {errors.file && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.file}
-                  </p>
-                )}
-              </div>
-
-              {selectedFile && (
-                <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <svg className="w-4 h-4 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                      </svg>
-                      <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedFile(null);
-                        setFilePreview(null);
-                      }}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="text-xs text-gray-500 mb-2">
-                    Size: {(selectedFile.size / 1024).toFixed(2)} KB | Type: {selectedFile.type || 'Unknown'}
-                  </div>
-                  {filePreview && (
-                    <div className="mt-2">
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">File Preview:</h4>
-                      <pre className="text-xs text-gray-600 bg-white p-2 rounded border overflow-x-auto whitespace-pre-wrap max-h-32">
-                        {filePreview}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-                <p className="text-sm text-amber-800">
-                  <strong>Supported formats:</strong> Upload test case files in CSV, JSON, TXT, or Excel format. The system will parse and integrate them into your test suite.
-                </p>
+                <p className="text-xs text-gray-500 mt-1">CSV, JSON, TXT, Excel files up to 10MB</p>
               </div>
             </div>
-          )}
 
-          {/* Action Buttons */}
-          <div className="mt-4 flex space-x-3">
+            {selectedFile && (
+              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-md p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({(selectedFile.size / 1024).toFixed(2)} KB)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setErrors(prev => ({ ...prev, general: "" }));
+                    }}
+                    className="text-red-500 hover:text-red-700 p-1"
+                    title="Remove file"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Info Note */}
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Fill in any combination of the above fields. All fields are optional, but at least one must be provided to save test data.
+            </p>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-2">
             <button
-              onClick={handleCreateTestCase}
+              onClick={() => handleCreateTestCase(selectedProject.id)}
               disabled={isUploading}
-              className="flex-1 bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-sm font-medium"
+              className="bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-sm font-medium w-fit mx-auto"
             >
               {isUploading ? (
                 <>
@@ -574,9 +763,7 @@ const TestData = () => {
                   <div className="flex-1">
                     <h1 className="text-lg font-semibold text-gray-800 flex items-center">
                       {/* Correct Test Data Management Icon - Database/Storage icon */}
-                      <svg className="w-5 h-5 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 8a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 12a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/>
-                      </svg>
+                      <Database className="w-5 h-5 mr-2 text-purple-600" />
                       Test Data Management
                     </h1>
                     {selectedProject && (

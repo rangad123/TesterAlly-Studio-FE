@@ -74,8 +74,38 @@ const WriteRecord = () => {
       return newValue;
     });
   };
+  const [testData, setTestData] = useState(null);
+  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
 
-  
+  useEffect(() => {
+    if (requiresOtp) {
+      const userId = localStorage.getItem("userId");
+      const projectKey = `selectedProject_${userId}`;
+      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+      
+      if (selectedProject?.id) {
+        setIsTestDataLoading(true);
+        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("✅ Test data loaded:", data);
+            setTestData(data);
+          })
+          .catch((err) => {
+            console.warn("⚠️ Error fetching test data:", err.message);
+            setTestData(null);
+          })
+          .finally(() => setIsTestDataLoading(false));
+      }
+    }
+  }, [requiresOtp]);
+
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+
+  const showDeviceConnectionModal = () => {
+    setShowDeviceModal(true);
+  };
+    
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
@@ -342,6 +372,33 @@ const updateOtpSessionTime = async () => {
   }
 };
 
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    console.log('OTP copied to clipboard');
+  }).catch(err => {
+    console.error('Failed to copy: ', err);
+  });
+};
+
+const checkAndroidConnection = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/android/connection/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("check Android Connection:", data)
+      return data.status === "success";
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking Android connection:', error);
+    return false;
+  }
+};
+
 const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEmailStep = false) => {
   if (!otpVerificationState.waitingForOtp || (!isPhoneNumberStep && !isEmailStep)) {
     console.log('Skipping get_otp call - not an OTP step');
@@ -366,6 +423,11 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       });
 
       otpData = await otpResponse.json();
+      if (otpData.error === "Device not connected") {
+        showDeviceConnectionModal();
+        return;
+      }
+
       otpValue = otpData.otp;
 
     } else if (isEmailStep) {
@@ -407,7 +469,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         setTestSteps(prev => prev.map(step =>
           step.id === stepId ? {
             ...step,
-            message: `${step.message} - Your OTP: ${otpValue}`
+            otpReceived: true,
+            otpValue: otpValue,
+            otpType: isPhoneNumberStep ? 'phone' : 'email'
           } : step
         ));
       }
@@ -417,7 +481,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         setTestSteps(prev => prev.map(step =>
           step.id === stepId ? {
             ...step,
-            message: `${step.message} - Please send OTP to continue`
+            otpReceived: false,
+            otpPending: true,
+            otpType: isPhoneNumberStep ? 'phone' : 'email'
           } : step
         ));
       }
@@ -489,13 +555,27 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     
     let isOtpStep = false;
     let isPhoneNumberStep = false;
+    let isEmailStep = false;
 
-      let isEmailStep = false;
-      if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-        isPhoneNumberStep = !isEmail;
-        isEmailStep = isEmail;
+    if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
+      const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
+      isPhoneNumberStep = !isEmail;
+      isEmailStep = isEmail;
+    }
+
+    // Check Android connection if OTP verification is enabled for phone numbers
+    if (requiresOtp && isPhoneNumberStep) {
+      console.log('🔍 Checking Android device connection before executing step...');
+      const isConnected = await checkAndroidConnection();
+      
+      if (!isConnected) {
+        console.log('❌ Android device not connected');
+        showDeviceConnectionModal();
+        return; 
       }
+      
+      console.log('✅ Android device connected, proceeding with step execution');
+    }
 
     console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
     console.log("📞 Is phone number step?", isPhoneNumberStep);
@@ -520,11 +600,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       verificationType: selectedElement?.verificationType || 'text',
       waitRequestData: stepWaitData || null,
       requiresOtp: requiresOtp,
+      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
       isPhoneNumberStep: isPhoneNumberStep,
       isEmailStep: isEmailStep 
     };
-    
+    console.log("New step object:", newStepObj)
+
     setSelectedElement(null);
     setStepWaitData(null);
     
@@ -1234,7 +1316,8 @@ const createTestCase = async () => {
         step_coordinates: coordinates,
         expected_result: step.expectedResult || "",
         actual_result: "",
-        // requires_otp: usesOtp 
+        requires_otp: step.requiresOtp || false,
+        otp_type: step.otpType || null
       };
     });
 
@@ -1699,26 +1782,49 @@ const SuggestionsDropdown = () => {
                 <span className="text-sm font-medium text-gray-700 block mb-2">
                   Select Contact Method:
                 </span>
-                <div className="flex gap-2 flex-wrap">
-                  <button 
-                    onClick={() => handlePhoneNumberClick('+18777804236')}
-                    className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
-                  >
-                    📱 Phone: +18777804236
-                  </button>
-                  <button 
-                    onClick={() => handlePhoneNumberClick('29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz')}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-                  >
-                    📧 Email: 29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz
-                  </button>
-                </div>
+
+                {/* ✅ Loading state */}
+                {isTestDataLoading ? (
+                  <div className="text-blue-500 text-sm flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10"
+                              stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    Loading test data...
+                  </div>
+                ) : testData?.phone || testData?.email ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {testData.phone_number && (
+                      <button
+                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
+                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+                      >
+                        📱 Phone: {testData.phone_number}
+                      </button>
+                    )}
+                    {testData.email && (
+                      <button
+                        onClick={() => handlePhoneNumberClick(testData.email)}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
+                      >
+                        📧 Email: {testData.email}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-600">
+                    ⚠ No contact method found. Please add test data first.
+                  </div>
+                )}
+
                 <div className="mt-2 text-xs text-gray-600">
                   Click on a contact method to proceed
                 </div>
               </div>
-            )}
-            
+            )}       
+
             {/* Show selected contact and allow changing */}
             {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
@@ -2323,6 +2429,57 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                           </p>
                         )}
 
+                        {/* OTP Display Section - Only for OTP steps */}
+                        {(step.otpReceived || step.otpPending) && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center">
+                                <span className="text-blue-600 mr-2">
+                                  {step.otpType === 'phone' ? '📱' : '📧'}
+                                </span>
+                                <span className="font-medium text-blue-800">
+                                  {step.otpType === 'phone' ? 'Phone' : 'Email'} OTP
+                                </span>
+                              </div>
+                              {step.otpReceived && (
+                                <button
+                                  onClick={() => copyToClipboard(step.otpValue)}
+                                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs transition-colors"
+                                  title="Copy OTP"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Copy
+                                </button>
+                              )}
+                            </div>
+                            
+                            {step.otpReceived ? (
+                              <div className="bg-white p-2 rounded border border-blue-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-mono text-lg font-bold text-green-600">
+                                    {step.otpValue}
+                                  </span>
+                                  <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                    ✓ Received
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                                <div className="flex items-center text-yellow-700">
+                                  <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                  </svg>
+                                  <span className="text-sm">Please send OTP to continue</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Verification result display */}
                         {step.description.toLowerCase().startsWith('verify') && step.status === 'complete' && (
                           <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg">
@@ -2451,6 +2608,23 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
               </div>
             </div>
           </div>
+
+          {showDeviceModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-sm text-center">
+                <h2 className="text-lg font-semibold text-red-600 mb-3">Device Not Connected</h2>
+                <p className="text-sm text-gray-700 mb-4">
+                  Please connect your Android phone via USB and enable "USB Debugging" from Developer Options.
+                </p>
+                <button
+                  onClick={() => setShowDeviceModal(false)}
+                  className="mt-2 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
