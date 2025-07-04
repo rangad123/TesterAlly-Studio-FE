@@ -242,6 +242,8 @@ const handleUpdateTestCase = async () => {
     updateEditValue
   });
 
+  const { testData } = addStepComponent;
+
   const handleViewExecutionScreenshot = (screenshot) => {
     addStepComponent.handleExpandScreenshot(screenshot);
   };
@@ -355,7 +357,11 @@ const handleDeleteStep = async (stepNumber) => {
       }
     }, 100);
   };
-  
+
+const containsOtpPlaceholder = (text) => { 
+  return text && text.toLowerCase().includes('<otp>');
+};
+
   const handleUpdateStep = async (stepNumber) => {
     setUpdatingStepId(stepNumber);
     const userId = localStorage.getItem("userId");
@@ -392,6 +398,24 @@ const handleDeleteStep = async (stepNumber) => {
       // Make sure we're using the full wait command, not just "wait"
       const stepDescription = editValue;
 
+      const otpState = addStepComponent.getOtpState();
+
+      const requestBody = {
+        user_id: userId,  
+        project_name: projectName,  
+        testcase_name: testCaseName, 
+        step_number: step.step_number,
+        step_description: stepDescription,
+        step_coordinates: coordinates,
+        requires_otp: containsOtpPlaceholder(stepDescription) ? true : (otpState.otpPlaceholderUsed ? false : (otpState.requiresOtp || false)),
+        otp_type: otpState.requiresOtp && otpState.enteredContact 
+          ? (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') 
+          : null
+      };
+
+      console.log("🟦 PUT request body to /integrate/teststep/:", requestBody);
+
+
       const response = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -401,7 +425,11 @@ const handleDeleteStep = async (stepNumber) => {
           testcase_name: testCaseName, 
           step_number: step.step_number,
           step_description: stepDescription,
-          step_coordinates: coordinates
+          step_coordinates: coordinates,
+          requires_otp: otpState.requiresOtp || false,
+          otp_type: otpState.requiresOtp && otpState.enteredContact ? 
+            (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') : 
+            null
         })
       });
 
@@ -479,46 +507,43 @@ const handleModalOkClick = async () => {
   try {
     
     const otpStepIndex = steps.findIndex((step) => step.requires_otp === true);
-
     let otpStep = otpStepIndex !== -1 ? steps[otpStepIndex] : null;
 
-    if (otpStep) {
-
-      const detectedOtpType = otpStep.otp_type;
-
-      if (detectedOtpType === "phone") {
-        const isConnected = await checkAndroidConnection();
-        if (!isConnected) {
-          setShowDeviceModal(true); 
-          setIsExecuting(false);
-          return;
-        }
-      }
-    }
-
-    console.log("Sending payload:", {
-      user_id: userId,
-      project_name: projectName,
-      testcase_name: testCaseName,
-      wait_time: waitTime ? parseInt(waitTime) : 2,
-      otp_step_index: otpStepIndex, 
-    });
-
+    // Base payload
     let payloadToSend = {
       user_id: userId,
       project_name: projectName,
       testcase_name: testCaseName,
       wait_time: waitTime ? parseInt(waitTime) : 2,
-      otp_step_index: otpStepIndex,
     };
-
-    // if (otpStep?.otp_type === "email") {
-    //   payloadToSend.email_otp_config = {
-    //     inbox_id: "29f7a099-d305-41d5-8e99-59c347674844",
-    //     email: "29f7a099-d305-41d5-8e99-59c347674844@mailslurp.biz"
-    //   };
-    // }
-
+    // Check if OTP is required
+    if (otpStep) {
+      const detectedOtpType = otpStep.otp_type;
+      
+      if (detectedOtpType === "phone") {
+        // Phone OTP payload
+        const isConnected = await checkAndroidConnection();
+        if (!isConnected) {
+          setShowDeviceModal(true);
+          setIsExecuting(false);
+          return;
+        }
+        payloadToSend.otp_step_index = otpStepIndex;
+        } else if (detectedOtpType === "email") {
+        // Email OTP payload
+        if (!testData?.email) {
+          alert("Please save email in test data for getting correct OTP");
+          setIsExecuting(false);
+          return;
+        }
+        
+        payloadToSend.otp_step_index = otpStepIndex;
+        payloadToSend.email_otp_config = {
+          expected_sender: testData.email
+        };
+      }
+    }
+    
     console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
 
     const response = await fetch("http://127.0.0.1:8000/integrate/run_testcase/", {
@@ -1128,7 +1153,7 @@ const selectAllSteps = () => {
       ) : (
         renderTestCaseInfo()
       )}
-      
+
           {showDeviceModal && (
             <div style={{
               position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',

@@ -76,6 +76,7 @@ const WriteRecord = () => {
   };
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
 
   useEffect(() => {
     if (requiresOtp) {
@@ -328,7 +329,75 @@ const handlePhoneNumberClick = async (contact) => {
         contactEntered: true,
         waitingForOtp: true,
         enteredContact: contact,
-        enteredContactInboxId: "29f7a099-d305-41d5-8e99-59c347674844",
+        enteredContactInboxId: contact,
+        sessionTime: timeData
+      }));
+            
+      console.log('OTP Session Time stored:', timeData);
+    }
+  } catch (error) {
+    console.error('Error calling get_time API:', error);
+  }
+
+  setContactSelected(false);
+};
+
+const handleEmailClick = async () => {
+  if (!testData?.email) {
+    alert('Please save your email in test data to receive OTP correctly.');
+    return;
+  }
+  
+  setContactSelected(true);
+  
+  const displayEmail = 'suriya.prakash@crowd4test.com';
+  const actualUserEmail = testData.email;
+  
+  setNewStep(prev => {
+    const trimmed = prev.trim();
+    
+    if (otpVerificationState.enteredContact) {
+      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+      
+      if (withoutOldContact.endsWith('type')) {
+        return withoutOldContact + ' ' + displayEmail;
+      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+        return withoutOldContact + ' in ' + displayEmail;
+      }
+      return withoutOldContact + ' ' + displayEmail;
+    }
+    
+    if (trimmed.endsWith('type')) {
+      return prev + ' ' + displayEmail;
+    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+      return prev + ' in ' + displayEmail;
+    }
+    return prev + ' ' + displayEmail;
+  });
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/get_time/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const timeData = {
+        ...data,
+        phoneNumber: displayEmail, 
+        actualUserEmail: actualUserEmail, 
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+      
+      setOtpVerificationState(prev => ({
+        ...prev,
+        contactEntered: true,
+        waitingForOtp: true,
+        enteredContact: displayEmail, 
+        enteredContactInboxId: actualUserEmail, 
         sessionTime: timeData
       }));
             
@@ -404,6 +473,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     console.log('Skipping get_otp call - not an OTP step');
     return;
   }
+  setOtpCheckLoadingStepId(stepId);
 
   try {
     const sessionData = JSON.parse(sessionStorage.getItem('otpSessionTime') || '{}');
@@ -439,12 +509,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         return;
       }
 
-      console.log("📤 Sending to /get_mail_otp/:", JSON.stringify({ inbox_id: inboxId, request_time }, null, 2));
+      console.log("📤 Sending to /get_mail_otp/:", JSON.stringify({ expected_sender: inboxId, request_time }, null, 2));
 
       const emailOtpRes = await fetch('http://localhost:8000/api/get_mail_otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inbox_id: inboxId, request_time })
+        body: JSON.stringify({ expected_sender: inboxId, request_time })
       });
 
       otpData = await emailOtpRes.json();
@@ -494,6 +564,8 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     if (isPhoneNumberStep || !isPhoneNumberStep) {
       alert('OTP not received. Please send OTP to continue.');
     }
+  }finally{
+    setOtpCheckLoadingStepId(null);
   }
 };
 
@@ -564,7 +636,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     }
 
     // Check Android connection if OTP verification is enabled for phone numbers
-    if (requiresOtp && isPhoneNumberStep) {
+    if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
       console.log('🔍 Checking Android device connection before executing step...');
       const isConnected = await checkAndroidConnection();
       
@@ -1595,7 +1667,6 @@ const SuggestionsDropdown = () => {
     setAdjustedPosition(null);
   };
 
-  // Position Control Component
   const PositionControls = () => {
     if (!selectedSuggestion) return null;
     
@@ -1806,10 +1877,10 @@ const SuggestionsDropdown = () => {
                     )}
                     {testData.email && (
                       <button
-                        onClick={() => handlePhoneNumberClick(testData.email)}
+                        onClick={() => handleEmailClick()}
                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
                       >
-                        📧 Email: {testData.email}
+                        📧 Email: suriya.prakash@crowd4test.com
                       </button>
                     )}
                   </div>
@@ -2430,7 +2501,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                         )}
 
                         {/* OTP Display Section - Only for OTP steps */}
-                        {(step.otpReceived || step.otpPending) && (
+                        {(step.otpReceived || step.otpPending || otpCheckLoadingStepId === step.id) && (
                           <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center">
@@ -2455,7 +2526,15 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                               )}
                             </div>
                             
-                            {step.otpReceived ? (
+                            {otpCheckLoadingStepId === step.id ? (
+                              <div className="flex items-center text-blue-600">
+                                <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span className="text-sm font-medium">Checking OTP Verification...</span>
+                              </div>
+                            ) : step.otpReceived ? (
                               <div className="bg-white p-2 rounded border border-blue-200">
                                 <div className="flex items-center justify-between">
                                   <span className="font-mono text-lg font-bold text-green-600">
