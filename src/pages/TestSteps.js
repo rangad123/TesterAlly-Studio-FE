@@ -35,6 +35,52 @@ const TestSteps = () => {
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
+  const [detectedOtpSteps, setDetectedOtpSteps] = useState([]);
+  const [testData, setTestData] = useState({});
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editedEmail, setEditedEmail] = useState("");
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+
+  useEffect(() => {
+    const otpSteps = steps.filter((step) => containsOtpPlaceholder(
+      step.step_description || step.description || step.command || ''
+    ));
+
+    // console.log("OTP Steps found:", otpSteps);
+    setDetectedOtpSteps(otpSteps);
+
+    if (otpSteps.length > 0) {
+      const otpStep = otpSteps[0];
+
+      setOtpStepIndexInput(otpStep.step_number.toString());
+      // console.log("Showing OTP Step Number (UI):", otpStep.step_number.toString());
+
+      // const backendOtpIndex = otpStep.step_number - 1;
+      // console.log("Sending OTP Step Index (Backend):", backendOtpIndex);
+    }
+  }, [steps]);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+
+    if (selectedProject?.id) {
+      // setIsTestDataLoading(true);
+      fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Test data loaded in parent:", data);
+          setTestData(data);
+        })
+        .catch((err) => {
+          console.warn("⚠️ Error fetching test data in parent:", err.message);
+          setTestData(null);
+        })
+        // .finally(() => setIsTestDataLoading(false));
+    }
+  }, []);
 
   const fetchTestCase = useCallback(async (testcaseName, projectName) => {
     try {
@@ -242,8 +288,6 @@ const handleUpdateTestCase = async () => {
     updateEditValue
   });
 
-  const { testData } = addStepComponent;
-
   const handleViewExecutionScreenshot = (screenshot) => {
     addStepComponent.handleExpandScreenshot(screenshot);
   };
@@ -359,7 +403,8 @@ const handleDeleteStep = async (stepNumber) => {
   };
 
 const containsOtpPlaceholder = (text) => { 
-  return text && text.toLowerCase().includes('<otp>');
+  if (!text) return false;
+  return text.includes('<otp>') || text.toLowerCase().includes('<otp>');
 };
 
   const handleUpdateStep = async (stepNumber) => {
@@ -456,6 +501,16 @@ const containsOtpPlaceholder = (text) => {
   };
 
   const handleRunSteps = () => {
+
+    const hasEmailOtp = steps.some(step => step.otp_type === "email");
+  
+    if (hasEmailOtp) {
+      setEditedEmail(testData?.email || "");
+      setIsEditingEmail(false);
+      setShowEmailVerificationModal(true);
+      return;
+    }
+  
     // Just show the instructions modal, don't run tests yet
     setShowRunInstructions(true);
     
@@ -463,6 +518,85 @@ const containsOtpPlaceholder = (text) => {
     if (selectedSteps.length === 0) {
       const allStepIds = steps.map(step => step.id);
       setSelectedSteps(allStepIds);
+    }
+  };
+
+  const handleEmailVerificationConfirm = () => {
+    setShowEmailVerificationModal(false);
+    setShowRunInstructions(true);
+    
+    // If no steps are selected, select all steps
+    if (selectedSteps.length === 0) {
+      const allStepIds = steps.map(step => step.id);
+      setSelectedSteps(allStepIds);
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    if (!editedEmail.trim()) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editedEmail.trim())) {
+      alert("Please enter a valid email format.");
+      return;
+    }
+
+    setIsSavingEmail(true);
+    try {
+      const userId = localStorage.getItem("userId");
+      const projectKey = `selectedProject_${userId}`;
+      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+
+      if (!selectedProject?.id) {
+        alert("Project not found. Please select a project.");
+        setIsSavingEmail(false);
+        return;
+      }
+
+      // Create payload similar to your existing API structure
+      const payload = {
+        url: testData?.url || null,
+        email: editedEmail.trim(),
+        phone_number: testData?.phone_number || null,
+        region: testData?.region || null
+      };
+
+      console.log("Saving email payload:", payload);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to save email: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Email saved successfully:", data);
+      
+      // Update local testData state
+      setTestData(prev => ({
+        ...prev,
+        email: editedEmail.trim()
+      }));
+      
+      setIsEditingEmail(false);
+      alert("Email saved successfully!");
+      
+    } catch (error) {
+      console.error("Error saving email:", error);
+      alert(`Error saving email: ${error.message}`);
+    } finally {
+      setIsSavingEmail(false);
     }
   };
 
@@ -505,9 +639,36 @@ const handleModalOkClick = async () => {
   setExecutionResults({});
 
   try {
-    
-    const otpStepIndex = steps.findIndex((step) => step.requires_otp === true);
-    let otpStep = otpStepIndex !== -1 ? steps[otpStepIndex] : null;
+    const otpSteps = steps.filter((step) => containsOtpPlaceholder(step.step_description || step.command));
+    // Find the actual array index of the OTP step
+    const otpStepIndex = otpSteps.length > 0 ? steps.findIndex(step => step.step_number === otpSteps[0].step_number) : -1;
+    // let otpStep = otpSteps.length > 0 ? otpSteps[0] : null;
+
+    console.log("OTP Steps found:", otpSteps);
+    console.log("First OTP Step Number (for backend):", otpStepIndex);
+
+    // DEBUG: Log all steps and their OTP types
+    // console.log("=== DEBUG: All Steps OTP Types ===");
+    // steps.forEach((step, index) => {
+    //   console.log(`Step ${step.step_number}: otp_type = "${step.otp_type}", requires_otp = ${step.requires_otp}`);
+    // });
+    // console.log("=== END DEBUG ===");
+
+    // Check for OTP types
+    const hasPhoneOtp = steps.some(step => step.otp_type === "phone");
+    const hasEmailOtp = steps.some(step => step.otp_type === "email");
+
+    // console.log("hasPhoneOtp:", hasPhoneOtp);
+    // console.log("hasEmailOtp:", hasEmailOtp);
+
+    let detectedOtpType = null;
+    if (hasPhoneOtp) {
+      detectedOtpType = "phone";
+    } else if (hasEmailOtp) {
+      detectedOtpType = "email";
+    }
+
+    console.log("detected Otp Type:", detectedOtpType);
 
     // Base payload
     let payloadToSend = {
@@ -516,32 +677,40 @@ const handleModalOkClick = async () => {
       testcase_name: testCaseName,
       wait_time: waitTime ? parseInt(waitTime) : 2,
     };
-    // Check if OTP is required
-    if (otpStep) {
-      const detectedOtpType = otpStep.otp_type;
-      
-      if (detectedOtpType === "phone") {
-        // Phone OTP payload
-        const isConnected = await checkAndroidConnection();
-        if (!isConnected) {
-          setShowDeviceModal(true);
-          setIsExecuting(false);
-          return;
-        }
-        payloadToSend.otp_step_index = otpStepIndex;
-        } else if (detectedOtpType === "email") {
-        // Email OTP payload
-        if (!testData?.email) {
-          alert("Please save email in test data for getting correct OTP");
-          setIsExecuting(false);
-          return;
-        }
-        
-        payloadToSend.otp_step_index = otpStepIndex;
-        payloadToSend.email_otp_config = {
-          expected_sender: testData.email
-        };
+
+    // Only add OTP config if OTP type is detected
+    if (detectedOtpType === "phone") {
+      const isConnected = await checkAndroidConnection();
+      if (!isConnected) {
+        setShowDeviceModal(true);
+        setIsExecuting(false);
+        return;
       }
+      // Find the first phone OTP step for index
+      const phoneOtpStep = steps.find(step => step.otp_type === "phone");
+      const otpStepIndex = steps.findIndex(step => step.step_number === phoneOtpStep.step_number);
+      payloadToSend.otp_step_index = otpStepIndex;
+      
+      } else if (detectedOtpType === "email") {
+      const isConnected = await checkAndroidConnection();
+      if (!isConnected) {
+        setShowDeviceModal(true);
+        setIsExecuting(false);
+        return;
+      }
+      if (!testData?.email) {
+        alert("Please save email in test data for getting correct OTP");
+        setIsExecuting(false);
+        return;
+      }
+      
+      // Find the first email OTP step for index
+      const emailOtpStep = steps.find(step => step.otp_type === "email");
+      const otpStepIndex = steps.findIndex(step => step.step_number === emailOtpStep.step_number);
+      payloadToSend.otp_step_index = otpStepIndex;
+      payloadToSend.email_otp_config = {
+        expected_sender: testData.email
+      };
     }
     
     console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
@@ -915,7 +1084,12 @@ const selectAllSteps = () => {
                   min="1"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Detected OTP step: <strong>{otpStepIndexInput || 'None'}</strong> (edit if wrong)
+                  Detected OTP steps: <strong>
+                    {detectedOtpSteps.length > 0 
+                      ? detectedOtpSteps.map(step => `Step ${step.step_number}`).join(', ')
+                      : 'None'
+                    }
+                  </strong> (using first one: {otpStepIndexInput || 'None'})
                 </p>
               </div>
 
@@ -1172,6 +1346,88 @@ const selectAllSteps = () => {
                 >
                   OK
                 </button>
+              </div>
+            </div>
+          )}
+
+          {showEmailVerificationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold mb-4">Email Verification Required</h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Your Email (sender email to genrate OTP - From Email):
+                    </label>
+                    {isEditingEmail ? (
+                      <input
+                        type="email"
+                        value={editedEmail}
+                        onChange={(e) => setEditedEmail(e.target.value)}
+                        placeholder="Enter email address"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
+                        <span className="text-gray-700">
+                          {testData?.email || 'No email added'}
+                        </span>
+                        <button
+                          onClick={() => setIsEditingEmail(true)}
+                          className="text-blue-500 text-sm hover:text-blue-700"
+                        >
+                          {testData?.email ? 'Edit' : 'Add'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Default Email (where you'll receive OTP):
+                    </label>
+                    <div className="bg-gray-100 px-3 py-2 rounded-md">
+                      <span className="text-gray-600">suriya.prakash@crowd4test.com</span>
+                      <span className="text-xs text-gray-500 ml-2">(cannot be changed)</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-3 rounded-md">
+                    <p className="text-sm text-blue-700">
+                      <strong>Note:</strong> The OTP will be sent to your email, but the step will display the default email.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowEmailVerificationModal(false);
+                      setIsEditingEmail(false);
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  {isEditingEmail ? (
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={!editedEmail.trim()}
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+                    >
+                      {isSavingEmail ? 'Saving...' : 'Save'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleEmailVerificationConfirm}
+                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      disabled={!testData?.email}
+                    >
+                      Continue
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

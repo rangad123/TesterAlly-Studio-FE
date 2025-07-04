@@ -180,8 +180,8 @@ const TestData = () => {
         const payload = {
           url: url.trim() || null,
           email: email.trim() || null, 
-          phone_number: phone.trim() || null,  // Changed from 'phone' to 'phone_number'
-          region: country.trim() || null       // Changed from 'country' to 'region'
+          phone_number: phone.trim() || null,  
+          region: country.trim() || null       
         };
         console.log("Payload of Data upload:", payload);
 

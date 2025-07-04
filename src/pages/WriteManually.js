@@ -1665,7 +1665,7 @@ const handleOtpPlaceholderClick = () => {
                                         )}
                                         {testData.email && (
                                           <button
-                                            onClick={() => handlePhoneNumberClick(testData.email)}
+                                            onClick={() => handlePhoneNumberClick('suriya.prakash@crowd4test.com')}
                                             className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
                                           >
                                             📧 Email: suriya.prakash@crowd4test.com
