@@ -687,8 +687,8 @@ const handleModalOkClick = async () => {
         return;
       }
       // Find the first phone OTP step for index
-      const phoneOtpStep = steps.find(step => step.otp_type === "phone");
-      const otpStepIndex = steps.findIndex(step => step.step_number === phoneOtpStep.step_number);
+      // const phoneOtpStep = steps.find(step => step.otp_type === "phone");
+      // const otpStepIndex = steps.findIndex(step => step.step_number === phoneOtpStep.step_number);
       payloadToSend.otp_step_index = otpStepIndex;
       
       } else if (detectedOtpType === "email") {
