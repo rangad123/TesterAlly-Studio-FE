@@ -574,6 +574,17 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       setOtpPlaceholderUsed(true);
     }
 
+    if (requiresOtp && actionType === 'type') {
+      const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+      const defaultEmail = 'suriya.prakash@crowd4test.com';
+      
+      if (emailInStep && emailInStep[0] !== defaultEmail) {
+        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+        setInsertingLoading(false);
+        return;
+      }
+    }
+
     const payload = {
       user_id: parseInt(userId),
       project_name: projectName,

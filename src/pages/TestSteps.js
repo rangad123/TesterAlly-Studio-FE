@@ -445,6 +445,19 @@ const containsOtpPlaceholder = (text) => {
 
       const otpState = addStepComponent.getOtpState();
 
+      const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+      if (otpState.requiresOtp && actionType === 'type') {
+        const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+        const defaultEmail = 'suriya.prakash@crowd4test.com';
+        
+        if (emailInStep && emailInStep[0] !== defaultEmail) {
+          alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+          setUpdatingStepId(null);
+          return;
+        }
+      }
+
       const requestBody = {
         user_id: userId,  
         project_name: projectName,  
@@ -1395,7 +1408,7 @@ const selectAllSteps = () => {
 
                   <div className="bg-blue-50 p-3 rounded-md">
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> The OTP will be sent to your email, but the step will display the default email.
+                      <strong>Note:</strong> The OTP will be sent to default email.
                     </p>
                   </div>
                 </div>

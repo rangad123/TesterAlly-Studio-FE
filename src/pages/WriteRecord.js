@@ -136,7 +136,7 @@ const saveTestDataEmail = async (email) => {
     if (response.ok) {
       const data = await response.json();
       console.log("Email saved successfully:", data);
-      
+
       setTestData(prev => ({ ...prev, email: email }));
       return true;
     }
@@ -707,6 +707,16 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     }
 
     let finalStepText = newStep;
+
+    if (requiresOtp && actionType === 'type') {
+      const emailInStep = newStep.match(/\S+@\S+\.\S+/);
+      const defaultEmail = 'suriya.prakash@crowd4test.com';
+      
+      if (emailInStep && emailInStep[0] !== defaultEmail) {
+        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+        return;
+      }
+    }
   
     // Call get_time before executing any step if phone number is entered
     if (otpVerificationState.contactEntered) {
@@ -1522,8 +1532,30 @@ const createTestCase = async () => {
 
   const clearSession = () => {
     sessionStorage.removeItem('latestElementData');
+    sessionStorage.removeItem('otpSessionTime');  
+
+    // Reset React states
     setElementData(null);
     setTestSteps([]);
+    setOtpVerificationState({
+      isEnabled: false,
+      phoneNumberEntered: false,
+      waitingForOtp: false,
+      enteredPhoneNumber: '',
+      sessionTime: null,
+      enteredContact: '',
+      enteredContactInboxId: ''
+    });
+    setTestData(null);
+    setRequiresOtp(false);
+    setContactSelected(false);
+    setEmailConfirmationModal({
+      isOpen: false,
+      userEmail: '',
+      defaultEmail: 'suriya.prakash@crowd4test.com',
+      isEditing: false
+    });
+
     alert('Session data cleared!');
   };
 
@@ -2757,7 +2789,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Your Email (where you'll receive OTP):
+                            Your Email (sender email to genrate OTP - From Email):
                           </label>
                           {emailConfirmationModal.isEditing ? (
                             <input
@@ -2790,7 +2822,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                         
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Default Email (will be used in the step):
+                            Default Email (where you'll receive OTP):
                           </label>
                           <div className="bg-gray-100 px-3 py-2 rounded-md">
                             <span className="text-gray-600">{emailConfirmationModal.defaultEmail}</span>
@@ -2800,7 +2832,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                         
                         <div className="bg-blue-50 p-3 rounded-md">
                           <p className="text-sm text-blue-700">
-                            <strong>Note:</strong> The OTP will be sent to your email address, but the step will show the default email address.
+                            <strong>Note:</strong> The OTP will be sent to default email address.
                           </p>
                         </div>
                       </div>

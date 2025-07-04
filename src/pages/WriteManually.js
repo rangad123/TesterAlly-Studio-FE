@@ -454,17 +454,29 @@ const handleCreateTestCase = async () => {
   const handleSaveStep = (index) => {
 
     // Add this console log at the beginning
-    console.log("🔥 Save and Add Step - Current OTP state:", {
-        requires_otp: requiresOtp,
-        otp_type: requiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
-        contact_entered: otpVerificationState.contactEntered,
-        entered_contact: otpVerificationState.enteredContact,
-        otp_placeholder_used: otpPlaceholderUsed
-    });
+    // console.log("🔥 Save and Add Step - Current OTP state:", {
+    //     requires_otp: requiresOtp,
+    //     otp_type: requiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+    //     contact_entered: otpVerificationState.contactEntered,
+    //     entered_contact: otpVerificationState.enteredContact,
+    //     otp_placeholder_used: otpPlaceholderUsed
+    // });
 
     if (testSteps[index].choice.trim() === "") {
       alert("Please provide a step description before saving.");
       return;
+    }
+
+    const stepDescription = testSteps[index].choice;
+    const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+    const defaultEmail = 'suriya.prakash@crowd4test.com';
+    const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+
+    if (requiresOtp && actionType === 'type') {
+      if (emailInStep && emailInStep[0] !== defaultEmail) {
+        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+        return;
+      }
     }
 
     // First check if there's an empty step at the end
@@ -568,6 +580,18 @@ const handleCreateTestCase = async () => {
     if (testSteps[currentEditingIndex].choice.trim() === "") {
       alert("Please provide a step description before adding a new step.");
       return;
+    }
+
+    const stepDescription = testSteps[currentEditingIndex].choice;
+    const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+    const defaultEmail = 'suriya.prakash@crowd4test.com';
+    const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+
+    if (requiresOtp && actionType === 'type') {
+      if (emailInStep && emailInStep[0] !== defaultEmail) {
+        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+        return;
+      }
     }
 
     // Save the current step
