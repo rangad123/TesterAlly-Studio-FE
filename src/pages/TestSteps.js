@@ -41,6 +41,9 @@ const TestSteps = () => {
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editedEmail, setEditedEmail] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [otpReceiver, setOtpReceiver] = useState('');
+  const [otpReceiverError, setOtpReceiverError] = useState('');
+
 
   useEffect(() => {
     const otpSteps = steps.filter((step) => containsOtpPlaceholder(
@@ -675,6 +678,7 @@ const handleModalOkClick = async () => {
     // console.log("hasEmailOtp:", hasEmailOtp);
 
     let detectedOtpType = null;
+
     if (hasPhoneOtp) {
       detectedOtpType = "phone";
     } else if (hasEmailOtp) {
@@ -682,6 +686,11 @@ const handleModalOkClick = async () => {
     }
 
     console.log("detected Otp Type:", detectedOtpType);
+
+    if (otpReceiver) {
+      detectedOtpType = otpReceiver;
+      console.log("OTP Type Overridden by User Choice:", detectedOtpType);
+    }
 
     // Base payload
     let payloadToSend = {
@@ -718,8 +727,8 @@ const handleModalOkClick = async () => {
       }
       
       // Find the first email OTP step for index
-      const emailOtpStep = steps.find(step => step.otp_type === "email");
-      const otpStepIndex = steps.findIndex(step => step.step_number === emailOtpStep.step_number);
+      // const emailOtpStep = steps.find(step => step.otp_type === "email");
+      // const otpStepIndex = steps.findIndex(step => step.step_number === emailOtpStep.step_number);
       payloadToSend.otp_step_index = otpStepIndex;
       payloadToSend.email_otp_config = {
         expected_sender: testData.email
@@ -1366,12 +1375,12 @@ const selectAllSteps = () => {
           {showEmailVerificationModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 className="text-lg font-semibold mb-4">Email Verification Required</h3>
+                <h3 className="text-lg font-semibold mb-4 text-blue-700">Email Verification Required</h3>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Email (sender email to genrate OTP - From Email):
+                      Your Email (sender email to generate OTP - From Email):
                     </label>
                     {isEditingEmail ? (
                       <input
@@ -1406,9 +1415,47 @@ const selectAllSteps = () => {
                     </div>
                   </div>
 
+                  {/* OTP Receiver Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Where will you receive OTP? <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => {
+                          setOtpReceiver('email');
+                          setOtpReceiverError('');
+                        }}
+                        className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                          otpReceiver === 'email'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        Email
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOtpReceiver('phone');
+                          setOtpReceiverError('');
+                        }}
+                        className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                          otpReceiver === 'phone'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        Phone Number
+                      </button>
+                    </div>
+                    {otpReceiverError && (
+                      <p className="text-red-500 text-sm mt-2">{otpReceiverError}</p>
+                    )}
+                  </div>
+
                   <div className="bg-blue-50 p-3 rounded-md">
                     <p className="text-sm text-blue-700">
-                      <strong>Note:</strong> The OTP will be sent to default email.
+                      <strong>Note:</strong> The OTP will be sent to the selected method.
                     </p>
                   </div>
                 </div>
@@ -1418,6 +1465,8 @@ const selectAllSteps = () => {
                     onClick={() => {
                       setShowEmailVerificationModal(false);
                       setIsEditingEmail(false);
+                      setOtpReceiver('');
+                      setOtpReceiverError('');
                     }}
                     className="px-4 py-2 text-gray-600 hover:text-gray-800"
                   >
@@ -1433,7 +1482,13 @@ const selectAllSteps = () => {
                     </button>
                   ) : (
                     <button
-                      onClick={handleEmailVerificationConfirm}
+                      onClick={() => {
+                        if (!otpReceiver) {
+                          setOtpReceiverError('Please select where you want to receive OTP');
+                          return;
+                        }
+                        handleEmailVerificationConfirm();
+                      }}
                       className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                       disabled={!testData?.email}
                     >

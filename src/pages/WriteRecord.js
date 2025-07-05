@@ -77,6 +77,7 @@ const WriteRecord = () => {
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
+  const [emailModalError, setEmailModalError] = useState('');
   const [emailConfirmationModal, setEmailConfirmationModal] = useState({
     isOpen: false,
     userEmail: '',
@@ -405,13 +406,16 @@ const handleEmailClick = async () => {
     isOpen: true,
     userEmail: testData?.email || '',
     defaultEmail: 'suriya.prakash@crowd4test.com',
-    isEditing: false
+    isEditing: false,
+    otpReceiver: '',
   });
 };
 
 const handleEmailConfirmation = async () => {
-  const { userEmail, defaultEmail } = emailConfirmationModal;
+  const { userEmail, defaultEmail, otpReceiver } = emailConfirmationModal;
   
+  setEmailModalError('');
+
   // If user email is empty, save it first
   if (!userEmail.trim()) {
     alert('Please add your email address first');
@@ -423,6 +427,11 @@ const handleEmailConfirmation = async () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(userEmail)) {
     alert('Please enter a valid email address');
+    return;
+  }
+
+  if (!otpReceiver) {
+    setEmailModalError('Please select where you will receive the OTP');
     return;
   }
   
@@ -486,7 +495,8 @@ const handleEmailConfirmation = async () => {
         waitingForOtp: true,
         enteredContact: defaultEmail, 
         enteredContactInboxId: userEmail, 
-        sessionTime: timeData
+        sessionTime: timeData,
+        otpReceiver: emailConfirmationModal.otpReceiver
       }));
             
       console.log('OTP Session Time stored:', timeData);
@@ -728,9 +738,17 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     let isEmailStep = false;
 
     if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-      const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-      isPhoneNumberStep = !isEmail;
-      isEmailStep = isEmail;
+      // Check if user selected OTP receiver in email modal (only available in email flow)
+      if (otpVerificationState.otpReceiver) {
+        // Email flow - use user's selection from modal
+        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
+        isEmailStep = otpVerificationState.otpReceiver === 'email';
+      } else {
+        // Phone number flow - use contact type detection
+        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
+        isPhoneNumberStep = !isEmail;
+        isEmailStep = isEmail;
+      }
     }
 
     // Check Android connection if OTP verification is enabled for phone numbers
@@ -839,7 +857,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     
     // IMPORTANT: Call get_otp after successful execution when waiting for OTP
     if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
-      await callGetOtpAfterExecution(newStepObj.id, isPhoneNumberStep, isEmailStep);
+      await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
     }
     
     setNewStep('');
@@ -2057,6 +2075,24 @@ const SuggestionsDropdown = () => {
       {/* Position Controls */}
       {showPositionControls && <PositionControls />}
 
+      {shouldShowNoDataMessage && (
+        <div className="p-4 text-center border-t border-gray-200">
+          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            No element data available
+          </div>
+          <p className="text-sm text-gray-700">
+            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+          </p>
+          <button 
+            onClick={() => setShowSuggestions(false)}
+            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Suggestions List */}
       {!showPositionControls && (
         <ul className="divide-y divide-gray-100">
@@ -2518,7 +2554,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   </div>
                   
                   {/* Suggestions dropdown with animation */}
-                  <SuggestionsDropdown />
+                  <SuggestionsDropdown omniparserData={elementData} />
                   
                   {/* Command type indicator */}
                   {commandType && (
@@ -2783,86 +2819,148 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
 
                 {emailConfirmationModal.isOpen && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                      <h3 className="text-lg font-semibold mb-4">Email Confirmation</h3>
-                      
-                      <div className="space-y-4">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
+                      <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
+                        Email Confirmation
+                      </h3>
+
+                      <div className="space-y-5">
+                        {/* Sender Email Input */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Your Email (sender email to genrate OTP - From Email):
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Sender Email (From Email for OTP):
                           </label>
                           {emailConfirmationModal.isEditing ? (
                             <input
                               type="email"
                               value={emailConfirmationModal.userEmail}
-                              onChange={(e) => setEmailConfirmationModal(prev => ({ 
-                                ...prev, 
-                                userEmail: e.target.value 
-                              }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              onChange={(e) =>
+                                setEmailConfirmationModal((prev) => ({
+                                  ...prev,
+                                  userEmail: e.target.value,
+                                }))
+                              }
+                              className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
                               placeholder="Enter your email address"
                             />
                           ) : (
-                            <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
-                              <span className="text-gray-700">
+                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md">
+                              <span className="text-gray-800">
                                 {emailConfirmationModal.userEmail || 'No email added'}
                               </span>
                               <button
-                                onClick={() => setEmailConfirmationModal(prev => ({ 
-                                  ...prev, 
-                                  isEditing: true 
-                                }))}
-                                className="text-blue-500 text-sm hover:text-blue-700"
+                                onClick={() =>
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    isEditing: true,
+                                  }))
+                                }
+                                className="text-purple-600 text-sm font-medium hover:underline"
                               >
                                 {emailConfirmationModal.userEmail ? 'Edit' : 'Add'}
                               </button>
                             </div>
                           )}
                         </div>
-                        
+
+                        {/* Default Email */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Default Email (where you'll receive OTP):
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Default OTP Receiver Email:
                           </label>
-                          <div className="bg-gray-100 px-3 py-2 rounded-md">
-                            <span className="text-gray-600">{emailConfirmationModal.defaultEmail}</span>
-                            <span className="text-xs text-gray-500 ml-2">(cannot be changed)</span>
+                          <div className="bg-gray-100 px-4 py-2 rounded-md">
+                            <span className="text-gray-700">{emailConfirmationModal.defaultEmail}</span>
+                            <span className="text-xs text-gray-500 ml-2">(fixed)</span>
                           </div>
                         </div>
-                        
-                        <div className="bg-blue-50 p-3 rounded-md">
-                          <p className="text-sm text-blue-700">
-                            <strong>Note:</strong> The OTP will be sent to default email address.
+
+                        {/* New Section - OTP Receiver Choice */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Where will you receive OTP? <span className="text-red-500">*</span>
+                          </label>
+                          <div className="flex space-x-4">
+                            <button
+                              onClick={() => {
+                                setEmailConfirmationModal((prev) => ({
+                                  ...prev,
+                                  otpReceiver: 'email',
+                                }));
+                                setEmailModalError(''); 
+                              }}
+                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                                emailConfirmationModal.otpReceiver === 'email'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              Email
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEmailConfirmationModal((prev) => ({
+                                  ...prev,
+                                  otpReceiver: 'phone',
+                                }));
+                                setEmailModalError(''); 
+                              }}
+                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                                emailConfirmationModal.otpReceiver === 'phone'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              Phone Number
+                            </button>
+                          </div>
+                          
+                          {/* ADD THIS ERROR MESSAGE: */}
+                          {emailModalError && (
+                            <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
+                          )}
+                        </div>
+
+                        {/* Info Note */}
+                        <div className="bg-purple-50 p-4 rounded-md">
+                          <p className="text-sm text-purple-700">
+                            <strong>Note:</strong> OTP will be sent to the selected method.
                           </p>
                         </div>
                       </div>
-                      
-                      <div className="flex justify-end space-x-2 mt-6">
+
+                      {/* Modal Buttons */}
+                      <div className="flex justify-end space-x-3 mt-8">
                         <button
-                          onClick={() => setEmailConfirmationModal({ 
-                            isOpen: false, 
-                            userEmail: '', 
-                            defaultEmail: '', 
-                            isEditing: false 
-                          })}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                          onClick={() => {
+                            setEmailConfirmationModal({
+                              isOpen: false,
+                              userEmail: '',
+                              defaultEmail: '',
+                              isEditing: false,
+                              otpReceiver: '',
+                            });
+                            setEmailModalError(''); 
+                          }}
+                          className="px-5 py-2 text-gray-700 hover:text-gray-900"
                         >
                           Cancel
                         </button>
                         {emailConfirmationModal.isEditing ? (
                           <button
-                            onClick={() => setEmailConfirmationModal(prev => ({ 
-                              ...prev, 
-                              isEditing: false 
-                            }))}
-                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                            onClick={() =>
+                              setEmailConfirmationModal((prev) => ({
+                                ...prev,
+                                isEditing: false,
+                              }))
+                            }
+                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                           >
                             Save
                           </button>
                         ) : (
                           <button
                             onClick={handleEmailConfirmation}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                             disabled={!emailConfirmationModal.userEmail.trim()}
                           >
                             Confirm & Continue
