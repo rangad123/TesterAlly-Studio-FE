@@ -55,7 +55,114 @@ const AndroidRecord = () => {
   const [pendingOpenCommand, setPendingOpenCommand] = useState(false);
   const [headerLoading, setHeaderLoading] = useState(false);
   const [syncButton, setSyncButton] = useState(false);
+
+  const [requiresOtp, setRequiresOtp] = useState(false);
+  const [contactSelected, setContactSelected] = useState(false);
+  const [otpVerificationState, setOtpVerificationState] = useState({
+    isEnabled: false,
+    phoneNumberEntered: false,
+    waitingForOtp: false,
+    enteredPhoneNumber: '',
+    sessionTime: null
+  });
+  const toggleOtpCheckbox = () => {
+    setRequiresOtp(prev => {
+      const newValue = !prev;
+      if (newValue) {
+        // When enabling OTP, show contact options and hide elements
+        setContactSelected(true);
+      } else {
+        // When disabling OTP, reset everything
+        setContactSelected(false);
+        setOtpVerificationState(prev => ({
+          ...prev,
+          contactEntered: false,
+          waitingForOtp: false,
+          enteredContact: '',
+          sessionTime: null
+        }));
+      }
+      return newValue;
+    });
+  };
+  const [testData, setTestData] = useState(null);
+  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
+  const [emailModalError, setEmailModalError] = useState('');
+  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  const [senderEmail, setSenderEmail] = useState('');
+  const [emailConfirmationModal, setEmailConfirmationModal] = useState({
+    isOpen: false,
+    userEmail: '',
+    email_app_password: '',
+    otpReceiver: '',
+    isEditing: false,
+    showPassword: false, 
+  });
+
+  useEffect(() => {
+    if (requiresOtp) {
+      const userId = localStorage.getItem("userId");
+      const projectKey = `selectedProject_${userId}`;
+      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+      
+      if (selectedProject?.id) {
+        setIsTestDataLoading(true);
+        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("✅ Test data loaded:", data);
+            setTestData(data);
+          })
+          .catch((err) => {
+            console.warn("⚠️ Error fetching test data:", err.message);
+            setTestData(null);
+          })
+          .finally(() => setIsTestDataLoading(false));
+      }
+    }
+  }, [requiresOtp]);
+
+const saveTestDataEmail = async (email, password) => {
+  const userId = localStorage.getItem("userId");
+  const projectKey = `selectedProject_${userId}`;
+  const selectedProject = JSON.parse(localStorage.getItem(projectKey));
   
+  if (!selectedProject?.id) {
+    alert('No project selected');
+    return false;
+  }
+
+  const payload = {
+    url: testData?.url || null,
+    email: email.trim(),
+    email_app_password: password.trim(),
+    phone_number: testData?.phone_number || null,
+    region: testData?.region || null
+  };
+
+  console.log("Saving email payload:", payload);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Email saved successfully:", data);
+
+      setTestData(prev => ({ ...prev, email: email }));
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error saving test data email:', error);
+    return false;
+  }
+};
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -469,6 +576,363 @@ useEffect(() => {
     return null;
   };
 
+
+const handlePhoneNumberClick = async (contact) => {
+  setContactSelected(true);
+  
+  setNewStep(prev => {
+    const trimmed = prev.trim();
+    
+    // If there's already a contact in the step, replace it completely
+    if (otpVerificationState.enteredContact) {
+      // Remove the old contact completely and add new one
+      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+      
+      if (withoutOldContact.endsWith('type')) {
+        return withoutOldContact + ' ' + contact;
+      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+        return withoutOldContact + ' in ' + contact;
+      }
+      return withoutOldContact + ' ' + contact;
+    }
+    
+    // First time selecting contact
+    if (trimmed.endsWith('type')) {
+      return prev + ' ' + contact;
+    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+      return prev + ' in ' + contact;
+    }
+    return prev + ' ' + contact;
+  });
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/get_time/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const timeData = {
+        ...data,
+        phoneNumber: contact,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+      
+      setOtpVerificationState(prev => ({
+        ...prev,
+        contactEntered: true,
+        waitingForOtp: true,
+        enteredContact: contact,
+        enteredContactInboxId: contact,
+        sessionTime: timeData
+      }));
+            
+      console.log('OTP Session Time stored:', timeData);
+    }
+  } catch (error) {
+    console.error('Error calling get_time API:', error);
+  }
+
+  setContactSelected(false);
+};
+
+const handleEmailClick = async () => {
+  // Check if OTP verification is enabled and validate email match
+  if (requiresOtp && testData?.email) {
+    const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
+    
+    if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
+      alert(`For OTP verification, please use your configured email: ${testData.email}`);
+      return;
+    }
+  }
+  
+  // Show email confirmation modal
+  setEmailConfirmationModal({
+    isOpen: true,
+    userEmail: testData?.email || '',
+    email_app_password: testData?.email_app_password || '',
+    otpReceiver: '',
+    isEditing: false,
+    showPassword: false,
+  });
+};
+
+const handleEmailConfirmation = async () => {
+  const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
+  
+  setEmailModalError('');
+
+  // Validate email
+  if (!userEmail.trim()) {
+    setEmailModalError('Please enter your email address');
+    return;
+  }
+  
+  // Validate password
+  if (!email_app_password?.trim()) {
+    setEmailModalError('Please enter your password');
+    return;
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(userEmail)) {
+    setEmailModalError('Please enter a valid email address');
+    return;
+  }
+
+  if (!otpReceiver) {
+    setEmailModalError('Please select where you will receive the OTP');
+    return;
+  }
+  
+  // Save email to test data if it's new or changed
+  if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
+    const saved = await saveTestDataEmail(userEmail, email_app_password);
+    if (!saved) {
+      alert('Failed to save email. Please try again.');
+      return;
+    }
+  }
+  
+  setEmailConfirmationModal({ 
+    isOpen: false, 
+    userEmail: '', 
+    email_app_password: '',  
+    otpReceiver: '',
+    isEditing: false 
+  });
+  
+  // Original email click logic
+  setContactSelected(true);
+  
+  setNewStep(prev => {
+    const trimmed = prev.trim();
+    
+    if (otpVerificationState.enteredContact) {
+      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+      
+      if (withoutOldContact.endsWith('type')) {
+        return withoutOldContact + ' ' + userEmail;
+      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+        return withoutOldContact + ' in ' + userEmail;
+      }
+      return withoutOldContact + ' ' + userEmail;
+    }
+    
+    if (trimmed.endsWith('type')) {
+      return prev + ' ' + userEmail;
+    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+      return prev + ' in ' + userEmail;
+    }
+    return prev + ' ' + userEmail;
+  });
+  
+
+  try {
+    const response = await fetch('http://localhost:8000/api/get_time/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const timeData = {
+        ...data,
+        phoneNumber: userEmail, 
+        actualUserEmail: userEmail, 
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+      
+      setOtpVerificationState(prev => ({
+        ...prev,
+        contactEntered: true,
+        waitingForOtp: true,
+        enteredContact: userEmail, 
+        enteredContactInboxId: userEmail, 
+        sessionTime: timeData,
+        otpReceiver: emailConfirmationModal.otpReceiver
+      }));
+            
+      console.log('OTP Session Time stored:', timeData);
+    }
+  } catch (error) {
+    console.error('Error calling get_time API:', error);
+  }
+
+  setContactSelected(false);
+};
+
+const updateOtpSessionTime = async () => {
+  if (!otpVerificationState.contactEntered) return;
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/get_time/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const timeData = {
+        ...data,
+        phoneNumber: otpVerificationState.enteredContact,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+      
+      setOtpVerificationState(prev => ({
+        ...prev,
+        sessionTime: timeData
+      }));
+      
+      console.log('OTP Session Time updated before step execution:', timeData);
+    }
+  } catch (error) {
+    console.error('Error updating OTP session time:', error);
+  }
+};
+
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    console.log('OTP copied to clipboard');
+  }).catch(err => {
+    console.error('Failed to copy: ', err);
+  });
+};
+
+const checkAndroidConnection = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/android/connection/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("check Android Connection:", data)
+      return data.status === "success";
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking Android connection:', error);
+    return false;
+  }
+};
+
+const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEmailStep = false) => {
+  if (!otpVerificationState.waitingForOtp || (!isPhoneNumberStep && !isEmailStep)) {
+    console.log('Skipping get_otp call - not an OTP step');
+    return;
+  }
+  setOtpCheckLoadingStepId(stepId);
+
+  try {
+    const sessionData = JSON.parse(sessionStorage.getItem('otpSessionTime') || '{}');
+    const request_time = sessionData.request_time || new Date().toISOString();
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+    const project_id = selectedProject?.id;
+
+
+    let otpData;
+    let otpValue;
+
+    const otpPayload = { request_time, project_id };  
+    console.log("📤 Sending to /get_otp/:", JSON.stringify(otpPayload, null, 2));
+
+    if (isPhoneNumberStep) {
+      // Phone OTP
+      const otpResponse = await fetch('http://localhost:8000/api/get_otp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otpPayload)
+      });
+
+      otpData = await otpResponse.json();
+      if (otpData.error === "Device not connected") {
+        checkConnectionStatus();
+        return;
+      }
+
+      otpValue = otpData.otp;
+
+    } else if (isEmailStep) {
+      // Email OTP
+      const emailOtpPayload = { request_time, project_id }
+
+      if (senderEmail.trim()) {
+        emailOtpPayload.expected_sender = senderEmail.trim();
+      }
+
+      console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
+
+      const emailOtpRes = await fetch('http://localhost:8000/api/get_mail_otp/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(emailOtpPayload)
+      });
+
+      otpData = await emailOtpRes.json();
+      otpValue = otpData.otp;
+    } else {
+      // Neither phone nor email step - shouldn't reach here
+      console.log('No OTP API call needed for this step type');
+      return;
+    }
+
+    console.log('OTP Response after execution:', otpData);
+
+    const isValidOtp = /^\d{4,8}$/.test(otpValue);
+
+    if (isValidOtp) {
+      setOtpVerificationState(prev => ({
+        ...prev,
+        waitingForOtp: false
+      }));
+
+      if (isPhoneNumberStep || isEmailStep) {  
+        setTestSteps(prev => prev.map(step =>
+          step.id === stepId ? {
+            ...step,
+            otpReceived: true,
+            otpValue: otpValue,
+            otpType: isPhoneNumberStep ? 'phone' : 'email'
+          } : step
+        ));
+      }
+
+    } else {
+      if (isPhoneNumberStep || isEmailStep) {  
+        setTestSteps(prev => prev.map(step =>
+          step.id === stepId ? {
+            ...step,
+            otpReceived: false,
+            otpPending: true,
+            otpType: isPhoneNumberStep ? 'phone' : 'email'
+          } : step
+        ));
+      }
+    }
+
+  } catch (error) {
+    console.error('Error getting OTP after execution:', error);
+    if (isPhoneNumberStep || !isPhoneNumberStep) {
+      alert('OTP not received. Please send OTP to continue.');
+    }
+  }finally{
+    setOtpCheckLoadingStepId(null);
+  }
+};
+
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;
     
@@ -519,18 +983,86 @@ useEffect(() => {
       return;
     }
 
+    let finalStepText = newStep;
+
+    if (requiresOtp && actionType === 'type') {
+      const emailInStep = newStep.match(/\S+@\S+\.\S+/);
+      
+      if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
+        alert(`For OTP verification, please use your configured email: ${testData.email}`);
+        return;
+      }
+    }
+
+    // Call get_time before executing any step if phone number is entered
+    if (otpVerificationState.contactEntered) {
+      await updateOtpSessionTime();
+    }
+
+    let isOtpStep = false;
+    let isPhoneNumberStep = false;
+    let isEmailStep = false;
+
+    if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
+      // Check if user selected OTP receiver in email modal (only available in email flow)
+      if (otpVerificationState.otpReceiver) {
+        // Email flow - use user's selection from modal
+        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
+        isEmailStep = otpVerificationState.otpReceiver === 'email';
+      } else {
+        // Phone number flow - use contact type detection
+        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
+        isPhoneNumberStep = !isEmail;
+        isEmailStep = isEmail;
+      }
+    }
+
+    // Check Android connection if OTP verification is enabled for phone numbers
+    if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
+      console.log('🔍 Checking Android device connection before executing step...');
+      const isConnected = await checkAndroidConnection();
+      
+      if (!isConnected) {
+        console.log('❌ Android device not connected');
+        checkConnectionStatus();
+        return; 
+      }
+      
+      console.log('✅ Android device connected, proceeding with step execution');
+    }
+
+    console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
+    console.log("📞 Is phone number step?", isPhoneNumberStep);
+
+    if (otpVerificationState.waitingForOtp && actionType === 'type') {
+      // Check if user is entering OTP (4-8 digits)
+      const match = newStep.match(/\b\d{4,8}\b/);
+      if (match) {
+        isOtpStep = true;
+        finalStepText = newStep;
+        console.log('Detected OTP input:', match[0]);
+      }
+    }
+
     const newStepObj = {
       id: Date.now(),
       description: commandType === 'open' && selectedElement?.packageName 
       ? `open ${selectedElement.packageName}` 
-      : newStep,
+      : finalStepText,
       status: 'pending',
       duration: '00:00',
       screenshot: null,
       selectedElement: selectedElement,
       verificationType: selectedElement?.verificationType || 'text',
-      waitRequestData: stepWaitData || null
+      waitRequestData: stepWaitData || null,
+      requiresOtp: requiresOtp,
+      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
+      otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
+      isPhoneNumberStep: isPhoneNumberStep,
+      isEmailStep: isEmailStep 
     };
+
+    console.log("New step object:", newStepObj)
     
     // Clear selections
     setSelectedElement(null);
@@ -606,6 +1138,16 @@ useEffect(() => {
               };
             });
           }
+        }
+
+        // IMPORTANT: Call get_otp after successful execution when waiting for OTP
+        if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
+          await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
+        }
+        
+        setNewStep('');
+        if (newStepObj.otpSessionData) {
+          setRequiresOtp(false);
         }
         
         // Scroll to bottom after successful addition
@@ -1937,8 +2479,30 @@ const createTestCase = async () => {
 
   const clearSession = () => {
     sessionStorage.removeItem('latestElementData');
+    sessionStorage.removeItem('otpSessionTime');  
+
+    // Reset React states
     setElementData(null);
     setTestSteps([]);
+    setOtpVerificationState({
+      isEnabled: false,
+      phoneNumberEntered: false,
+      waitingForOtp: false,
+      enteredPhoneNumber: '',
+      sessionTime: null,
+      enteredContact: '',
+      enteredContactInboxId: ''
+    });
+    setTestData(null);
+    setRequiresOtp(false);
+    setContactSelected(false);
+    setEmailConfirmationModal({
+      isOpen: false,
+      userEmail: '',
+      defaultEmail: 'suriya.prakash@crowd4test.com',
+      isEditing: false
+    });
+
     alert('Session data cleared!');
   };
 
@@ -2153,8 +2717,95 @@ const SuggestionsDropdown = () => {
             </>
           ) : null}
 
-
         </h4>
+
+        {commandType === 'type' && (
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={requiresOtp}
+                onChange={toggleOtpCheckbox}
+                className="accent-blue-500"
+              />
+              OTP Verification
+            </label>
+            
+            {/* Show contact selection only when OTP is checked and no contact selected */}
+            {requiresOtp && !otpVerificationState.contactEntered && (
+              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+                <span className="text-sm font-medium text-gray-700 block mb-2">
+                  Select Contact Method:
+                </span>
+
+                {/* ✅ Loading state */}
+                {isTestDataLoading ? (
+                  <div className="text-blue-500 text-sm flex items-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10"
+                              stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    Loading test data...
+                  </div>
+                ) : testData?.phone || testData?.email ? (
+                  <div className="flex gap-2 flex-wrap">
+                    {testData.phone_number && (
+                      <button
+                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
+                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+                      >
+                        📱 Phone: {testData.phone_number}
+                      </button>
+                    )}
+                    {testData.email && (
+                      <button
+                        onClick={() => handleEmailClick()}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
+                      >
+                        📧 Email: {testData.email}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-600">
+                    ⚠ No contact method found. Please add test data first.
+                  </div>
+                )}
+
+                <div className="mt-2 text-xs text-gray-600">
+                  Click on a contact method to proceed
+                </div>
+              </div>
+            )}       
+
+            {/* Show selected contact and allow changing */}
+            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-green-700">
+                    ✅ Selected: {otpVerificationState.enteredContact}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setContactSelected(false);
+                      setOtpVerificationState(prev => ({
+                        ...prev,
+                        contactEntered: false,
+                        enteredContact: ''
+                      }));
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Change Contact
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <p className="text-xs text-gray-600">
           Found {suggestions.length} matching {commandType === 'open' ? 'apps' : 'elements'}
           {suggestions.some(s => s.isDuplicate) && 
@@ -2808,6 +3459,65 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                           </p>
                         )}
 
+                        {/* OTP Display Section - Only for OTP steps */}
+                        {(step.otpReceived || step.otpPending || otpCheckLoadingStepId === step.id) && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center">
+                                <span className="text-blue-600 mr-2">
+                                  {step.otpType === 'phone' ? '📱' : '📧'}
+                                </span>
+                                <span className="font-medium text-blue-800">
+                                  {step.otpType === 'phone' ? 'Phone' : 'Email'} OTP
+                                </span>
+                              </div>
+                              {step.otpReceived && (
+                                <button
+                                  onClick={() => copyToClipboard(step.otpValue)}
+                                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-xs transition-colors"
+                                  title="Copy OTP"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  Copy
+                                </button>
+                              )}
+                            </div>
+                            
+                            {otpCheckLoadingStepId === step.id ? (
+                              <div className="flex items-center text-blue-600">
+                                <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span className="text-sm font-medium">Checking OTP Verification...</span>
+                              </div>
+                            ) : step.otpReceived ? (
+                              <div className="bg-white p-2 rounded border border-blue-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-mono text-lg font-bold text-green-600">
+                                    {step.otpValue}
+                                  </span>
+                                  <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                    ✓ Received
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                                <div className="flex items-center text-yellow-700">
+                                  <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                  </svg>
+                                  <span className="text-sm">Please send OTP to continue</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Verification result display */}
                         {step.description.toLowerCase().startsWith('verify') && step.status === 'complete' && (
                           <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg">
@@ -2909,6 +3619,221 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                       </div>
                     ))
                   )}
+
+                  {emailConfirmationModal.isOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
+                        <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
+                          Email & Password Configuration
+                        </h3>
+
+                        <div className="space-y-5">
+                        {/* Email Display/Edit */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Email Address: <span className="text-red-500">*</span>
+                          </label>
+                          {emailConfirmationModal.isEditing ? (
+                            <>
+                              {/* Email Input (shown in edit mode) */}
+                              <input
+                                type="email"
+                                value={emailConfirmationModal.userEmail}
+                                onChange={(e) =>
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    userEmail: e.target.value,
+                                  }))
+                                }
+                                className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                                placeholder="Enter your email address"
+                              />
+
+                              {/* Password Input (shown only in edit mode) */}
+                              <div className="mt-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  App Password: <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type={emailConfirmationModal.showPassword ? "text" : "password"}
+                                    value={emailConfirmationModal.email_app_password || ''}
+                                    onChange={(e) =>
+                                      setEmailConfirmationModal((prev) => ({
+                                        ...prev,
+                                        email_app_password: e.target.value,
+                                      }))
+                                    }
+                                    className="w-full px-4 py-2 pr-10 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                                    placeholder="Enter app password"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEmailConfirmationModal((prev) => ({
+                                        ...prev,
+                                        showPassword: !prev.showPassword,
+                                      }))
+                                    }
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                  >
+                                    {/* Eye icon */}
+                                    {emailConfirmationModal.showPassword ? (
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M18.364 18.364L16.95 16.95m1.414-1.414L9.878 9.878m8.486 8.486L8.464 8.464" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md border">
+                              <span className="text-gray-800">
+                                {emailConfirmationModal.userEmail || 'No email added'}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    isEditing: true,
+                                  }))
+                                }
+                                className="text-purple-600 text-sm font-medium hover:underline"
+                              >
+                                {emailConfirmationModal.userEmail ? 'Edit' : 'Add'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                          {/* OTP Receiver Choice */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Where will you receive OTP? <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex space-x-4">
+                              <button
+                                onClick={() => {
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    otpReceiver: 'email',
+                                  }));
+                                  setEmailModalError(''); 
+                                }}
+                                className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                                  emailConfirmationModal.otpReceiver === 'email'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                Email
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    otpReceiver: 'phone',
+                                  }));
+                                  setEmailModalError(''); 
+                                }}
+                                className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                                  emailConfirmationModal.otpReceiver === 'phone'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                Phone Number
+                              </button>
+                            </div>
+                            
+                            {emailModalError && (
+                              <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
+                            )}
+                          </div>
+
+                        {/* Sender Email Option */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => setShowSenderEmailField(prev => !prev)}
+                            className="text-purple-600 text-sm hover:text-purple-800"
+                          >
+                            {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
+                          </button>
+
+                          {showSenderEmailField && (
+                            <div className="mt-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Sender Email for OTP (Optional):
+                              </label>
+                              <input
+                                type="email"
+                                value={senderEmail}
+                                onChange={(e) => setSenderEmail(e.target.value)}
+                                placeholder="e.g., no-reply@example.com"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                              />
+                            </div>
+                          )}
+                        </div>          
+
+                          {/* Info Note */}
+                          <div className="bg-purple-50 p-4 rounded-md">
+                            <p className="text-sm text-purple-700">
+                              <strong>Note:</strong> App password is required for email OTP verification.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Modal Buttons */}
+                        <div className="flex justify-end space-x-3 mt-8">
+                          <button
+                            onClick={() => {
+                              setEmailConfirmationModal({
+                                isOpen: false,
+                                userEmail: '',
+                                email_app_password: '',
+                                otpReceiver: '',
+                                isEditing: false,
+                                showPassword: false,
+                              });
+                              setEmailModalError(''); 
+                            }}
+                            className="px-5 py-2 text-gray-700 hover:text-gray-900"
+                          >
+                            Cancel
+                          </button>
+                          {emailConfirmationModal.isEditing ? (
+                            <button
+                              onClick={() =>
+                                setEmailConfirmationModal((prev) => ({
+                                  ...prev,
+                                  isEditing: false,
+                                }))
+                              }
+                              className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                            >
+                              Save
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleEmailConfirmation}
+                              className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                              disabled={!emailConfirmationModal.userEmail.trim() || !emailConfirmationModal.email_app_password?.trim()}
+                            >
+                              Confirm & Continue
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
                 <ImageModal />
                 <VerificationConfirmation

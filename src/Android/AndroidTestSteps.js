@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw, WifiOff } from "lucide-react";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw, WifiOff, Eye, EyeOff } from "lucide-react";
 import AndroidAddStep from "./AndroidAddStep";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
 
@@ -40,6 +40,60 @@ const AndroidTestSteps = () => {
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
+  const [detectedOtpSteps, setDetectedOtpSteps] = useState([]);
+  const [testData, setTestData] = useState({});
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editedEmail, setEditedEmail] = useState("");
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [otpReceiver, setOtpReceiver] = useState('');
+  const [otpReceiverError, setOtpReceiverError] = useState('');
+  const [editedPassword, setEditedPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [otpStepIndexInput, setOtpStepIndexInput] = useState("");
+  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  const [senderEmail, setSenderEmail] = useState('');
+
+
+  useEffect(() => {
+    const otpSteps = steps.filter((step) => containsOtpPlaceholder(
+      step.step_description || step.description || step.command || ''
+    ));
+
+    // console.log("OTP Steps found:", otpSteps);
+    setDetectedOtpSteps(otpSteps);
+
+    if (otpSteps.length > 0) {
+      const otpStep = otpSteps[0];
+
+      setOtpStepIndexInput(otpStep.step_number.toString());
+      // console.log("Showing OTP Step Number (UI):", otpStep.step_number.toString());
+
+      // const backendOtpIndex = otpStep.step_number - 1;
+      // console.log("Sending OTP Step Index (Backend):", backendOtpIndex);
+    }
+  }, [steps]);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+
+    if (selectedProject?.id) {
+      // setIsTestDataLoading(true);
+      fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Test data loaded in parent:", data);
+          setTestData(data);
+        })
+        .catch((err) => {
+          console.warn("⚠️ Error fetching test data in parent:", err.message);
+          setTestData(null);
+        })
+        // .finally(() => setIsTestDataLoading(false));
+    }
+  }, []);
 
   const fetchTestCase = useCallback(async (testcaseName, projectName) => {
     try {
@@ -551,6 +605,11 @@ const handleDeleteStep = async (stepNumber) => {
   }
   };
 
+const containsOtpPlaceholder = (text) => { 
+  if (!text) return false;
+  return text.includes('<otp>') || text.toLowerCase().includes('<otp>');
+};
+
   const handleUpdateStep = async (stepNumber) => {
     setUpdatingStepId(stepNumber);
     const userId = localStorage.getItem("userId");
@@ -587,6 +646,42 @@ const handleDeleteStep = async (stepNumber) => {
       // Make sure we're using the full wait command, not just "wait"
       const stepDescription = editValue;
 
+      const otpState = addStepComponent.getOtpState();
+
+      const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+      if (otpState.requiresOtp && actionType === 'type') {
+        const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+        const selectedContact = otpState.enteredContact?.trim();
+
+        // Check only if selected contact is an email
+        if (emailInStep && selectedContact && /\S+@\S+\.\S+/.test(selectedContact)) {
+          const selectedEmail = selectedContact;
+          const emailTyped = emailInStep[0].trim();
+
+          if (emailTyped !== selectedEmail) {
+            alert(`For OTP verification, please use the selected email: ${selectedEmail}`);
+            setUpdatingStepId(null);
+            return;
+          }
+        }
+      }
+
+      const requestBody = {
+        user_id: userId,  
+        project_name: projectName,  
+        testcase_name: testCaseName, 
+        step_number: step.step_number,
+        step_description: stepDescription,
+        step_coordinates: coordinates,
+        requires_otp: containsOtpPlaceholder(stepDescription) ? true : (otpState.otpPlaceholderUsed ? false : (otpState.requiresOtp || false)),
+        otp_type: otpState.requiresOtp && otpState.enteredContact 
+          ? (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') 
+          : null
+      };
+
+      console.log("🟦 PUT request body to /integrate/teststep/:", requestBody);
+
       const response = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -596,7 +691,11 @@ const handleDeleteStep = async (stepNumber) => {
           testcase_name: testCaseName, 
           step_number: step.step_number,
           step_description: stepDescription,
-          step_coordinates: coordinates
+          step_coordinates: coordinates,
+          requires_otp: otpState.requiresOtp || false,
+          otp_type: otpState.requiresOtp && otpState.enteredContact ? 
+            (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') : 
+            null
         })
       });
 
@@ -623,6 +722,16 @@ const handleDeleteStep = async (stepNumber) => {
   };
 
   const handleRunSteps = () => {
+
+    const hasEmailOtp = steps.some(step => step.otp_type === "email");
+  
+    if (hasEmailOtp) {
+      setEditedEmail(testData?.email || "");
+      setIsEditingEmail(false);
+      setShowEmailVerificationModal(true);
+      return;
+    }
+
     // Just show the instructions modal, don't run tests yet
     setShowRunInstructions(true);
     
@@ -630,6 +739,92 @@ const handleDeleteStep = async (stepNumber) => {
     if (selectedSteps.length === 0) {
       const allStepIds = steps.map(step => step.id);
       setSelectedSteps(allStepIds);
+    }
+  };
+
+  const handleEmailVerificationConfirm = () => {
+    setShowEmailVerificationModal(false);
+    setShowRunInstructions(true);
+    
+    // If no steps are selected, select all steps
+    if (selectedSteps.length === 0) {
+      const allStepIds = steps.map(step => step.id);
+      setSelectedSteps(allStepIds);
+    }
+  };
+
+  const handleSaveEmail = async () => {
+    if (!editedEmail.trim()) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editedEmail.trim())) {
+      alert("Please enter a valid email format.");
+      return;
+    }
+
+    if (!editedPassword.trim()) {
+      alert("Please enter your email app password.");
+      return;
+    }
+
+    setIsSavingEmail(true);
+    try {
+      const userId = localStorage.getItem("userId");
+      const projectKey = `selectedProject_${userId}`;
+      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+
+      if (!selectedProject?.id) {
+        alert("Project not found. Please select a project.");
+        setIsSavingEmail(false);
+        return;
+      }
+
+      // Create payload similar to your existing API structure
+      const payload = {
+        url: testData?.url || null,
+        email: editedEmail.trim(),
+        email_app_password: editedPassword.trim(),
+        phone_number: testData?.phone_number || null,
+        region: testData?.region || null
+      };
+
+      console.log("Saving email payload:", payload);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to save email: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Email saved successfully:", data);
+      
+      // Update local testData state
+      setTestData(prev => ({
+        ...prev,
+        email: editedEmail.trim(),
+        email_app_password: editedPassword.trim()
+      }));
+      
+      setIsEditingEmail(false);
+      alert("Email saved successfully!");
+      
+    } catch (error) {
+      console.error("Error saving email:", error);
+      alert(`Error saving email: ${error.message}`);
+    } finally {
+      setIsSavingEmail(false);
     }
   };
 
@@ -659,24 +854,79 @@ const handleModalOkClick = async () => {
   setError(null);
   setExecutionResults({});
 
-  console.log("Sending payload:", {
-    user_id: userId,
-    project_name: projectName,
-    testcase_name: testCaseName
-  });
+  // console.log("Sending payload:", {
+  //   user_id: userId,
+  //   project_name: projectName,
+  //   testcase_name: testCaseName
+  // });
 
   try {
+
+    const otpSteps = steps.filter((step) => containsOtpPlaceholder(step.step_description || step.command));
+    // Find the actual array index of the OTP step
+    const otpStepIndex = otpSteps.length > 0 ? steps.findIndex(step => step.step_number === otpSteps[0].step_number) : -1;
+    // let otpStep = otpSteps.length > 0 ? otpSteps[0] : null;
+
+    console.log("OTP Steps found:", otpSteps);
+    console.log("First OTP Step Number (for backend):", otpStepIndex);
+
+    
+    // Check for OTP types
+    const hasPhoneOtp = steps.some(step => step.otp_type === "phone");
+    const hasEmailOtp = steps.some(step => step.otp_type === "email");
+
+    let detectedOtpType = null;
+
+    if (hasPhoneOtp) {
+      detectedOtpType = "phone";
+    } else if (hasEmailOtp) {
+      detectedOtpType = "email";
+    }
+
+    console.log("detected Otp Type:", detectedOtpType);
+
+    if (otpReceiver) {
+      detectedOtpType = otpReceiver;
+      console.log("OTP Type Overridden by User Choice:", detectedOtpType);
+    }
+
+    // Base payload
+    let payloadToSend = {
+      user_id: userId,
+      project_name: projectName,
+      testcase_name: testCaseName,
+      wait_time: waitTime ? parseInt(waitTime) : 2,
+    };
+
+    // Only add OTP config if OTP type is detected
+    if (detectedOtpType === "phone") {
+      payloadToSend.otp_step_index = otpStepIndex;
+      
+      } else if (detectedOtpType === "email") {
+        if (!testData?.email) {
+          alert("Please save email in test data for getting correct OTP");
+          setIsExecuting(false);
+          return;
+        }
+      
+      payloadToSend.otp_step_index = otpStepIndex;
+
+      if (senderEmail.trim()) {
+        payloadToSend.email_otp_config = {
+          expected_sender: senderEmail.trim()
+        };
+      }
+    }
+    
+    console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
+
+
     const response = await fetch("http://127.0.0.1:8000/android/run_testcase/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        user_id: userId,
-        project_name: projectName,
-        testcase_name: testCaseName,
-        wait_time: waitTime ? parseInt(waitTime) : 2
-      })
+      body: JSON.stringify(payloadToSend) 
     });
 
     if (!response.ok) {
@@ -1104,6 +1354,29 @@ const selectAllSteps = () => {
                   min="0"
                 />
               </div>
+              
+              {/* OTP Step Input (editable) */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-red-600 mb-1">
+                  OTP Step Index (if applicable)
+                </label>
+                <input
+                  type="number"
+                  value={otpStepIndexInput}
+                  onChange={(e) => setOtpStepIndexInput(e.target.value)}
+                  placeholder="Detected step index with <otp>"
+                  className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring focus:border-red-400"
+                  min="1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Detected OTP steps: <strong>
+                    {detectedOtpSteps.length > 0 
+                      ? detectedOtpSteps.map(step => `Step ${step.step_number}`).join(', ')
+                      : 'None'
+                    }
+                  </strong> (using first one: {otpStepIndexInput || 'None'})
+                </p>
+              </div>
 
               <div className="flex justify-end space-x-2">
                 <button
@@ -1345,6 +1618,181 @@ const selectAllSteps = () => {
       ) : (
         renderTestCaseInfo()
       )}
+
+          {showEmailVerificationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold mb-4 text-purple-600">
+                  Email Verification Required
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Email Input */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Your Email:
+                    </label>
+                    {isEditingEmail ? (
+                      <>
+                        <input
+                          type="email"
+                          value={editedEmail}
+                          onChange={(e) => setEditedEmail(e.target.value)}
+                          placeholder="Enter email address"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        />
+
+                        <div className="relative mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email App Password:
+                          </label>
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={editedPassword}
+                            onChange={(e) => setEditedPassword(e.target.value)}
+                            placeholder="Enter email app password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-10 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
+                        <span className="text-gray-700">
+                          {testData?.email || "No email added"}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setIsEditingEmail(true);
+                            setEditedEmail(testData?.email || "");
+                            setEditedPassword(testData?.email_app_password || "");
+                          }}
+                          className="text-purple-600 text-sm hover:text-purple-800"
+                        >
+                          {testData?.email ? "Edit" : "Add"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* OTP Receiver */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Where will you receive OTP?{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => {
+                          setOtpReceiver("email");
+                          setOtpReceiverError("");
+                        }}
+                        className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                          otpReceiver === "email"
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        Email
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOtpReceiver("phone");
+                          setOtpReceiverError("");
+                        }}
+                        className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
+                          otpReceiver === "phone"
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        Phone Number
+                      </button>
+                    </div>
+                    {otpReceiverError && (
+                      <p className="text-red-500 text-sm mt-2">{otpReceiverError}</p>
+                    )}
+                  </div>
+
+                  {/* Sender Email Option */}
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowSenderEmailField(prev => !prev)}
+                      className="text-purple-600 text-sm hover:text-purple-800"
+                    >
+                      {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
+                    </button>
+
+                    {showSenderEmailField && (
+                      <div className="mt-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sender Email for OTP (Optional):
+                        </label>
+                        <input
+                          type="email"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          placeholder="e.g., no-reply@example.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-purple-50 p-3 rounded-md">
+                    <p className="text-sm text-purple-700">
+                      <strong>Note:</strong> The OTP will be sent to the selected method.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowEmailVerificationModal(false);
+                      setIsEditingEmail(false);
+                      setOtpReceiver("");
+                      setOtpReceiverError("");
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  {isEditingEmail ? (
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={!editedEmail.trim() || !editedPassword.trim()}
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+                    >
+                      {isSavingEmail ? "Saving..." : "Save"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (!otpReceiver) {
+                          setOtpReceiverError(
+                            "Please select where you want to receive OTP"
+                          );
+                          return;
+                        }
+                        handleEmailVerificationConfirm();
+                      }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                      disabled={!testData?.email}
+                    >
+                      Continue
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <addStepComponent.ScreenshotModal />
           <addStepComponent.InstructionsModal />

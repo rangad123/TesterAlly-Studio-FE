@@ -469,7 +469,7 @@ const handleCreateTestCase = async () => {
 
     const stepDescription = testSteps[index].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
-    const defaultEmail = 'suriya.prakash@crowd4test.com';
+    const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
     if (requiresOtp && actionType === 'type') {
@@ -584,7 +584,7 @@ const handleCreateTestCase = async () => {
 
     const stepDescription = testSteps[currentEditingIndex].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
-    const defaultEmail = 'suriya.prakash@crowd4test.com';
+    const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
     if (requiresOtp && actionType === 'type') {
@@ -1689,10 +1689,10 @@ const handleOtpPlaceholderClick = () => {
                                         )}
                                         {testData.email && (
                                           <button
-                                            onClick={() => handlePhoneNumberClick('suriya.prakash@crowd4test.com')}
+                                            onClick={() => handlePhoneNumberClick(testData.email)}
                                             className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
                                           >
-                                            📧 Email: suriya.prakash@crowd4test.com
+                                            📧 Email: {testData.email}
                                           </button>
                                         )}
                                       </div>

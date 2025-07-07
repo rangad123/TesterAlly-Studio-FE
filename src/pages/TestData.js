@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateTestCases.css";
-import { Database } from "lucide-react";
+import { Database, Info } from "lucide-react";
 
 const TestData = () => {
   const [url, setUrl] = useState("");
@@ -15,6 +15,9 @@ const TestData = () => {
   const [uploadedData, setUploadedData] = useState(null);
   const [hasCheckedInitialData, setHasCheckedInitialData] = useState(false);
   const [country, setCountry] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordInfoModal, setShowPasswordInfoModal] = useState(false);
   const countries = [
     "United States", 
      "India", "Japan", "Switzerland", "Austria", "Ireland", "Other"
@@ -122,6 +125,11 @@ const TestData = () => {
         newErrors.email = "Invalid email format!";
         isValid = false;
       }
+      // NEW: Check if email is provided but password is missing
+      if (!password.trim()) {
+        newErrors.password = "Password is required when email is provided!";
+        isValid = false;
+      }
     }
 
     if (phone.trim()) {
@@ -160,6 +168,11 @@ const TestData = () => {
     setIsUploading(true);
     try {
       let response;
+
+      let finalUrl = url.trim();
+      if (finalUrl && !finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+        finalUrl = `https://${finalUrl}`;
+      }
       
       if (selectedFile) {
         // File upload logic
@@ -178,8 +191,9 @@ const TestData = () => {
       } else {
         // Data upload logic - Updated payload structure
         const payload = {
-          url: url.trim() || null,
+          url: finalUrl.trim() || null,
           email: email.trim() || null, 
+          email_app_password: password.trim() || null, 
           phone_number: phone.trim() || null,  
           region: country.trim() || null       
         };
@@ -208,6 +222,7 @@ const TestData = () => {
       setUrl("");
       setEmail("");
       setPhone("");
+      setPassword("");
       setCountry("");
       setSelectedFile(null);
       
@@ -238,6 +253,7 @@ const TestData = () => {
         setUploadedData(null);
         setUrl("");
         setEmail("");
+        setPassword("");  
         setPhone("");
         setSelectedFile(null);
         alert("Test Data Deleted Successfully");
@@ -263,6 +279,7 @@ const renderUploadedData = () => {
     // Preserve all existing saved data
     if (uploadedData.url) setUrl(uploadedData.url);
     if (uploadedData.email) setEmail(uploadedData.email);
+    if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
     if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
     if (uploadedData.region) setCountry(uploadedData.region);
     
@@ -271,6 +288,8 @@ const renderUploadedData = () => {
       setUrl(currentValue);
     } else if (fieldType === 'email') {
       setEmail(currentValue);
+    } else if (fieldType === 'password') { 
+      setPassword(currentValue);
     } else if (fieldType === 'phone') {
       setPhone(currentValue);
     } else if (fieldType === 'country') {
@@ -284,6 +303,7 @@ const renderUploadedData = () => {
     // Preserve all existing saved data
     if (uploadedData.url) setUrl(uploadedData.url);
     if (uploadedData.email) setEmail(uploadedData.email);
+    if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
     if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
     if (uploadedData.region) setCountry(uploadedData.region);
     
@@ -292,6 +312,8 @@ const renderUploadedData = () => {
       setUrl('');
     } else if (fieldType === 'email') {
       setEmail('');
+    } else if (fieldType === 'password') {  
+      setPassword('');
     } else if (fieldType === 'phone') {
       setPhone('');
     } else if (fieldType === 'country') {
@@ -379,6 +401,61 @@ const renderUploadedData = () => {
                     Click to add email
                   </button>
                 </div>
+              )}
+            </div>
+
+            {/* Password Field - NEW */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              {uploadedData.email_app_password ? (
+                <div className="group relative p-2 bg-white rounded border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 text-sm pr-8">
+                      {showPassword ? uploadedData.email_app_password : '•'.repeat(uploadedData.email_app_password.length)}
+                    </span>
+                    <div className="flex items-center space-x-1">
+                      <button 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-500 hover:text-gray-700 p-1"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                      <button 
+                        onClick={() => handleEditField('password', uploadedData.email_app_password)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                        title="Edit password"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                uploadedData.email && (
+                  <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                    <button 
+                      onClick={() => handleAddField('password')}
+                      className="w-full text-left text-gray-500 text-sm flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      Click to add password
+                    </button>
+                  </div>
+                )
               )}
             </div>
 
@@ -557,6 +634,78 @@ const renderUploadedData = () => {
             )}
           </div>
 
+          {/* Password Field */}
+          {email.trim() && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                Password <span className="text-red-500 ml-1">*</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordInfoModal(true)}
+                  className="ml-2 text-purple-600 hover:text-purple-800"
+                  title="More Info"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors((prev) => ({ ...prev, password: '', general: '' }));
+                  }}
+                  placeholder="Enter App Password"
+                  className={`w-full px-3 py-2.5 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
+                    errors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
+                  disabled={isUploading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {/* Eye Icon */}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-2 text-sm text-red-600 flex items-center">
+                  {errors.password}
+                </p>
+              )}
+            </div>
+          )}
+
+          {showPasswordInfoModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 border border-purple-200">
+                <h3 className="text-lg font-semibold text-purple-700 mb-4 text-center">App Password Info</h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  This is not your usual email password. You must enter a{' '}
+                  <span className="font-semibold text-purple-700">Google App Password</span> — a 16-character code like{' '}
+                  <span className="font-mono">sjnc ejcj ebhc tigv</span>.
+                </p>
+                <a
+                  href="https://myaccount.google.com/apppasswords"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 rounded-md transition"
+                >
+                  Generate App Password
+                </a>
+                <button
+                  onClick={() => setShowPasswordInfoModal(false)}
+                  className="mt-4 w-full text-purple-600 text-sm hover:underline"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Phone Number Field */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -623,7 +772,6 @@ const renderUploadedData = () => {
             </div>
           </div>
         </div>
-
 
           {/* File Upload Field */}
           <div>

@@ -35,6 +35,60 @@ const MobileAddStep = ({
   const [originalCaptureIds, setOriginalCaptureIds] = useState({});
   const [editingStepId, setEditingStepId] = useState(null);
   const [showWaitModal, setShowWaitModal] = useState(false);
+
+  const [requiresOtp, setRequiresOtp] = useState(false);
+  const [otpVerificationState, setOtpVerificationState] = useState({
+    contactEntered: false,
+    enteredContact: ''
+  });
+  const [contactSelected, setContactSelected] = useState(false);
+  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  const [testData, setTestData] = useState({});
+  const [otpPlaceholderUsed, setOtpPlaceholderUsed] = useState(false);
+
+  const toggleOtpCheckbox = () => {
+    setRequiresOtp(prev => {
+      const newValue = !prev;
+      if (newValue) {
+        // When enabling OTP, show contact options and hide elements
+        setContactSelected(true);
+      } else {
+        // When disabling OTP, reset everything
+        setContactSelected(false);
+        setOtpVerificationState(prev => ({
+          ...prev,
+          contactEntered: false,
+          waitingForOtp: false,
+          enteredContact: '',
+          sessionTime: null
+        }));
+      }
+      return newValue;
+    });
+  };
+
+  useEffect(() => {
+    if (requiresOtp) {
+      const userId = localStorage.getItem("userId");
+      const projectKey = `selectedProject_${userId}`;
+      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+      
+      if (selectedProject?.id) {
+        setIsTestDataLoading(true);
+        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("✅ Test data loaded:", data);
+            setTestData(data);
+          })
+          .catch((err) => {
+            console.warn("⚠️ Error fetching test data:", err.message);
+            setTestData(null);
+          })
+          .finally(() => setIsTestDataLoading(false));
+      }
+    }
+  }, [requiresOtp]);
   
   const inputRef = useRef(null);
 
@@ -491,6 +545,10 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
   }
 };
 
+const containsOtpPlaceholder = (text) => {
+  return text && text.toLowerCase().includes('<otp>');
+};
+
 const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => {
   const stepDescription = waitCommandOverride || newInsertedStepValue.trim();
 
@@ -532,6 +590,31 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       return;
     }
 
+    // NEW: Check if step contains OTP placeholder
+    const hasOtpPlaceholder = containsOtpPlaceholder(stepDescription);
+    
+    // NEW: If OTP placeholder is used, mark it for future steps to disable OTP
+    if (hasOtpPlaceholder) {
+      setOtpPlaceholderUsed(true);
+    }
+
+    if (requiresOtp && actionType === 'type') {
+      const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+      const selectedContact = otpVerificationState.enteredContact?.trim();
+
+      // Check only if selected contact is an email
+      if (emailInStep && selectedContact && /\S+@\S+\.\S+/.test(selectedContact)) {
+        const selectedEmail = selectedContact;
+        const emailTyped = emailInStep[0].trim();
+
+        if (emailTyped !== selectedEmail) {
+          alert(`For OTP verification, please use the selected email: ${selectedEmail}`);
+          setInsertingLoading(false);
+          return;
+        }
+      }
+    }
+
     let finalStepDescription = stepDescription;
 
     if (stepDescription.startsWith('open ') && selectedElement && selectedElement.type === 'app') {
@@ -554,7 +637,12 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
           step_number: newStepNumber,
           step_description: finalStepDescription,
           teststep_result: "not_executed",
-          step_coordinates: coordinates
+          step_coordinates: coordinates,
+          requires_otp: hasOtpPlaceholder ? true : (otpPlaceholderUsed ? false : (requiresOtp || false)),     
+          has_otp_placeholder: hasOtpPlaceholder,
+          otp_type: requiresOtp && otpVerificationState.enteredContact
+            ? (/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact) ? 'email' : 'phone')
+            : null
         }
       ]
     };
@@ -738,6 +826,98 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
     setEditingStepId(null);
   };
 
+const handlePhoneNumberClick = async (contact, setEditValue = null) => { 
+  setContactSelected(true);
+  
+  try {
+    const response = await fetch('http://localhost:8000/api/get_time/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const timeData = {
+        ...data,
+        phoneNumber: contact,
+        timestamp: Date.now()
+      };
+      
+      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+      
+      setOtpVerificationState(prev => ({
+        ...prev,
+        contactEntered: true,
+        waitingForOtp: true,
+        enteredContact: contact,
+        enteredContactInboxId: "29f7a099-d305-41d5-8e99-59c347674844",
+        sessionTime: timeData
+      }));
+      
+      // Update the input field with the selected contact
+      if (commandType === 'type') {
+        if (setEditValue) {
+          // Edit mode
+          const currentText = document.querySelector(`[data-step-id="${editingStepId}"]`)?.value || '';
+          const inIndex = currentText.toLowerCase().indexOf(' in ');
+          if (inIndex !== -1) {
+            const elementPart = currentText.substring(inIndex);
+            setEditValue(`type ${contact} ${elementPart}`);
+          } else {
+            setEditValue(`type ${contact} in `);
+          }
+        } else {
+          // Insert mode
+          const currentText = newInsertedStepValue;
+          const inIndex = currentText.toLowerCase().indexOf(' in ');
+          if (inIndex !== -1) {
+            const elementPart = currentText.substring(inIndex);
+            setNewInsertedStepValue(`type ${contact} ${elementPart}`);
+          } else {
+            setNewInsertedStepValue(`type ${contact} in `);
+          }
+        }
+      }
+            
+      console.log('OTP Session Time stored:', timeData);
+    }
+  } catch (error) {
+    console.error('Error calling get_time API:', error);
+  }
+
+  setContactSelected(false);
+};
+
+const handleOtpPlaceholderClick = (setEditValue = null) => {
+  if (commandType === 'type') {
+    if (setEditValue) {
+      // Edit mode
+      const currentText = document.querySelector(`[data-step-id="${editingStepId}"]`)?.value || '';
+      const inIndex = currentText.toLowerCase().indexOf(' in ');
+      if (inIndex !== -1) {
+        const elementPart = currentText.substring(inIndex);
+        setEditValue(`type <otp> ${elementPart}`);
+      } else {
+        setEditValue(`type <otp> in `);
+      }
+    } else {
+      // Insert mode
+      const currentText = newInsertedStepValue;
+      const inIndex = currentText.toLowerCase().indexOf(' in ');
+      if (inIndex !== -1) {
+        const elementPart = currentText.substring(inIndex);
+        setNewInsertedStepValue(`type <otp> ${elementPart}`);
+      } else {
+        setNewInsertedStepValue(`type <otp> in `);
+      }
+    }
+    
+    // 🔥 CORRECTED: Mark placeholder for future steps, but don't disable current step's OTP
+    setOtpPlaceholderUsed(true);
+    // Don't reset requiresOtp - this step still needs OTP verification
+  }
+};
+
 const renderEditSuggestions = (stepNumber, setEditValue) => {
   const currentStep = steps.find(s => s.step_number === stepNumber);
   // Fixed: Compare with stepNumber instead of currentStep.id
@@ -747,6 +927,151 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
   
   return (
     <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-50">
+
+      {/* ✅ OTP Verification UI (below suggestions) */}
+      {commandType === 'type' && (
+        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+          
+          {/* 🔥 NEW: Show OTP placeholder option prominently */}
+          {requiresOtp && !containsOtpPlaceholder(document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '') && (
+            <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-yellow-800">
+                  🔑 Use OTP Placeholder
+                </span>
+                <button
+                  onClick={() => handleOtpPlaceholderClick(setEditValue)}
+                  className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 border border-yellow-300 rounded-md text-yellow-800 text-sm font-medium"
+                >
+                  Use &lt;otp&gt;
+                </button>
+              </div>
+              <div className="text-xs text-yellow-700">
+                Use this placeholder when you need to enter OTP. This step will require OTP verification, but subsequent steps won't.
+              </div>
+            </div>
+          )}
+
+          {/* 🔥 MODIFIED: Show OTP verification UI based on step content and global state */}
+          {!containsOtpPlaceholder(document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '') && !otpPlaceholderUsed && (
+            <>
+              <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requiresOtp}
+                  onChange={toggleOtpCheckbox}
+                  className="accent-blue-500"
+                />
+                Get Real OTP Now
+              </label>
+
+              {/* Contact Method Options */}
+              {requiresOtp && !otpVerificationState.contactEntered && (
+                <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+                  <span className="text-sm font-medium text-gray-700 block mb-2">
+                    Select Contact Method:
+                  </span>
+
+                  {isTestDataLoading ? (
+                    <div className="text-blue-500 text-sm flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10"
+                                stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                      Loading test data...
+                    </div>
+                  ) : testData?.phone_number || testData?.email ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {testData.phone_number && (
+                        <button
+                          onClick={() => handlePhoneNumberClick(testData.phone_number, setEditValue)}
+                          className="px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700"
+                        >
+                          📱 Phone: {testData.phone_number}
+                        </button>
+                      )}
+                      {testData.email && (
+                        <button
+                          onClick={() => handlePhoneNumberClick(testData.email, setEditValue)}
+                          className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
+                        >
+                          📧 Email: {testData.email}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-red-600">
+                      ⚠ No contact method found. Please add test data first.
+                    </div>
+                  )}
+
+                  <div className="mt-2 text-xs text-gray-600">
+                    Click on a contact method to get real OTP now
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Selected */}
+              {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-green-700">
+                      ✅ Selected: {otpVerificationState.enteredContact}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setContactSelected(false);
+                        setOtpVerificationState(prev => ({
+                          ...prev,
+                          contactEntered: false,
+                          enteredContact: ''
+                        }));
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Change Contact
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 🔥 NEW: Show different messages based on step content */}
+          {containsOtpPlaceholder(document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '') && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+              <div className="text-sm text-green-700 flex items-center gap-2">
+                ✅ <span className="font-medium">OTP Placeholder in This Step</span>
+              </div>
+              <div className="text-xs text-green-600 mt-1">
+                This step uses &lt;otp&gt; placeholder and will require OTP verification. Future steps won't need OTP.
+              </div>
+            </div>
+          )}
+
+          {!containsOtpPlaceholder(document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '') && otpPlaceholderUsed && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="text-sm text-blue-700 flex items-center gap-2">
+                ℹ️ <span className="font-medium">OTP Verification Completed</span>
+              </div>
+              <div className="text-xs text-blue-600 mt-1">
+                OTP verification was completed in a previous step. This step doesn't require OTP.
+              </div>
+              <button
+                onClick={() => {
+                  setOtpPlaceholderUsed(false);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 underline mt-2"
+              >
+                Reset OTP state
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {commandSuggestions.length === 0 ? (
         <div className="p-2 text-gray-500 text-center">No suggestions available</div>
       ) : (
@@ -1343,6 +1668,140 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
             {/* Element suggestions dropdown */}
             {showSuggestions && commandSuggestions.length > 0 && (
               <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg">
+
+                {/* ✅ OTP Verification UI (below suggestions) */}
+                {commandType === 'type' && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+
+                    {/* 🔥 NEW: Show OTP placeholder option prominently */}
+                    {requiresOtp && !containsOtpPlaceholder(newInsertedStepValue) && (
+                      <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-yellow-800">
+                            🔑 Use OTP Placeholder
+                          </span>
+                          <button
+                            onClick={() => handleOtpPlaceholderClick()}
+                            className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 border border-yellow-300 rounded-md text-yellow-800 text-sm font-medium"
+                          >
+                            Use &lt;otp&gt;
+                          </button>
+                        </div>
+                        <div className="text-xs text-yellow-700">
+                          Use this placeholder when you need to enter OTP. This step will require OTP verification, but subsequent steps won't.
+                        </div>
+                      </div>
+                    )}
+
+                    {!containsOtpPlaceholder(newInsertedStepValue) && !otpPlaceholderUsed && (
+                      <>
+                        <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={requiresOtp}
+                            onChange={toggleOtpCheckbox}
+                            className="accent-blue-500"
+                          />
+                          Get Real OTP Now
+                        </label>
+
+                      {/* Contact Method Options */}
+                      {requiresOtp && !otpVerificationState.contactEntered && (
+                        <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+                          <span className="text-sm font-medium text-gray-700 block mb-2">
+                            Select Contact Method:
+                          </span>
+
+                          {isTestDataLoading ? (
+                            <div className="text-blue-500 text-sm flex items-center gap-2">
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10"
+                                        stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor"
+                                      d="M4 12a8 8 0 018-8v8H4z"></path>
+                              </svg>
+                              Loading test data...
+                            </div>
+                          ) : testData?.phone_number || testData?.email ? (
+                            <div className="flex gap-2 flex-wrap">
+                              {testData.phone_number && (
+                                <button
+                                  onClick={() => handlePhoneNumberClick(testData.phone_number)}
+                                  className="px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700"
+                                >
+                                  📱 Phone: {testData.phone_number}
+                                </button>
+                              )}
+                              {testData.email && (
+                                <button
+                                  onClick={() => handlePhoneNumberClick(testData.email)}
+                                  className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
+                                >
+                                  📧 Email: {testData.email}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-red-600">
+                              ⚠ No contact method found. Please add test data first.
+                            </div>
+                          )}
+
+                          <div className="mt-2 text-xs text-gray-600">
+                            Click on a contact method to proceed
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Contact Selected */}
+                      {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+                        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-green-700">
+                              ✅ Selected: {otpVerificationState.enteredContact}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setContactSelected(false);
+                                setOtpVerificationState(prev => ({
+                                  ...prev,
+                                  contactEntered: false,
+                                  enteredContact: ''
+                                }));
+                              }}
+                              className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Change Contact
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                    )}
+
+                    {/* Show message when OTP verification is complete */}
+                    {!containsOtpPlaceholder(newInsertedStepValue) && otpPlaceholderUsed && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <div className="text-sm text-green-700 flex items-center gap-2">
+                          ✅ <span className="font-medium">OTP Verification Complete</span>
+                        </div>
+                        <div className="text-xs text-green-600 mt-1">
+                          OTP was verified in a previous step. This step doesn't need OTP verification.
+                        </div>
+                        <button
+                          onClick={() => {
+                            setOtpPlaceholderUsed(false);
+                            setRequiresOtp(false);
+                          }}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline mt-2"
+                        >
+                          Enable OTP for new steps
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {commandSuggestions.map((element, index) => (
                   <div 
                     key={index}
@@ -1389,6 +1848,28 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
     );
   };
 
+  const getOtpState = () => {
+    return {
+      requiresOtp: requiresOtp,
+      enteredContact: otpVerificationState.enteredContact,
+      contactEntered: otpVerificationState.contactEntered,
+      otpPlaceholderUsed: otpPlaceholderUsed,
+
+      stepRequiresOtp: (stepDescription) => {
+        // If step contains <otp>, it requires OTP verification
+        if (containsOtpPlaceholder(stepDescription)) {
+          return true;
+        }
+        // If previous step had <otp>, this step doesn't need OTP
+        if (otpPlaceholderUsed) {
+          return false;
+        }
+        // Otherwise, depends on checkbox state
+        return requiresOtp;
+      }
+    };
+  };
+
   return {
     capturedSteps,
     renderStepActions,
@@ -1419,6 +1900,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
     setShowSuggestions,    
     setCommandSuggestions, 
     setCommandType,
+    getOtpState,
   };
 
 };

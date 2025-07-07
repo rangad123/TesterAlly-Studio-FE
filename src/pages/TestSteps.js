@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import AddStep from "./AddStep";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw } from "lucide-react";
+import { Save, X, Edit2, Trash2, Plus, ArrowLeft, Play, CheckSquare, RefreshCw, Eye, EyeOff } from "lucide-react";
 //import TestEnvironmentModal from "./TestEnvironmentConfig";
 
 const TestSteps = () => {
@@ -43,6 +43,10 @@ const TestSteps = () => {
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [otpReceiver, setOtpReceiver] = useState('');
   const [otpReceiverError, setOtpReceiverError] = useState('');
+  const [editedPassword, setEditedPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  const [senderEmail, setSenderEmail] = useState('');
 
 
   useEffect(() => {
@@ -177,7 +181,6 @@ const handleUpdateTestCase = async () => {
     setError("Failed to update test case: " + err.message);
   }
 };
-
 
   const handleDeleteTestCase = async () => {
     if (!window.confirm("Are you sure you want to delete this test case?")) return;
@@ -452,12 +455,18 @@ const containsOtpPlaceholder = (text) => {
 
       if (otpState.requiresOtp && actionType === 'type') {
         const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
-        const defaultEmail = 'suriya.prakash@crowd4test.com';
-        
-        if (emailInStep && emailInStep[0] !== defaultEmail) {
-          alert(`For OTP verification, please use the default email: ${defaultEmail}`);
-          setUpdatingStepId(null);
-          return;
+        const selectedContact = otpState.enteredContact?.trim();
+
+        // Check only if selected contact is an email
+        if (emailInStep && selectedContact && /\S+@\S+\.\S+/.test(selectedContact)) {
+          const selectedEmail = selectedContact;
+          const emailTyped = emailInStep[0].trim();
+
+          if (emailTyped !== selectedEmail) {
+            alert(`For OTP verification, please use the selected email: ${selectedEmail}`);
+            setUpdatingStepId(null);
+            return;
+          }
         }
       }
 
@@ -561,6 +570,11 @@ const containsOtpPlaceholder = (text) => {
       return;
     }
 
+    if (!editedPassword.trim()) {
+      alert("Please enter your email app password.");
+      return;
+    }
+
     setIsSavingEmail(true);
     try {
       const userId = localStorage.getItem("userId");
@@ -577,6 +591,7 @@ const containsOtpPlaceholder = (text) => {
       const payload = {
         url: testData?.url || null,
         email: editedEmail.trim(),
+        email_app_password: editedPassword.trim(),
         phone_number: testData?.phone_number || null,
         region: testData?.region || null
       };
@@ -602,7 +617,8 @@ const containsOtpPlaceholder = (text) => {
       // Update local testData state
       setTestData(prev => ({
         ...prev,
-        email: editedEmail.trim()
+        email: editedEmail.trim(),
+        email_app_password: editedPassword.trim()
       }));
       
       setIsEditingEmail(false);
@@ -730,9 +746,11 @@ const handleModalOkClick = async () => {
       // const emailOtpStep = steps.find(step => step.otp_type === "email");
       // const otpStepIndex = steps.findIndex(step => step.step_number === emailOtpStep.step_number);
       payloadToSend.otp_step_index = otpStepIndex;
-      payloadToSend.email_otp_config = {
-        expected_sender: testData.email
-      };
+      if (senderEmail.trim()) {
+        payloadToSend.email_otp_config = {
+          expected_sender: senderEmail.trim()
+        };
+      }
     }
     
     console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
@@ -1375,74 +1393,94 @@ const selectAllSteps = () => {
           {showEmailVerificationModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h3 className="text-lg font-semibold mb-4 text-blue-700">Email Verification Required</h3>
+                <h3 className="text-lg font-semibold mb-4 text-purple-600">
+                  Email Verification Required
+                </h3>
 
                 <div className="space-y-4">
+                  {/* Email Input */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Email (sender email to generate OTP - From Email):
+                      Your Email:
                     </label>
                     {isEditingEmail ? (
-                      <input
-                        type="email"
-                        value={editedEmail}
-                        onChange={(e) => setEditedEmail(e.target.value)}
-                        placeholder="Enter email address"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                      <>
+                        <input
+                          type="email"
+                          value={editedEmail}
+                          onChange={(e) => setEditedEmail(e.target.value)}
+                          placeholder="Enter email address"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        />
+
+                        <div className="relative mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email App Password:
+                          </label>
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={editedPassword}
+                            onChange={(e) => setEditedPassword(e.target.value)}
+                            placeholder="Enter email app password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-10 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                          </button>
+                        </div>
+                      </>
                     ) : (
                       <div className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md">
                         <span className="text-gray-700">
-                          {testData?.email || 'No email added'}
+                          {testData?.email || "No email added"}
                         </span>
                         <button
-                          onClick={() => setIsEditingEmail(true)}
-                          className="text-blue-500 text-sm hover:text-blue-700"
+                          onClick={() => {
+                            setIsEditingEmail(true);
+                            setEditedEmail(testData?.email || "");
+                            setEditedPassword(testData?.email_app_password || "");
+                          }}
+                          className="text-purple-600 text-sm hover:text-purple-800"
                         >
-                          {testData?.email ? 'Edit' : 'Add'}
+                          {testData?.email ? "Edit" : "Add"}
                         </button>
                       </div>
                     )}
                   </div>
 
+                  {/* OTP Receiver */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Default Email (where you'll receive OTP):
-                    </label>
-                    <div className="bg-gray-100 px-3 py-2 rounded-md">
-                      <span className="text-gray-600">suriya.prakash@crowd4test.com</span>
-                      <span className="text-xs text-gray-500 ml-2">(cannot be changed)</span>
-                    </div>
-                  </div>
-
-                  {/* OTP Receiver Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Where will you receive OTP? <span className="text-red-500">*</span>
+                      Where will you receive OTP?{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="flex space-x-4">
                       <button
                         onClick={() => {
-                          setOtpReceiver('email');
-                          setOtpReceiverError('');
+                          setOtpReceiver("email");
+                          setOtpReceiverError("");
                         }}
                         className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                          otpReceiver === 'email'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700'
+                          otpReceiver === "email"
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 text-gray-700"
                         }`}
                       >
                         Email
                       </button>
                       <button
                         onClick={() => {
-                          setOtpReceiver('phone');
-                          setOtpReceiverError('');
+                          setOtpReceiver("phone");
+                          setOtpReceiverError("");
                         }}
                         className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                          otpReceiver === 'phone'
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700'
+                          otpReceiver === "phone"
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 text-gray-700"
                         }`}
                       >
                         Phone Number
@@ -1453,8 +1491,33 @@ const selectAllSteps = () => {
                     )}
                   </div>
 
-                  <div className="bg-blue-50 p-3 rounded-md">
-                    <p className="text-sm text-blue-700">
+                  {/* Sender Email Option */}
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowSenderEmailField(prev => !prev)}
+                      className="text-purple-600 text-sm hover:text-purple-800"
+                    >
+                      {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
+                    </button>
+
+                    {showSenderEmailField && (
+                      <div className="mt-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Sender Email for OTP (Optional):
+                        </label>
+                        <input
+                          type="email"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          placeholder="e.g., no-reply@example.com"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-purple-50 p-3 rounded-md">
+                    <p className="text-sm text-purple-700">
                       <strong>Note:</strong> The OTP will be sent to the selected method.
                     </p>
                   </div>
@@ -1465,8 +1528,8 @@ const selectAllSteps = () => {
                     onClick={() => {
                       setShowEmailVerificationModal(false);
                       setIsEditingEmail(false);
-                      setOtpReceiver('');
-                      setOtpReceiverError('');
+                      setOtpReceiver("");
+                      setOtpReceiverError("");
                     }}
                     className="px-4 py-2 text-gray-600 hover:text-gray-800"
                   >
@@ -1475,21 +1538,23 @@ const selectAllSteps = () => {
                   {isEditingEmail ? (
                     <button
                       onClick={handleSaveEmail}
-                      disabled={!editedEmail.trim()}
+                      disabled={!editedEmail.trim() || !editedPassword.trim()}
                       className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
                     >
-                      {isSavingEmail ? 'Saving...' : 'Save'}
+                      {isSavingEmail ? "Saving..." : "Save"}
                     </button>
                   ) : (
                     <button
                       onClick={() => {
                         if (!otpReceiver) {
-                          setOtpReceiverError('Please select where you want to receive OTP');
+                          setOtpReceiverError(
+                            "Please select where you want to receive OTP"
+                          );
                           return;
                         }
                         handleEmailVerificationConfirm();
                       }}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                       disabled={!testData?.email}
                     >
                       Continue

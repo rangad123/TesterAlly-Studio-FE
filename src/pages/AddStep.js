@@ -566,22 +566,39 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       return;
     }
 
-    // 🔥 NEW: Check if step contains OTP placeholder
+    // NEW: Check if step contains OTP placeholder
     const hasOtpPlaceholder = containsOtpPlaceholder(stepDescription);
     
-    // 🔥 NEW: If OTP placeholder is used, mark it for future steps to disable OTP
+    // NEW: If OTP placeholder is used, mark it for future steps to disable OTP
     if (hasOtpPlaceholder) {
       setOtpPlaceholderUsed(true);
     }
 
+    // if (requiresOtp && actionType === 'type') {
+    //   const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
+    //   const defaultEmail = otpVerificationState.enteredContact?.trim();
+      
+    //   if (emailInStep && emailInStep[0] !== defaultEmail) {
+    //     alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+    //     setInsertingLoading(false);
+    //     return;
+    //   }
+    // }
+
     if (requiresOtp && actionType === 'type') {
       const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
-      const defaultEmail = 'suriya.prakash@crowd4test.com';
-      
-      if (emailInStep && emailInStep[0] !== defaultEmail) {
-        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
-        setInsertingLoading(false);
-        return;
+      const selectedContact = otpVerificationState.enteredContact?.trim();
+
+      // Check only if selected contact is an email
+      if (emailInStep && selectedContact && /\S+@\S+\.\S+/.test(selectedContact)) {
+        const selectedEmail = selectedContact;
+        const emailTyped = emailInStep[0].trim();
+
+        if (emailTyped !== selectedEmail) {
+          alert(`For OTP verification, please use the selected email: ${selectedEmail}`);
+          setInsertingLoading(false);
+          return;
+        }
       }
     }
 
@@ -800,7 +817,6 @@ const handlePhoneNumberClick = async (contact, setEditValue = null) => {
         contactEntered: true,
         waitingForOtp: true,
         enteredContact: contact,
-        enteredContactInboxId: "29f7a099-d305-41d5-8e99-59c347674844",
         sessionTime: timeData
       }));
       
@@ -943,10 +959,10 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                         )}
                         {testData.email && (
                           <button
-                            onClick={() => handlePhoneNumberClick('suriya.prakash@crowd4test.com', setEditValue)}
+                            onClick={() => handlePhoneNumberClick(testData.email, setEditValue)}
                             className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
                           >
-                            📧 Email: suriya.prakash@crowd4test.com
+                            📧 Email: {testData.email}
                           </button>
                         )}
                       </div>
@@ -1650,6 +1666,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
             {/* Element suggestions dropdown */}
             {showSuggestions && commandSuggestions.length > 0 && (
               <div className="mt-1 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg">
+
                 {/* ✅ OTP Verification UI (below suggestions) */}
                 {commandType === 'type' && (
                   <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
@@ -1715,10 +1732,10 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                               )}
                               {testData.email && (
                                 <button
-                                  onClick={() => handlePhoneNumberClick('suriya.prakash@crowd4test.com')}
+                                  onClick={() => handlePhoneNumberClick(testData.email)}
                                   className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700"
                                 >
-                                  📧 Email: suriya.prakash@crowd4test.com
+                                  📧 Email: {testData.email}
                                 </button>
                               )}
                             </div>

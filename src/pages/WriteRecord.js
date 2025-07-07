@@ -45,6 +45,7 @@ const WriteRecord = () => {
   const [waitModalOpen, setWaitModalOpen] = useState(false);
   const [stepWaitData, setStepWaitData] = useState(null);
   const [pendingWaitStep, setPendingWaitStep] = useState(false);
+
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [contactSelected, setContactSelected] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
@@ -78,11 +79,15 @@ const WriteRecord = () => {
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
   const [emailModalError, setEmailModalError] = useState('');
+  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  const [senderEmail, setSenderEmail] = useState('');
   const [emailConfirmationModal, setEmailConfirmationModal] = useState({
     isOpen: false,
     userEmail: '',
-    defaultEmail: 'suriya.prakash@crowd4test.com',
-    isEditing: false
+    email_app_password: '',
+    otpReceiver: '',
+    isEditing: false,
+    showPassword: false, 
   });
 
   useEffect(() => {
@@ -108,7 +113,7 @@ const WriteRecord = () => {
     }
   }, [requiresOtp]);
 
-const saveTestDataEmail = async (email) => {
+const saveTestDataEmail = async (email, password) => {
   const userId = localStorage.getItem("userId");
   const projectKey = `selectedProject_${userId}`;
   const selectedProject = JSON.parse(localStorage.getItem(projectKey));
@@ -121,6 +126,7 @@ const saveTestDataEmail = async (email) => {
   const payload = {
     url: testData?.url || null,
     email: email.trim(),
+    email_app_password: password.trim(),
     phone_number: testData?.phone_number || null,
     region: testData?.region || null
   };
@@ -391,12 +397,11 @@ const handlePhoneNumberClick = async (contact) => {
 
 const handleEmailClick = async () => {
   // Check if OTP verification is enabled and validate email match
-  if (requiresOtp) {
+  if (requiresOtp && testData?.email) {
     const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
-    const defaultEmail = 'suriya.prakash@crowd4test.com';
     
-    if (userEnteredEmail && userEnteredEmail[0] !== defaultEmail) {
-      alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+    if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
+      alert(`For OTP verification, please use your configured email: ${testData.email}`);
       return;
     }
   }
@@ -405,28 +410,34 @@ const handleEmailClick = async () => {
   setEmailConfirmationModal({
     isOpen: true,
     userEmail: testData?.email || '',
-    defaultEmail: 'suriya.prakash@crowd4test.com',
-    isEditing: false,
+    email_app_password: testData?.email_app_password || '',
     otpReceiver: '',
+    isEditing: false,
+    showPassword: false,
   });
 };
 
 const handleEmailConfirmation = async () => {
-  const { userEmail, defaultEmail, otpReceiver } = emailConfirmationModal;
+  const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
   
   setEmailModalError('');
 
-  // If user email is empty, save it first
+  // Validate email
   if (!userEmail.trim()) {
-    alert('Please add your email address first');
-    setEmailConfirmationModal(prev => ({ ...prev, isEditing: true }));
+    setEmailModalError('Please enter your email address');
+    return;
+  }
+  
+  // Validate password
+  if (!email_app_password?.trim()) {
+    setEmailModalError('Please enter your password');
     return;
   }
   
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(userEmail)) {
-    alert('Please enter a valid email address');
+    setEmailModalError('Please enter a valid email address');
     return;
   }
 
@@ -436,15 +447,21 @@ const handleEmailConfirmation = async () => {
   }
   
   // Save email to test data if it's new or changed
-  if (userEmail !== testData?.email) {
-    const saved = await saveTestDataEmail(userEmail);
+  if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
+    const saved = await saveTestDataEmail(userEmail, email_app_password);
     if (!saved) {
       alert('Failed to save email. Please try again.');
       return;
     }
   }
   
-  setEmailConfirmationModal({ isOpen: false, userEmail: '', defaultEmail: '', isEditing: false });
+  setEmailConfirmationModal({ 
+    isOpen: false, 
+    userEmail: '', 
+    email_app_password: '',  
+    otpReceiver: '',
+    isEditing: false 
+  });
   
   // Original email click logic
   setContactSelected(true);
@@ -456,22 +473,22 @@ const handleEmailConfirmation = async () => {
       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
       
       if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + defaultEmail;
+        return withoutOldContact + ' ' + userEmail;
       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + defaultEmail;
+        return withoutOldContact + ' in ' + userEmail;
       }
-      return withoutOldContact + ' ' + defaultEmail;
+      return withoutOldContact + ' ' + userEmail;
     }
     
     if (trimmed.endsWith('type')) {
-      return prev + ' ' + defaultEmail;
+      return prev + ' ' + userEmail;
     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + defaultEmail;
+      return prev + ' in ' + userEmail;
     }
-    return prev + ' ' + defaultEmail;
+    return prev + ' ' + userEmail;
   });
   
-  // Rest of the original email logic...
+
   try {
     const response = await fetch('http://localhost:8000/api/get_time/', {
       method: 'POST',
@@ -482,7 +499,7 @@ const handleEmailConfirmation = async () => {
       const data = await response.json();
       const timeData = {
         ...data,
-        phoneNumber: defaultEmail, 
+        phoneNumber: userEmail, 
         actualUserEmail: userEmail, 
         timestamp: Date.now()
       };
@@ -493,7 +510,7 @@ const handleEmailConfirmation = async () => {
         ...prev,
         contactEntered: true,
         waitingForOtp: true,
-        enteredContact: defaultEmail, 
+        enteredContact: userEmail, 
         enteredContactInboxId: userEmail, 
         sessionTime: timeData,
         otpReceiver: emailConfirmationModal.otpReceiver
@@ -575,19 +592,24 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
   try {
     const sessionData = JSON.parse(sessionStorage.getItem('otpSessionTime') || '{}');
-    const request_time = sessionData.request_time || new Date().toISOString();
+    const request_time = sessionData.request_time || new Date().toISOString();  
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+    const project_id = selectedProject?.id;
 
     let otpData;
     let otpValue;
 
-    console.log("📤 Sending to /get_otp/:", JSON.stringify({ request_time }, null, 2));
+    const otpPayload = { request_time, project_id };  
+    console.log("📤 Sending to /get_otp/:", JSON.stringify(otpPayload, null, 2));
 
     if (isPhoneNumberStep) {
       // Phone OTP
       const otpResponse = await fetch('http://localhost:8000/api/get_otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_time })
+        body: JSON.stringify(otpPayload)
       });
 
       otpData = await otpResponse.json();
@@ -600,19 +622,18 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
     } else if (isEmailStep) {
       // Email OTP
-      const inboxId = otpVerificationState.enteredContactInboxId; 
+      const emailOtpPayload = { request_time, project_id };
 
-      if (!inboxId) {
-        console.error("Missing inbox_id for email OTP");
-        return;
+      if (senderEmail.trim()) {
+        emailOtpPayload.expected_sender = senderEmail.trim();
       }
 
-      console.log("📤 Sending to /get_mail_otp/:", JSON.stringify({ expected_sender: inboxId, request_time }, null, 2));
+      console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
 
       const emailOtpRes = await fetch('http://localhost:8000/api/get_mail_otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expected_sender: inboxId, request_time })
+        body: JSON.stringify(emailOtpPayload)
       });
 
       otpData = await emailOtpRes.json();
@@ -720,10 +741,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
     if (requiresOtp && actionType === 'type') {
       const emailInStep = newStep.match(/\S+@\S+\.\S+/);
-      const defaultEmail = 'suriya.prakash@crowd4test.com';
       
-      if (emailInStep && emailInStep[0] !== defaultEmail) {
-        alert(`For OTP verification, please use the default email: ${defaultEmail}`);
+      if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
+        alert(`For OTP verification, please use your configured email: ${testData.email}`);
         return;
       }
     }
@@ -2018,7 +2038,7 @@ const SuggestionsDropdown = () => {
                         onClick={() => handleEmailClick()}
                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
                       >
-                        📧 Email: suriya.prakash@crowd4test.com
+                        📧 Email: {testData.email || 'Click to add email'}
                       </button>
                     )}
                   </div>
@@ -2821,30 +2841,76 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
                       <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
-                        Email Confirmation
+                        Email & Password Configuration
                       </h3>
 
                       <div className="space-y-5">
-                        {/* Sender Email Input */}
+                        {/* Email Display/Edit */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Sender Email (From Email for OTP):
+                            Email Address: <span className="text-red-500">*</span>
                           </label>
                           {emailConfirmationModal.isEditing ? (
-                            <input
-                              type="email"
-                              value={emailConfirmationModal.userEmail}
-                              onChange={(e) =>
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  userEmail: e.target.value,
-                                }))
-                              }
-                              className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                              placeholder="Enter your email address"
-                            />
+                            <>
+                              {/* Email Input (shown in edit mode) */}
+                              <input
+                                type="email"
+                                value={emailConfirmationModal.userEmail}
+                                onChange={(e) =>
+                                  setEmailConfirmationModal((prev) => ({
+                                    ...prev,
+                                    userEmail: e.target.value,
+                                  }))
+                                }
+                                className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                                placeholder="Enter your email address"
+                              />
+
+                              {/* Password Input (shown only in edit mode) */}
+                              <div className="mt-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  App Password: <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative">
+                                  <input
+                                    type={emailConfirmationModal.showPassword ? "text" : "password"}
+                                    value={emailConfirmationModal.email_app_password || ''}
+                                    onChange={(e) =>
+                                      setEmailConfirmationModal((prev) => ({
+                                        ...prev,
+                                        email_app_password: e.target.value,
+                                      }))
+                                    }
+                                    className="w-full px-4 py-2 pr-10 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                                    placeholder="Enter app password"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEmailConfirmationModal((prev) => ({
+                                        ...prev,
+                                        showPassword: !prev.showPassword,
+                                      }))
+                                    }
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                  >
+                                    {/* Eye icon */}
+                                    {emailConfirmationModal.showPassword ? (
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M18.364 18.364L16.95 16.95m1.414-1.414L9.878 9.878m8.486 8.486L8.464 8.464" />
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </>
                           ) : (
-                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md">
+                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md border">
                               <span className="text-gray-800">
                                 {emailConfirmationModal.userEmail || 'No email added'}
                               </span>
@@ -2863,18 +2929,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                           )}
                         </div>
 
-                        {/* Default Email */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Default OTP Receiver Email:
-                          </label>
-                          <div className="bg-gray-100 px-4 py-2 rounded-md">
-                            <span className="text-gray-700">{emailConfirmationModal.defaultEmail}</span>
-                            <span className="text-xs text-gray-500 ml-2">(fixed)</span>
-                          </div>
-                        </div>
-
-                        {/* New Section - OTP Receiver Choice */}
+                        {/* OTP Receiver Choice */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Where will you receive OTP? <span className="text-red-500">*</span>
@@ -2914,16 +2969,40 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                             </button>
                           </div>
                           
-                          {/* ADD THIS ERROR MESSAGE: */}
                           {emailModalError && (
                             <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
+                          )}
+                        </div>
+
+                        {/* Sender Email Option */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => setShowSenderEmailField(prev => !prev)}
+                            className="text-purple-600 text-sm hover:text-purple-800"
+                          >
+                            {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
+                          </button>
+
+                          {showSenderEmailField && (
+                            <div className="mt-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Sender Email for OTP (Optional):
+                              </label>
+                              <input
+                                type="email"
+                                value={senderEmail}
+                                onChange={(e) => setSenderEmail(e.target.value)}
+                                placeholder="e.g., no-reply@example.com"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
+                              />
+                            </div>
                           )}
                         </div>
 
                         {/* Info Note */}
                         <div className="bg-purple-50 p-4 rounded-md">
                           <p className="text-sm text-purple-700">
-                            <strong>Note:</strong> OTP will be sent to the selected method.
+                            <strong>Note:</strong> App password is required for email OTP verification.
                           </p>
                         </div>
                       </div>
@@ -2935,9 +3014,10 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                             setEmailConfirmationModal({
                               isOpen: false,
                               userEmail: '',
-                              defaultEmail: '',
-                              isEditing: false,
+                              email_app_password: '',
                               otpReceiver: '',
+                              isEditing: false,
+                              showPassword: false,
                             });
                             setEmailModalError(''); 
                           }}
@@ -2961,7 +3041,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                           <button
                             onClick={handleEmailConfirmation}
                             className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                            disabled={!emailConfirmationModal.userEmail.trim()}
+                            disabled={!emailConfirmationModal.userEmail.trim() || !emailConfirmationModal.email_app_password?.trim()}
                           >
                             Confirm & Continue
                           </button>
