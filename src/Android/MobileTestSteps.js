@@ -525,36 +525,42 @@ const handleDeleteStep = async (stepNumber) => {
 };
 
   const startEditing = async (step) => {
-  setEditingStepLoading(step.step_number);
 
-  try {
-      const isConnected = await checkDeviceConnectionAndReturn(step.step_description);
-      
-      if (!isConnected) {
-      setEditingStepLoading(null);
-      return; 
-      }
+    if (step.step_description.includes("<otp>")) {
+      alert("OTP steps cannot be edited to maintain test integrity.");
+      return;
+    }
 
-      setShowConnectionMessage(true);
-      setTimeout(() => setShowConnectionMessage(false), 3000);
+    setEditingStepLoading(step.step_number);
 
-      setEditingStep(step.step_number);
-      setEditValue(step.step_description);
-      addStepComponent.clearSuggestions();
-      
-      setTimeout(() => {
-      const words = step.step_description.trim().split(' ');
-      const command = words[0].toLowerCase();
-      
-      if (['click', 'type', 'verify', 'get', 'wait','open'].includes(command)) {
-          addStepComponent.handleEditCommandInput(step.step_number, step.step_description, command);
-      }
-      setEditingStepLoading(null);
-      }, 100);
-  } catch (error) {
-      console.error('Error in startEditing:', error);
-      setEditingStepLoading(null);
-  }
+    try {
+        const isConnected = await checkDeviceConnectionAndReturn(step.step_description);
+        
+        if (!isConnected) {
+        setEditingStepLoading(null);
+        return; 
+        }
+
+        setShowConnectionMessage(true);
+        setTimeout(() => setShowConnectionMessage(false), 3000);
+
+        setEditingStep(step.step_number);
+        setEditValue(step.step_description);
+        addStepComponent.clearSuggestions();
+        
+        setTimeout(() => {
+        const words = step.step_description.trim().split(' ');
+        const command = words[0].toLowerCase();
+        
+        if (['click', 'type', 'verify', 'get', 'wait','open'].includes(command)) {
+            addStepComponent.handleEditCommandInput(step.step_number, step.step_description, command);
+        }
+        setEditingStepLoading(null);
+        }, 100);
+    } catch (error) {
+        console.error('Error in startEditing:', error);
+        setEditingStepLoading(null);
+    }
   };
 
 const containsOtpPlaceholder = (text) => { 
@@ -1469,7 +1475,9 @@ const selectAllSteps = () => {
                 ) : (
                   <>
                     <div 
-                        className="flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden"
+                      className={`flex-1 text-gray-700 break-words whitespace-pre-wrap overflow-hidden ${
+                        step.step_description.includes("<otp>") ? 'bg-orange-50 border-l-4 border-orange-400 pl-2' : ''
+                      }`}
                         onDoubleClick={() => startEditing(step)}
                         >
                         {editingStepLoading === step.step_number ? (
@@ -1479,6 +1487,9 @@ const selectAllSteps = () => {
                             </div>
                         ) : (
                             displayCommand(step.step_description)
+                        )}
+                        {step.step_description.includes("<otp>") && (
+                          <span className="ml-2 text-xs text-orange-600 font-medium">(OTP - Protected)</span>
                         )}
                       {executionResults[step.step_number] && (
                         <div className={`mt-2 text-sm p-2 rounded ${
