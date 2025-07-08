@@ -1747,6 +1747,11 @@ const createTestCase = async () => {
         teststep_result = "failed";
       }
       
+      let stepDescription = step.description;
+      if (/(\b\d{4,8}\b)/.test(step.description)) {
+        stepDescription = step.description.replace(/\b\d{4,8}\b/, "<otp>");
+      }
+      
       // Initialize default coordinates
       let coordinates = { click_x: 0, click_y: 0 };
       
@@ -1754,14 +1759,19 @@ const createTestCase = async () => {
       if (step.requestBody) {
         coordinates = step.requestBody;
       }
+
+      // ✅ Check if this step uses OTP
+      // const usesOtp = step.description.includes('{{OTP}}');
       
       return {
         step_number: index + 1,
-        step_description: step.description,
+        step_description: stepDescription,
         teststep_result: teststep_result,
         step_coordinates: coordinates,
         expected_result: step.expectedResult || "",
-        actual_result: ""
+        actual_result: "",
+        requires_otp: step.requiresOtp || false,
+        otp_type: step.otpType || null
       };
     });
 
