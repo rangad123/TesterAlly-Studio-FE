@@ -90,6 +90,11 @@ const WriteRecord = () => {
     showPassword: false, 
   });
 
+  const [addTestDataModalOpen, setAddTestDataModalOpen] = useState(false);
+  const [testDataPhone, setTestDataPhone] = useState('');
+  const [testDataEmail, setTestDataEmail] = useState('');
+  const [testDataPassword, setTestDataPassword] = useState('');
+
   useEffect(() => {
     if (requiresOtp) {
       const userId = localStorage.getItem("userId");
@@ -113,46 +118,74 @@ const WriteRecord = () => {
     }
   }, [requiresOtp]);
 
-const saveTestDataEmail = async (email, password) => {
-  const userId = localStorage.getItem("userId");
-  const projectKey = `selectedProject_${userId}`;
-  const selectedProject = JSON.parse(localStorage.getItem(projectKey));
-  
-  if (!selectedProject?.id) {
-    alert('No project selected');
-    return false;
-  }
+  const saveTestDataEmail = async (email, password) => {
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+    
+    if (!selectedProject?.id) {
+      alert('No project selected');
+      return false;
+    }
 
-  const payload = {
-    url: testData?.url || null,
-    email: email.trim(),
-    email_app_password: password.trim(),
-    phone_number: testData?.phone_number || null,
-    region: testData?.region || null
+    const payload = {
+      url: testData?.url || null,
+      email: email.trim(),
+      email_app_password: password.trim(),
+      phone_number: testData?.phone_number || null,
+      region: testData?.region || null
+    };
+
+    console.log("Saving email payload:", payload);
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Email saved successfully:", data);
+
+        setTestData(prev => ({ ...prev, email: email }));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error saving test data email:', error);
+      return false;
+    }
   };
 
-  console.log("Saving email payload:", payload);
-
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Email saved successfully:", data);
-
-      setTestData(prev => ({ ...prev, email: email }));
-      return true;
+  const handleSaveTestData = async () => {
+    if (testDataEmail && !testDataPassword) {
+      alert('App password is required for email');
+      return;
     }
-    return false;
-  } catch (error) {
-    console.error('Error saving test data email:', error);
-    return false;
-  }
-};
+
+    if (testDataEmail) {
+      const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
+      if (!emailSaved) {
+        alert('Failed to save email');
+        return;
+      }
+    }
+
+    if (testDataPhone) {
+      console.log('Saving phone number:', testDataPhone);
+      setTestData(prev => ({
+        ...prev,
+        phone_number: testDataPhone
+      }));
+    }
+
+    setAddTestDataModalOpen(false);
+    // setTestDataPhone('');
+    // setTestDataEmail('');
+    // setTestDataPassword('');
+  };
 
   const [showDeviceModal, setShowDeviceModal] = useState(false);
 
@@ -2043,8 +2076,16 @@ const SuggestionsDropdown = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-red-600">
-                    ⚠ No contact method found. Please add test data first.
+                  <div className="flex flex-col gap-2 items-start">
+                    <div className="text-sm text-red-600">
+                      ⚠ No contact method found.
+                    </div>
+                    <button
+                      onClick={() => setAddTestDataModalOpen(true)}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
+                    >
+                      Add Test Data
+                    </button>
                   </div>
                 )}
 
@@ -2079,7 +2120,7 @@ const SuggestionsDropdown = () => {
             )}
           </div>
         )}
-        
+
         {!showPositionControls && (
           <p className="text-xs text-gray-600 mt-2">
             Found {suggestions.length} matching elements
@@ -3095,6 +3136,74 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
               </div>
             </div>
           )}
+
+        {addTestDataModalOpen && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                Add Test Data
+              </h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number:
+                  </label>
+                  <input
+                    type="text"
+                    value={testDataPhone}
+                    onChange={(e) => setTestDataPhone(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email:
+                  </label>
+                  <input
+                    type="email"
+                    value={testDataEmail}
+                    onChange={(e) => setTestDataEmail(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    placeholder="Enter email"
+                  />
+                </div>
+
+                {testDataEmail && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email App Password:
+                    </label>
+                    <input
+                      type="password"
+                      value={testDataPassword}
+                      onChange={(e) => setTestDataPassword(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      placeholder="Enter app password"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-between gap-2">
+                <button
+                  onClick={() => setAddTestDataModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTestData}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>

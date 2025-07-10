@@ -99,13 +99,13 @@ const AddStep = ({
   useEffect(() => {
     const loadCapturedElements = () => {
       try {
-        const storedElements = sessionStorage.getItem(`capturedElements_${testCaseName}`);
+        const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
         if (storedElements) {
           const parsedElements = JSON.parse(storedElements);
           setAllCapturedElements(parsedElements);
           
           // Also populate capturedSteps with any stored screenshots
-          const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${testCaseName}`);
+          const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
           if (storedScreenshots) {
             const parsedScreenshots = JSON.parse(storedScreenshots);
             setCapturedSteps(parsedScreenshots);
@@ -118,7 +118,7 @@ const AddStep = ({
           }
           
           // Load original capture IDs
-          const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${testCaseName}`);
+          const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
           if (storedOriginalIds) {
             setOriginalCaptureIds(JSON.parse(storedOriginalIds));
           }
@@ -129,19 +129,19 @@ const AddStep = ({
     };
     
     loadCapturedElements();
-  }, [testCaseName]);
+  }, [testCaseName, projectName]);
   
   useEffect(() => {
     if (Object.keys(originalCaptureIds).length > 0) {
-      sessionStorage.setItem(`originalCaptureIds_${testCaseName}`, JSON.stringify(originalCaptureIds));
+      sessionStorage.setItem(`originalCaptureIds_${projectName}_${testCaseName}`, JSON.stringify(originalCaptureIds));
     }
-  }, [originalCaptureIds, testCaseName]);
+  }, [originalCaptureIds, testCaseName, projectName]);
 
   useEffect(() => {
     if (Object.keys(capturedSteps).length > 0) {
-      sessionStorage.setItem(`capturedScreenshots_${testCaseName}`, JSON.stringify(capturedSteps));
+      sessionStorage.setItem(`capturedScreenshots_${projectName}_${testCaseName}`, JSON.stringify(capturedSteps));
     }
-  }, [capturedSteps, testCaseName]);
+  }, [capturedSteps, testCaseName, projectName]);
 
   const handleCaptureElement = async (stepNumber) => {
     setTabsLoading(true)
@@ -233,9 +233,9 @@ const AddStep = ({
       }));
       
       // Save the data to session storage
-      sessionStorage.setItem(`capturedScreenshots_${testCaseName}`, 
+      sessionStorage.setItem(`capturedScreenshots_${projectName}_${testCaseName}`, 
         JSON.stringify({...capturedSteps, [CurrentStepNumber]: capturedStepData}));
-      sessionStorage.setItem(`capturedElements_${testCaseName}`,
+      sessionStorage.setItem(`capturedElements_${projectName}_${testCaseName}`,
         JSON.stringify({...allCapturedElements, [CurrentStepNumber]: capturedStepData.elements}));
       
       // Update last captured step ID
@@ -247,6 +247,26 @@ const AddStep = ({
       setCaptureLoading(prev => ({ ...prev, [CurrentStepNumber]: false }));
     }
   };
+
+const updateCapturedStepsFromStorage = () => {
+  try {
+    const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+    const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
+    const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+    
+    if (storedScreenshots) {
+      setCapturedSteps(JSON.parse(storedScreenshots));
+    }
+    if (storedElements) {
+      setAllCapturedElements(JSON.parse(storedElements));
+    }
+    if (storedOriginalIds) {
+      setOriginalCaptureIds(JSON.parse(storedOriginalIds));
+    }
+  } catch (error) {
+    console.error("Error updating captured steps from storage:", error);
+  }
+};
   
 const handleCommandInputChange = (e) => {
   const input = e.target.value;
@@ -1800,25 +1820,32 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                   </div>
                 )}
                 
-                {commandSuggestions.map((element, index) => (
-                  <div 
-                    key={index}
-                    onClick={() => handleSuggestionClick(element)}
-                    className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                  >
-                    <div className={`w-4 h-4 rounded-full ${
-                      commandType === 'click' ? 'bg-blue-100' : 
-                      commandType === 'type' ? 'bg-green-100' : 
-                      commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                    }`}></div>
-                    <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
-                    {element.text && (
-                      <span className="text-xs text-gray-500 truncate max-w-xs">
-                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
-                      </span>
-                    )}
+                {commandSuggestions.length === 0 ? (
+                  <div className="p-2 text-gray-500 text-center">
+                    No suggestions available. Please capture the screenshot and fetch elements.
                   </div>
-                ))}
+                ) : (
+                  commandSuggestions.map((element, index) => (
+                    <div 
+                      key={index}
+                      onClick={() => handleSuggestionClick(element)}
+                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                    >
+                      <div className={`w-4 h-4 rounded-full ${
+                        commandType === 'click' ? 'bg-blue-100' : 
+                        commandType === 'type' ? 'bg-green-100' : 
+                        commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                      }`}></div>
+                      <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
+                      {element.text && (
+                        <span className="text-xs text-gray-500 truncate max-w-xs">
+                          "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+
               </div>
             )}
             
@@ -1864,6 +1891,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
   return {
     capturedSteps,
+    updateCapturedStepsFromStorage,
     renderStepActions,
     renderStepContent,
     ScreenshotModal,

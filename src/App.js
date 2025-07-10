@@ -349,7 +349,6 @@ import MemberPriorities from "./Members/MemberPriorities"
 import TestAutomationControl from "./pages/TestExecution";
 import Agent from "./pages/Agent";
 import Reports from "./pages/Reports";
-import SchedulerPage from "./pages/SchedulerPage";
 import GitHub from "./pages/GitHub";
 import MemberGithub from "./Members/MemberGithub";
 import MemberRecord from "./Members/MemberRecord";
@@ -358,6 +357,10 @@ import MemberCreateSuite from "./Members/MemberCreateSuite";
 import RecordSelector from "./Android/RecordSelector";
 import ManuallySelector from "./Android/ManuallySelector";
 import TestStepSelector from "./Android/TestStepSelector";
+import DesktopPrompt from "./pages/DesktopPrompt";
+import TestSenario from "./pages/TestSenario";
+import MobilePrompt from "./Android/MobilePrompt";
+import AndroidPrompt from "./Android/AndroidPrompt";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -947,11 +950,38 @@ const App = () => {
                 }
               />
               <Route
-                path="scheduler"
+                path="test-scenario"
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <SchedulerPage />
+                    <TestSenario />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="prompt-adding"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <DesktopPrompt />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="android-prompt"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <AndroidPrompt />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="mobile-prompt"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <MobilePrompt />
                   </PrivateRoute>
                 }
               />

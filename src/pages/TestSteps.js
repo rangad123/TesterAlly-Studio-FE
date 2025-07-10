@@ -304,6 +304,40 @@ const handleUpdateTestCase = async () => {
     }
   }, [testCaseName, projectName, fetchSteps]);
 
+const adjustCapturedDataAfterDeletion = (deletedStepNumber) => {
+  console.log(`Deleting captured data for step ${deletedStepNumber}`);
+  
+  // Remove only the deleted step's data from sessionStorage
+  const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+  const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
+  const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+  
+  if (storedScreenshots) {
+    const screenshots = JSON.parse(storedScreenshots);
+    delete screenshots[deletedStepNumber];
+    sessionStorage.setItem(`capturedScreenshots_${projectName}_${testCaseName}`, JSON.stringify(screenshots));
+  }
+  
+  if (storedElements) {
+    const elements = JSON.parse(storedElements);
+    delete elements[deletedStepNumber];
+    sessionStorage.setItem(`capturedElements_${projectName}_${testCaseName}`, JSON.stringify(elements));
+  }
+  
+  if (storedOriginalIds) {
+    const originalIds = JSON.parse(storedOriginalIds);
+    delete originalIds[deletedStepNumber];
+    sessionStorage.setItem(`originalCaptureIds_${projectName}_${testCaseName}`, JSON.stringify(originalIds));
+  }
+  
+  // Update the child component's state to reflect the changes
+  if (addStepComponent && addStepComponent.updateCapturedStepsFromStorage) {
+    addStepComponent.updateCapturedStepsFromStorage();
+  }
+  
+  console.log(`✅ Deleted captured data for step ${deletedStepNumber}`);
+};
+
 const handleDeleteStep = async (stepNumber) => {
   if (!window.confirm("Are you sure you want to delete this step?")) return;
   setError(null);
@@ -336,43 +370,10 @@ const handleDeleteStep = async (stepNumber) => {
       throw new Error("Failed to delete step");
     }
 
-    // // Step 2: Get the remaining steps and reorder them
-    // const remainingSteps = steps
-    //   .filter(step => step.step_number !== stepNumber)
-    //   .sort((a, b) => a.step_number - b.step_number);
+    // addStepComponent.clearCapturedData();
 
-    // // Step 3: Update step numbers sequentially
-    // for (let i = 0; i < remainingSteps.length; i++) {
-    //   const step = remainingSteps[i];
-    //   const newStepNumber = i + 1;
-      
-    //   // Only update if the step number needs to change
-    //   if (step.step_number !== newStepNumber) {
-    //     console.log(`Updating step ${step.step_number} to ${newStepNumber}`);
+    adjustCapturedDataAfterDeletion(stepNumber);
         
-    //     const updateResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
-    //       method: "PUT",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({
-    //         user_id: userId,
-    //         project_name: projectName,
-    //         testcase_name: testCaseName,
-    //         step_number: newStepNumber,
-    //         step_description: step.step_description,
-    //         step_coordinates: step.step_coordinates || { click_x: 0, click_y: 0 },
-    //         old_step_number: step.step_number // Add this to help backend identify which step to update
-    //       })
-    //     });
-
-    //     if (!updateResponse.ok) {
-    //       const errorText = await updateResponse.text();
-    //       console.error(`Failed to update step ${step.step_number} to ${newStepNumber}:`, errorText);
-    //       throw new Error(`Failed to update step numbers: ${errorText}`);
-    //     }
-    //   }
-    // }
-
-    // Step 4: Refresh the steps to show updated data
     await fetchSteps(testCaseName, projectName);
 
   } catch (err) {
