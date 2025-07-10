@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Plus, Clock, X, Loader, WifiOff, Wifi, MonitorSmartphone, Smartphone, Tag } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSuggestedElements } from '../pages/elementSuggestionUtils';
@@ -388,7 +388,7 @@ useEffect(() => {
     return null;
   };
 
-  const checkChromeAvailability = async () => {
+  const checkChromeAvailability = useCallback(async () => {
     console.log("checkDeviceConnection");
     setConnectionLoading(true);
   
@@ -420,6 +420,11 @@ useEffect(() => {
         if (setupResponse.ok) {
           setTimeout(() => {
             setShowConnectModal(false);
+
+            // ✅ Directly execute steps (if available)
+            if (generatedSteps && generatedSteps.length > 0) {
+                autoExecuteStepsRef.current(generatedSteps);
+            }
           }, 1000);
           
         } else {
@@ -441,7 +446,7 @@ useEffect(() => {
     } finally {
       setConnectionLoading(false);
     }
-  };
+  }, [generatedSteps]);
 
   useEffect(() => {
     if (!testCaseInfo || !testCaseInfo.platform) return;
@@ -453,7 +458,7 @@ useEffect(() => {
       checkChromeAvailability();
     } 
     
-  }, [testCaseInfo]);
+  }, [testCaseInfo, checkChromeAvailability]);
 
   const executeStep = async (stepObj) => {
     setIsProcessing(true);
@@ -1512,12 +1517,6 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     console.error("❌ First step execution failed");
   }
 }; 
-
-useEffect(() => {
-  if (generatedSteps && generatedSteps.length > 0) {
-    autoExecuteStepsRef.current(generatedSteps);
-  }
-}, [generatedSteps]);
 
   const addTestStep = async () => {
     if (!newStep.trim() || isProcessing) return;

@@ -96,6 +96,11 @@ const MobileRecord = () => {
     showPassword: false, 
   });
 
+  const [addTestDataModalOpen, setAddTestDataModalOpen] = useState(false);
+  const [testDataPhone, setTestDataPhone] = useState('');
+  const [testDataEmail, setTestDataEmail] = useState('');
+  const [testDataPassword, setTestDataPassword] = useState('');
+
   useEffect(() => {
     if (requiresOtp) {
       const userId = localStorage.getItem("userId");
@@ -159,6 +164,34 @@ const saveTestDataEmail = async (email, password) => {
     return false;
   }
 };
+
+  const handleSaveTestData = async () => {
+    if (testDataEmail && !testDataPassword) {
+      alert('App password is required for email');
+      return;
+    }
+
+    if (testDataEmail) {
+      const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
+      if (!emailSaved) {
+        alert('Failed to save email');
+        return;
+      }
+    }
+
+    if (testDataPhone) {
+      console.log('Saving phone number:', testDataPhone);
+      setTestData(prev => ({
+        ...prev,
+        phone_number: testDataPhone
+      }));
+    }
+
+    setAddTestDataModalOpen(false);
+    // setTestDataPhone('');
+    // setTestDataEmail('');
+    // setTestDataPassword('');
+  };
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -627,7 +660,7 @@ const saveTestDataEmail = async (email, password) => {
                 duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
                 message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
-                coordinates: data.coordinates || elementData,
+                coordinates: data.omniparser_response || elementData,
                 elementAction: selectedElement,
                 requestBody,
                 debug_images: data.coordinates?.debug_images || {},
@@ -681,7 +714,7 @@ const saveTestDataEmail = async (email, password) => {
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status,
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: data.omniparser_response,
               verificationType: verificationType,
 //              verificationResult: verificationPassed ? 'passed' : 'failed',
               verifiedText: data.copied_text || "",
@@ -915,7 +948,7 @@ const saveTestDataEmail = async (email, password) => {
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: data.omniparser_response,
               retrievedText: data.copied_text || "",
               elementRetrieved: selectedElement,
               requestBody,
@@ -2074,8 +2107,16 @@ const SuggestionsDropdown = () => {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-red-600">
-                    ⚠ No contact method found. Please add test data first.
+                  <div className="flex flex-col gap-2 items-start">
+                    <div className="text-sm text-red-600">
+                      ⚠ No contact method found.
+                    </div>
+                    <button
+                      onClick={() => setAddTestDataModalOpen(true)}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
+                    >
+                      Add Test Data
+                    </button>
                   </div>
                 )}
 
@@ -3144,6 +3185,75 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   onConfirm={handleWaitConfirm}
                 />
                 <ConnectDeviceModal />  
+
+                {addTestDataModalOpen && (
+                  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                    <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+                      <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                        Add Test Data
+                      </h2>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Phone Number:
+                          </label>
+                          <input
+                            type="text"
+                            value={testDataPhone}
+                            onChange={(e) => setTestDataPhone(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            placeholder="Enter phone number"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email:
+                          </label>
+                          <input
+                            type="email"
+                            value={testDataEmail}
+                            onChange={(e) => setTestDataEmail(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            placeholder="Enter email"
+                          />
+                        </div>
+
+                        {testDataEmail && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Email App Password:
+                            </label>
+                            <input
+                              type="password"
+                              value={testDataPassword}
+                              onChange={(e) => setTestDataPassword(e.target.value)}
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              placeholder="Enter app password"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-6 flex justify-between gap-2">
+                        <button
+                          onClick={() => setAddTestDataModalOpen(false)}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveTestData}
+                          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           </div>

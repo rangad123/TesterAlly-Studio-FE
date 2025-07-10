@@ -1113,9 +1113,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             const data = await response.json();
             console.log(`${actionType} response:`, data);
   
-            if (data.coordinates && data.coordinates.elements) {
-                setElementData(data.coordinates);
-                sessionStorage.setItem('latestElementData', JSON.stringify(data.coordinates));
+            if (data.omniparser_data && data.omniparser_data.elements) {
+                setElementData(data.omniparser_data);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
             }
   
             const screenshotUrl = data.screenshot
@@ -1128,7 +1128,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                 duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
                 message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
-                coordinates: data.coordinates || elementData,
+                coordinates: data.omniparser_data || elementData,
                 elementAction: selectedElement,
                 requestBody,
                 debug_images: data.coordinates?.debug_images || {},
@@ -1182,7 +1182,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status,
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: data.omniparser_data,
               verificationType: verificationType,
 //              verificationResult: verificationPassed ? 'passed' : 'failed',
               verifiedText: data.copied_text || "",
@@ -1224,7 +1224,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
             message: data.message || `${actionType} executed successfully`,
             screenshot: screenshotUrl,
-            coordinates: data.coordinates || {},
+            coordinates: data.omniparser_data || {},
             requestBody,
             debug_images: data.coordinates?.debug_images || {},
           };
@@ -1273,7 +1273,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: data.omniparser_data,
               retrievedText: data.copied_text || "",
               elementRetrieved: selectedElement,
               requestBody,
