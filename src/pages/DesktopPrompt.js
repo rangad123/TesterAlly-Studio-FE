@@ -2825,10 +2825,26 @@ const ElementSelectionModal = () => {
                     </div>
                     
                     {/* Element coordinates info */}
-                    <p className="text-sm text-gray-500 mt-1">
-                      Position: ({match.coordinates.x}, {match.coordinates.y}) • 
-                      Size: {match.coordinates.width}×{match.coordinates.height}
-                    </p>
+                    {(() => {
+                      const clickPoint = match.element.click_point || [];
+                      const coordinates = match.element.coordinates || [];
+
+                      const tapX = clickPoint[0] ?? 'N/A';
+                      const tapY = clickPoint[1] ?? 'N/A';
+
+                      let width = 'N/A';
+                      let height = 'N/A';
+                      if (coordinates.length === 4) {
+                        width = coordinates[2] - coordinates[0];
+                        height = coordinates[3] - coordinates[1];
+                      }
+
+                      return (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Tap Point: Left {tapX}px, Top {tapY}px • Element Size: {width}px wide × {height}px high
+                        </p>
+                      );
+                    })()}
                     
                     {/* Additional element properties */}
                     {match.element.attributes && (

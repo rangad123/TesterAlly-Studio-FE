@@ -170,31 +170,65 @@ const saveTestDataEmail = async (email, password) => {
 };
 
   const handleSaveTestData = async () => {
-    if (testDataEmail && !testDataPassword) {
-      alert('App password is required for email');
+    setCreateTestCaseLoading(true); 
+    
+    const userId = localStorage.getItem("userId");
+    const projectKey = `selectedProject_${userId}`;
+    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+    
+    if (!selectedProject?.id) {
+      alert('No project selected');
+      setCreateTestCaseLoading(false);
       return;
     }
 
-    if (testDataEmail) {
-      const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
-      if (!emailSaved) {
-        alert('Failed to save email');
-        return;
+    // Prepare payload with existing data + new data
+    const payload = {
+      url: testData?.url || null,
+      email: testDataEmail.trim() || testData?.email || null,
+      email_app_password: testDataPassword.trim() || testData?.email_app_password || null,
+      phone_number: testDataPhone.trim() || testData?.phone_number || null,
+      region: testData?.region || null
+    };
+
+    // Validation: if user entered email, password is required
+    if (testDataEmail && !testDataPassword) {
+      alert('App password is required for email');
+      setCreateTestCaseLoading(false);
+      return;
+    }
+
+    console.log("Saving test data payload:", payload);
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Test data saved successfully:", data);
+        
+        // Update local testData state
+        setTestData(data);
+        
+        // Clear form fields
+        setTestDataPhone('');
+        setTestDataEmail('');
+        setTestDataPassword('');
+        
+        setAddTestDataModalOpen(false);
+      } else {
+        alert('Failed to save test data');
       }
+    } catch (error) {
+      console.error('Error saving test data:', error);
+      alert('Error saving test data');
+    } finally {
+      setCreateTestCaseLoading(false);
     }
-
-    if (testDataPhone) {
-      console.log('Saving phone number:', testDataPhone);
-      setTestData(prev => ({
-        ...prev,
-        phone_number: testDataPhone
-      }));
-    }
-
-    setAddTestDataModalOpen(false);
-    // setTestDataPhone('');
-    // setTestDataEmail('');
-    // setTestDataPassword('');
   };
   
   const previewRef = useRef(null);
@@ -2792,7 +2826,7 @@ const SuggestionsDropdown = () => {
                     </svg>
                     Loading test data...
                   </div>
-                ) : testData?.phone || testData?.email ? (
+                ) : testData?.phone_number || testData?.email ? (
                   <div className="flex gap-2 flex-wrap">
                     {testData.phone_number && (
                       <button
@@ -3919,65 +3953,137 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                       </h2>
 
                       <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Phone Number:
-                          </label>
-                          <input
-                            type="text"
-                            value={testDataPhone}
-                            onChange={(e) => setTestDataPhone(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            placeholder="Enter phone number"
-                          />
-                        </div>
+                        {/* Show existing phone number */}
+                        {testData?.phone_number && (
+                          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-green-700">
+                                ✅ Phone: {testData.phone_number}
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email:
-                          </label>
-                          <input
-                            type="email"
-                            value={testDataEmail}
-                            onChange={(e) => setTestDataEmail(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            placeholder="Enter email"
-                          />
-                        </div>
-
-                        {testDataEmail && (
+                        {/* Show phone input only if no phone exists OR if user wants to add phone */}
+                        {(!testData?.phone_number || testDataPhone) && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Email App Password:
+                              Phone Number:
                             </label>
                             <input
-                              type="password"
-                              value={testDataPassword}
-                              onChange={(e) => setTestDataPassword(e.target.value)}
+                              type="text"
+                              value={testDataPhone}
+                              onChange={(e) => setTestDataPhone(e.target.value)}
                               className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                              placeholder="Enter app password"
+                              placeholder="Enter phone number"
                             />
+                          </div>
+                        )}
+
+                        {/* Show existing email */}
+                        {testData?.email && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-blue-700">
+                                ✅ Email: {testData.email}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Show email input only if no email exists OR if user wants to add email */}
+                        {(!testData?.email || testDataEmail) && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Email:
+                              </label>
+                              <input
+                                type="email"
+                                value={testDataEmail}
+                                onChange={(e) => setTestDataEmail(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                placeholder="Enter email"
+                              />
+                            </div>
+
+                            {testDataEmail && (
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Email App Password:
+                                </label>
+                                <input
+                                  type="password"
+                                  value={testDataPassword}
+                                  onChange={(e) => setTestDataPassword(e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                  placeholder="Enter app password"
+                                />
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Add Email option if phone exists but email doesn't */}
+                        {testData?.phone_number && !testData?.email && !testDataEmail && (
+                          <div className="text-center py-2">
+                            <button
+                              onClick={() => setTestDataEmail('')}
+                              className="text-purple-600 text-sm hover:text-purple-800 underline font-medium"
+                            >
+                              + Add Email
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Add Phone option if email exists but phone doesn't */}
+                        {testData?.email && !testData?.phone_number && !testDataPhone && (
+                          <div className="text-center py-2">
+                            <button
+                              onClick={() => setTestDataPhone('')}
+                              className="text-purple-600 text-sm hover:text-purple-800 underline font-medium"
+                            >
+                              + Add Phone Number
+                            </button>
                           </div>
                         )}
                       </div>
 
                       <div className="mt-6 flex justify-between gap-2">
                         <button
-                          onClick={() => setAddTestDataModalOpen(false)}
+                          onClick={() => {
+                            setAddTestDataModalOpen(false);
+                            setTestDataPhone('');
+                            setTestDataEmail('');
+                            setTestDataPassword('');
+                          }}
                           className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                          disabled={createTestCaseLoading}
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleSaveTestData}
-                          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
+                          disabled={createTestCaseLoading || (!testDataPhone && !testDataEmail)}
+                          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                          Save
+                          {createTestCaseLoading ? (
+                            <>
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                              </svg>
+                              Saving...
+                            </>
+                          ) : (
+                            'Save'
+                          )}
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
+                
               </div>
             </div>
           </div>

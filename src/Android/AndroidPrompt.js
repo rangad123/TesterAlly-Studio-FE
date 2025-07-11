@@ -49,7 +49,7 @@ const AndroidPrompt = () => {
   const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [, setDeviceConnected] = useState(false);
+  const [deviceConnected, setDeviceConnected] = useState(false);
   const [installedApps, setInstalledApps] = useState({});
   const [connectionLoading, setConnectionLoading] = useState(false);
   const [appsLoaded, setAppsLoaded] = useState(false);
@@ -176,7 +176,11 @@ const saveTestDataEmail = async (email, password) => {
     stepDescription: '',
     callback: null
   });
-  
+    const connectionAttemptedRef = useRef(false);
+    const [autoExecuteTriggered, setAutoExecuteTriggered] = useState(false);
+    const deviceConnectionRef = useRef(false);
+    const connectionProcessingRef = useRef(false);
+    
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
@@ -450,84 +454,6 @@ useEffect(() => {
   return () => window.removeEventListener('triggerSuggestions', handleTriggerSuggestions);
 }, []);
 
-  const checkDeviceConnection = useCallback(async () => {
-    console.log("checkDeviceConnection")
-    setConnectionLoading(true);
-    setHeaderLoading(true); 
-    
-    try {
-      
-      // First API call - connect-ui
-      const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (!connectResponse.ok) {
-        setDeviceConnected(false);
-        setHeaderLoading(false); 
-        setShowConnectModal(true);
-        return;
-      }
-
-      const connectData = await connectResponse.json();
-      console.log("connect-ui response:", connectData);
-
-      // Second API call - setup-device (ATX check)
-      const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
-        method: "POST", 
-        headers: { "Content-Type": "application/json" }
-      });
-
-      if (setupResponse.ok) {
-        const setupData = await setupResponse.json();
-        console.log("setup-device response:", setupData);
-
-        if ((connectData["System Apps"] || connectData["User Apps"]) &&
-            setupData.status === "success") {
-          
-          setDeviceConnected(true);
-          const combinedApps = {
-            ...connectData["System Apps"],
-            ...connectData["User Apps"]
-          };
-          setInstalledApps(combinedApps);
-          sessionStorage.setItem('installedApps', JSON.stringify(combinedApps));
-          setAppsLoaded(true);
-          setSyncButton(true);
-
-          // ADD THIS - Call autoExecuteStepsRef after apps are loaded
-            if (generatedSteps && generatedSteps.length > 0) {
-                console.log("🚀 Device connected and apps loaded, starting auto-execution");
-                setTimeout(() => {
-                    autoExecuteStepsRef.current(generatedSteps);
-                }, 500); 
-            }
-
-          setTimeout(() => {
-            setShowConnectModal(false);
-          }, 1000);
-          
-        } else {
-          setDeviceConnected(false);
-          setShowConnectModal(false);
-        }
-      } else {
-        setDeviceConnected(false);
-        setShowConnectModal(false);
-        alert("ATX agent installation failed. Please try again.");
-      }
-      
-    } catch (error) {
-      console.error("Error checking device connection:", error);
-      setDeviceConnected(false);
-      setShowConnectModal(true);
-    } finally {
-      setConnectionLoading(false);
-      setHeaderLoading(false);
-    }
-  }, [generatedSteps]);
-
   const checkConnectionStatus = async () => {
     try {
       const response = await fetch("http://localhost:8000/android/connection/", {
@@ -546,52 +472,161 @@ useEffect(() => {
     }
   };
 
-    useEffect(() => {
-    if (!testCaseInfo || !testCaseInfo.platform) return;
+const checkDeviceConnection = useCallback(async () => {
+  // Prevent multiple simultaneous calls
+  if (connectionProcessingRef.current) {
+    console.log("🛑 Connection already in progress, skipping");
+    return;
+  }
+  
+  // Skip if already connected
+  if (deviceConnectionRef.current) {
+    console.log("🛑 Device already connected, skipping");
+    return;
+  }
 
-    const platform = testCaseInfo.platform;
-    console.log("platform-recordpage:", platform)
+  connectionProcessingRef.current = true;
+  console.log("🔄 Starting checkDeviceConnection");
+  setConnectionLoading(true);
+  setHeaderLoading(true);
+  
+  try {
 
-    if (platform === "Android") {
-        const storedApps = sessionStorage.getItem('installedApps');
+    const connectResponse = await fetch("http://localhost:8000/android/connect-ui/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (!connectResponse.ok) {
+      console.error("connect-ui failed");
+      setDeviceConnected(false);
+      setHeaderLoading(false);
+      setShowConnectModal(true);
+      return;
+    }
+
+    const connectData = await connectResponse.json();
+    console.log("connect-ui response:", connectData);
+
+    const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
+      method: "POST", 
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (setupResponse.ok) {
+      const setupData = await setupResponse.json();
+      console.log("setup-device response:", setupData);
+
+      if ((connectData["System Apps"] || connectData["User Apps"]) &&
+          setupData.status === "success") {
         
-        if (storedApps) {
-        try {
-            const parsedApps = JSON.parse(storedApps);
-            if (Object.keys(parsedApps).length > 0) {
-            checkConnectionStatus().then(isConnected => {
-                if (isConnected) {
-                setInstalledApps(parsedApps);
-                setAppsLoaded(true);
-                setSyncButton(true);
-                setDeviceConnected(true);
-                
-                // Call autoExecuteStepsRef when apps are loaded from storage
-                if (generatedSteps && generatedSteps.length > 0) {
-                    console.log("🚀 Apps loaded from storage, starting auto-execution");
-                    setTimeout(() => {
-                    autoExecuteStepsRef.current(generatedSteps);
-                    }, 500);
-                }
-                } else {
-                setInstalledApps(parsedApps); 
-                setAppsLoaded(true);
-                setDeviceConnected(false);
-                setSyncButton(false); 
-                setShowConnectModal(true);
-                }
-            });
-            return;
-            }
-        } catch (error) {
-            console.error('Error parsing stored apps:', error);
-            sessionStorage.removeItem('installedApps');
-        }
-        }
+        console.log("✅ Device connection successful");
+        deviceConnectionRef.current = true; // Mark as connected
+        setDeviceConnected(true);
+        const combinedApps = {
+          ...connectData["System Apps"],
+          ...connectData["User Apps"]
+        };
+        setInstalledApps(combinedApps);
+        sessionStorage.setItem('installedApps', JSON.stringify(combinedApps));
+        setAppsLoaded(true);
+        setSyncButton(true);
 
-        checkDeviceConnection();
-    } 
-    }, [testCaseInfo, checkDeviceConnection, generatedSteps]); 
+        setTimeout(() => {
+          setShowConnectModal(false);
+        }, 1000);
+        
+      } else {
+        console.error("Invalid connection response");
+        setDeviceConnected(false);
+        setShowConnectModal(false);
+      }
+    } else {
+      console.error("setup-device failed");
+      setDeviceConnected(false);
+      setShowConnectModal(false);
+      alert("ATX agent installation failed. Please try again.");
+    }
+    
+  } catch (error) {
+    console.error("Error checking device connection:", error);
+    setDeviceConnected(false);
+    setShowConnectModal(true);
+  } finally {
+    setConnectionLoading(false);
+    setHeaderLoading(false);
+    connectionProcessingRef.current = false; // Reset processing flag
+  }
+}, []);
+
+useEffect(() => {
+  if (!testCaseInfo || !testCaseInfo.platform || deviceConnectionRef.current) return;
+
+  if (location.state?.generatedSteps && !stepsProcessed) {
+    console.log("🛑 Waiting for steps to be processed before connecting");
+    return;
+  }
+
+  const platform = testCaseInfo.platform;
+  console.log("platform-recordpage:", platform);
+
+  if (platform === "Android") {
+    const storedApps = sessionStorage.getItem('installedApps');
+    
+    if (storedApps) {
+      try {
+        const parsedApps = JSON.parse(storedApps);
+        if (Object.keys(parsedApps).length > 0) {
+          checkConnectionStatus().then(isConnected => {
+            if (isConnected) {
+              deviceConnectionRef.current = true; // Mark as connected
+              setInstalledApps(parsedApps);
+              setAppsLoaded(true);
+              setSyncButton(true);
+              setDeviceConnected(true);
+            } else {
+              setInstalledApps(parsedApps); 
+              setAppsLoaded(true);
+              setDeviceConnected(false);
+              setSyncButton(false); 
+              setShowConnectModal(true);
+            }
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing stored apps:', error);
+        sessionStorage.removeItem('installedApps');
+      }
+    }
+
+    checkDeviceConnection();
+  } 
+}, [testCaseInfo, checkDeviceConnection, stepsProcessed, location.state]);
+
+useEffect(() => {
+  if (appsLoaded && generatedSteps && generatedSteps.length > 0 && !autoExecuteTriggered) {
+    // Check deviceConnected inside the effect
+    if (deviceConnected) {
+      console.log("🚀 All conditions met, triggering auto-execution");
+      setAutoExecuteTriggered(true);
+      
+      setTimeout(() => {
+        if (generatedSteps && generatedSteps.length > 0) {
+          console.log("🚀 Starting auto-execution");
+          autoExecuteStepsRef.current(generatedSteps);
+        }
+      }, 300);
+    }
+  }
+}, [appsLoaded, generatedSteps, autoExecuteTriggered, deviceConnected]);
+
+useEffect(() => {
+  deviceConnectionRef.current = false;
+  connectionProcessingRef.current = false;
+  setAutoExecuteTriggered(false);
+  connectionAttemptedRef.current = false;
+}, [testCaseInfo?.id]);
 
   const handleSyncApps = async () => {
     setHeaderLoading(true);
@@ -3648,10 +3683,26 @@ const ElementSelectionModal = () => {
                     </div>
                     
                     {/* Element coordinates info */}
-                    <p className="text-sm text-gray-500 mt-1">
-                      Position: ({match.coordinates.x}, {match.coordinates.y}) • 
-                      Size: {match.coordinates.width}×{match.coordinates.height}
-                    </p>
+                    {(() => {
+                      const clickPoint = match.element.click_point || [];
+                      const coordinates = match.element.coordinates || [];
+
+                      const tapX = clickPoint[0] ?? 'N/A';
+                      const tapY = clickPoint[1] ?? 'N/A';
+
+                      let width = 'N/A';
+                      let height = 'N/A';
+                      if (coordinates.length === 4) {
+                        width = coordinates[2] - coordinates[0];
+                        height = coordinates[3] - coordinates[1];
+                      }
+
+                      return (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Tap Point: Left {tapX}px, Top {tapY}px • Element Size: {width}px wide × {height}px high
+                        </p>
+                      );
+                    })()}
                     
                     {/* Additional element properties */}
                     {match.element.attributes && (

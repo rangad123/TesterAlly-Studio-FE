@@ -169,6 +169,9 @@ const saveTestDataEmail = async (email, password) => {
     stepDescription: '',
     callback: null
   });
+  const connectionAttemptedRef = useRef(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [stepsExecuted, setStepsExecuted] = useState(false); 
   
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
@@ -388,77 +391,88 @@ useEffect(() => {
     return null;
   };
 
-  const checkChromeAvailability = useCallback(async () => {
-    console.log("checkDeviceConnection");
-    setConnectionLoading(true);
+const checkChromeAvailability = useCallback(async () => {
+  // Use ref to prevent multiple calls even in strict mode
+  if (connectionAttemptedRef.current) {
+    console.log("🛑 Connection already attempted, skipping");
+    return;
+  }
   
-    try {
-     
-      const response = await fetch("http://localhost:8000/android/connection/", {
+  connectionAttemptedRef.current = true;
+  console.log("checkDeviceConnection - STARTING");
+  setConnectionLoading(true);
+
+  try {
+    const response = await fetch("http://localhost:8000/android/connection/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const data = await response.json();
+    console.log("Connection API Data:", data);
+
+    if (response.ok && data.status === "success" && data.device_info) {
+      setDeviceConnected(true);
+
+      await new Promise(resolve => setTimeout(resolve, 1000));  
+
+      const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
 
-      const data = await response.json();
-      console.log("Connection API Data:", data);
+      const setupData = await setupResponse.json();
+      console.log("ATX API Data:", setupData);
 
-      if (response.ok && data.status === "success" && data.device_info) {
-        setDeviceConnected(true);
-
-        // Step 4: Allow ATX agent
-        await new Promise(resolve => setTimeout(resolve, 1000));  
-
-        // Step 5: Verifying ATX installation
-        const setupResponse = await fetch("http://localhost:8000/android/setup-device/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        });
-
-        const data = await setupResponse.json();
-        console.log("ATX API Data:", data);
-
-        if (setupResponse.ok) {
-          setTimeout(() => {
-            setShowConnectModal(false);
-
-            // ✅ Directly execute steps (if available)
-            if (generatedSteps && generatedSteps.length > 0) {
-                autoExecuteStepsRef.current(generatedSteps);
-            }
-          }, 1000);
-          
-        } else {
-          console.error("ATX setup failed.");
-          setDeviceConnected(false);
-          setShowConnectModal(true);
-        }
-
+      if (setupResponse.ok) {
+        setIsConnected(true);
+        setTimeout(() => {
+          setShowConnectModal(false);
+        }, 1000);
+        
       } else {
-        console.error("Device connection failed.");
+        console.error("ATX setup failed.");
         setDeviceConnected(false);
         setShowConnectModal(true);
+        connectionAttemptedRef.current = false; 
       }
 
-    } catch (error) {
-      console.error("Error during device connection:", error);
+    } else {
+      console.error("Device connection failed.");
       setDeviceConnected(false);
       setShowConnectModal(true);
-    } finally {
-      setConnectionLoading(false);
+      connectionAttemptedRef.current = false; 
     }
-  }, [generatedSteps]);
 
-  useEffect(() => {
-    if (!testCaseInfo || !testCaseInfo.platform) return;
+  } catch (error) {
+    console.error("Error during device connection:", error);
+    setDeviceConnected(false);
+    setShowConnectModal(true);
+    connectionAttemptedRef.current = false;
+  } finally {
+    setConnectionLoading(false);
+  }
+}, []); 
 
-    const platform = testCaseInfo.platform;
-    console.log("platform-recordpage:", platform)
+useEffect(() => {
+  if (!testCaseInfo || !testCaseInfo.platform) return;
 
-    if (platform === "Mobile") {
-      checkChromeAvailability();
-    } 
-    
-  }, [testCaseInfo, checkChromeAvailability]);
+  const platform = testCaseInfo.platform;
+  console.log("platform-recordpage:", platform);
+
+  if (platform === "Mobile") {
+    checkChromeAvailability();
+  } 
+  
+}, [testCaseInfo, checkChromeAvailability]);
+
+useEffect(() => {
+  if (isConnected && generatedSteps && generatedSteps.length > 0 && !stepsExecuted) {
+    console.log("🚀 Executing steps after successful connection");
+    setStepsExecuted(true);
+    autoExecuteStepsRef.current(generatedSteps);
+  }
+}, [isConnected, generatedSteps, stepsExecuted]);
 
   const executeStep = async (stepObj) => {
     setIsProcessing(true);
@@ -671,7 +685,7 @@ useEffect(() => {
                 duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
                 message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
-                coordinates: data.coordinates || elementData,
+                coordinates: data.omniparser_response || elementData,
                 elementAction: selectedElement,
                 requestBody,
                 debug_images: data.coordinates?.debug_images || {},
@@ -1211,24 +1225,24 @@ const copyToClipboard = (text) => {
   });
 };
 
-const checkAndroidConnection = async () => {
-  try {
-    const response = await fetch('http://localhost:8000/android/connection/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+// const checkAndroidConnection = async () => {
+//   try {
+//     const response = await fetch('http://localhost:8000/android/connection/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log("check Android Connection:", data)
-      return data.status === "success";
-    }
-    return false;
-  } catch (error) {
-    console.error('Error checking Android connection:', error);
-    return false;
-  }
-};
+//     if (response.ok) {
+//       const data = await response.json();
+//       console.log("check Android Connection:", data)
+//       return data.status === "success";
+//     }
+//     return false;
+//   } catch (error) {
+//     console.error('Error checking Android connection:', error);
+//     return false;
+//   }
+// };
 
 const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEmailStep = false) => {
   if (!otpVerificationState.waitingForOtp || (!isPhoneNumberStep && !isEmailStep)) {
@@ -1603,13 +1617,13 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     // Check Android connection if OTP verification is enabled for phone numbers
     if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
       console.log('🔍 Checking Android device connection before executing step...');
-      const isConnected = await checkAndroidConnection();
+    //   const isConnected = await checkAndroidConnection();
       
-      if (!isConnected) {
-        console.log('❌ Android device not connected');
-        checkChromeAvailability();
-        return; 
-      }
+    //   if (!isConnected) {
+    //     console.log('❌ Android device not connected');
+    //     checkAndroidConnection()
+    //     return; 
+    //   }
       
       console.log('✅ Android device connected, proceeding with step execution');
     }
@@ -2828,11 +2842,27 @@ const ElementSelectionModal = () => {
                     </div>
                     
                     {/* Element coordinates info */}
-                    <p className="text-sm text-gray-500 mt-1">
-                      Position: ({match.coordinates.x}, {match.coordinates.y}) • 
-                      Size: {match.coordinates.width}×{match.coordinates.height}
-                    </p>
-                    
+                    {(() => {
+                      const clickPoint = match.element.click_point || [];
+                      const coordinates = match.element.coordinates || [];
+
+                      const tapX = clickPoint[0] ?? 'N/A';
+                      const tapY = clickPoint[1] ?? 'N/A';
+
+                      let width = 'N/A';
+                      let height = 'N/A';
+                      if (coordinates.length === 4) {
+                        width = coordinates[2] - coordinates[0];
+                        height = coordinates[3] - coordinates[1];
+                      }
+
+                      return (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Tap Point: Left {tapX}px, Top {tapY}px • Element Size: {width}px wide × {height}px high
+                        </p>
+                      );
+                    })()}
+                                        
                     {/* Additional element properties */}
                     {match.element.attributes && (
                       <div className="mt-2 flex flex-wrap gap-1">
