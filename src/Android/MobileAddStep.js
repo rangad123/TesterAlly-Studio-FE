@@ -269,16 +269,16 @@ const handleCommandInputChange = (e) => {
     fetchElementSuggestions(command, input, words);
     setShowSuggestions(true);
 
-  } else if (['scroll up', 'scroll down', 'wait', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) { 
-    setCommandType(fullCommand); 
-    setShowSuggestions(false);
-
   } else if (command === 'wait') {
     setCommandType('wait');
     setShowWaitModal(true)
     setShowSuggestions(false);
 
-  } 
+  } else if (['scroll up', 'scroll down', 'wait', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) { 
+    setCommandType(fullCommand); 
+    setShowSuggestions(false);
+
+  }
 //   else if (command === 'open') {
 //     setCommandType('open');
 //     if (deviceConnected && installedApps && Object.keys(installedApps).length > 0) {
@@ -1290,43 +1290,43 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
     } else if (editingStepId) {
       updateEditValue(waitCommand);
 
-      try {
-        // Find the step being edited
-        const stepToEdit = steps.find(s => s.step_number === editingStepId);
-        if (!stepToEdit) {
-          throw new Error("Step not found");
-        }
+      // try {
+      //   // Find the step being edited
+      //   const stepToEdit = steps.find(s => s.step_number === editingStepId);
+      //   if (!stepToEdit) {
+      //     throw new Error("Step not found");
+      //   }
         
-        // Prepare the update payload
-        const payload = {
-          testcase: testCaseName,
-          step_number: stepToEdit.step_number,
-          step_description: waitCommand
-        };
+      //   // Prepare the update payload
+      //   const payload = {
+      //     testcase: testCaseName,
+      //     step_number: stepToEdit.step_number,
+      //     step_description: waitCommand
+      //   };
         
-        // Make API call to update the step
-        const response = await fetch(`${apiBaseUrl}/teststeps/${editingStepId}/`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      //   // Make API call to update the step
+      //   const response = await fetch(`${apiBaseUrl}/teststeps/${editingStepId}/`, {
+      //     method: "PUT",
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify(payload),
+      //   });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to update step");
-        }
+      //   if (!response.ok) {
+      //     const errorData = await response.json();
+      //     throw new Error(errorData.message || "Failed to update step");
+      //   }
         
-        // Refresh steps list
-        await fetchSteps();
+      //   // Refresh steps list
+      //   await fetchSteps();
         
-        setEditingStepId(null);
-        setError(null);
-        resetEditState();
+      //   setEditingStepId(null);
+      //   setError(null);
+      //   resetEditState();
         
-      } catch (err) {
-        setError("Failed to update step. Please try again.");
-        console.error("Error updating step:", err);
-      }
+      // } catch (err) {
+      //   setError("Failed to update step. Please try again.");
+      //   console.error("Error updating step:", err);
+      // }
     }
 
     setShowWaitModal(false);

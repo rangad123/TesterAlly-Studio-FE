@@ -18,7 +18,7 @@ const DesktopPrompt = () => {
     testcase_name: 'test-1',
     testcase_type: 'Non-functional',
     testcase_priority: 'Minor',
-    projectId: '2',
+    projectId: 'GitHub-2',
     project_type: 'Web Application',
     platform: 'Laptop/PC'
   });
@@ -200,6 +200,8 @@ const DesktopPrompt = () => {
     stepDescription: '',
     callback: null
   });
+  const [waitStepIndex, setWaitStepIndex] = useState(null);
+  const [waitStepData, setWaitStepData] = useState(null);
 
   const showDeviceConnectionModal = () => {
     setShowDeviceModal(true);
@@ -1078,6 +1080,7 @@ useEffect(() => {
               duration: waitRequestData.timeout ? `00:${Math.floor(waitRequestData.timeout / 1000).toString().padStart(2, '0')}` : '00:05',
               message: data.message || "Wait completed successfully",
               screenshot: screenshotUrl,
+              coordinates: elementData || null,
           };
         }
   
@@ -1410,6 +1413,41 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      if (nextStep.description.toLowerCase().startsWith("wait")) {
+        console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
+
+        if (!nextStep.waitRequestData) {
+          console.log("🔧 Wait command needs configuration, showing modal");
+          setWaitModalOpen(true);
+          // Store the step info for later use
+          setWaitStepIndex(nextIndex);
+          setWaitStepData(nextStep);
+          return;
+        }
+        
+        // If waitRequestData exists, proceed with execution
+        // console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
+
+        // setTestSteps(prev => [...prev, nextStep]);
+
+        // const nextExecutionResult = await executeStep(nextStep, nextIndex);
+        // console.log("🚀 Executed Wait Step:", nextExecutionResult);
+
+        // if (nextExecutionResult && nextExecutionResult.status) {
+        //   console.log(`✅ Proceeding to next step after Step ${nextIndex + 1} (wait step)`);
+        //   setTestSteps(prev => prev.map(step =>
+        //     step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
+        //   ));
+        //   setCurrentGeneratedStepIndex(nextIndex);
+        //   handleNextStep(nextExecutionResult, nextIndex);
+        // } else {
+        //   console.error(`❌ Wait Step ${nextIndex + 1} failed to execute properly.`);
+        // }
+
+        console.log("⚠️ Wait step already configured and executed");
+        return; 
+      }
+
       const validationResult = validateStepAgainstResponse(nextStep, data.omniparser_data || data.coordinates);
       console.log(`🔍 Validation Result for Step ${nextIndex + 1}:`, validationResult);
 
@@ -1533,8 +1571,38 @@ useEffect(() => {
 }, [newStep, pendingWaitStep]);
 
 const handleWaitConfirm = (waitCommand, waitRequestData) => {
-  setStepWaitData(waitRequestData);
-  setNewStep(waitCommand);
+  if (waitStepData && waitStepIndex !== null) {
+
+    const configuredStep = {
+      ...waitStepData,
+      description: waitCommand,
+      waitRequestData: waitRequestData
+    };
+    
+    // Add to test steps
+    setTestSteps(prev => [...prev, configuredStep]);
+    
+    // Execute the configured wait step
+    executeStep(configuredStep, waitStepIndex).then(result => {
+      console.log("🚀 Executed Configured Wait Step:", result);
+      
+      if (result && result.status) {
+        console.log(`✅ Proceeding to next step after Step ${waitStepIndex + 1} (configured wait)`);
+        setTestSteps(prev => prev.map(step =>
+          step.id === configuredStep.id ? { ...step, ...result } : step
+        ));
+        setCurrentGeneratedStepIndex(waitStepIndex);
+        handleNextStep(result, waitStepIndex);
+      } else {
+        console.error(`❌ Configured Wait Step ${waitStepIndex + 1} failed to execute properly.`);
+      }
+    });
+    
+    // Reset wait state
+    setWaitStepIndex(null);
+    setWaitStepData(null);
+  }
+  
   setWaitModalOpen(false);
 };
 

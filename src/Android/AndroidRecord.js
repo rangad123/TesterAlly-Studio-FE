@@ -1319,7 +1319,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           
           console.log("Wait Request Data:", waitRequestData);
             
-          const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
+          const response = await fetch('http://localhost:8000/android/command/wait/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -3154,7 +3154,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
   }, [isOpen]);
 
   const handleConfirm = () => {
-    const userid = localStorage.getItem("user_id");
+    // const userid = localStorage.getItem("user_id");
     const timeoutMs = waitTimeout * 1000;
     
     let waitCommand = '';
@@ -3163,35 +3163,36 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
     if (waitCondition === 'static_wait') {
       waitCommand = `wait ${waitTimeout} seconds`;
       requestData = {
-        user_id: userid,
+        // user_id: userid,
         timeout: timeoutMs,
-        is_final_step: true,
-        debug: true
+        // is_final_step: true,
+        // debug: true
       };
     } else if (waitCondition === 'text_match') {
       waitCommand = `wait until text "${waitText}" appears`;
       requestData = {
-        user_id: userid,
-        condition: "text_match",
-        text: waitText,
+        // user_id: userid,
+        // condition: "text_match",
+        expected_text: waitText,
         timeout: timeoutMs,
         poll_interval: pollInterval,
-        is_final_step: true,
-        debug: true
+        // is_final_step: true,
+        // debug: true
       };
-    } else if (waitCondition === 'url_match') {
-      waitCommand = `wait until URL contains "${waitText}"`;
-      requestData = {
-        user_id: userid,
-        condition: "url_match",
-        text: waitText,
-        timeout: timeoutMs,
-        poll_interval: pollInterval,
-        check_address_bar: true,
-        is_final_step: true,
-        debug: true
-      };
-    }
+    } 
+    // else if (waitCondition === 'url_match') {
+    //   waitCommand = `wait until URL contains "${waitText}"`;
+    //   requestData = {
+    //     user_id: userid,
+    //     condition: "url_match",
+    //     expected_text: waitText,
+    //     timeout: timeoutMs,
+    //     poll_interval: pollInterval,
+    //     check_address_bar: true,
+    //     is_final_step: true,
+    //     debug: true
+    //   };
+    // }
     
     // Close the modal first
     onClose();

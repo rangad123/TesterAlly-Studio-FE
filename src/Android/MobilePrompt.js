@@ -18,7 +18,7 @@ const MobilePrompt = () => {
     testcase_name: 'test-1',
     testcase_type: 'Non-functional',
     testcase_priority: 'Minor',
-    projectId: '3',
+    projectId: 'GitHub-3',
     project_type: 'Web Application',
     platform:'Mobile'
   });
@@ -173,6 +173,9 @@ const saveTestDataEmail = async (email, password) => {
     const [isConnected, setIsConnected] = useState(false);
     const [stepsExecuted, setStepsExecuted] = useState(false); 
   
+  const [waitStepIndex, setWaitStepIndex] = useState(null);
+  const [waitStepData, setWaitStepData] = useState(null);
+
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
@@ -553,7 +556,7 @@ useEffect(() => {
           
           console.log("Wait Request Data:", waitRequestData);
             
-          const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
+          const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -580,6 +583,7 @@ useEffect(() => {
               duration: waitRequestData.timeout ? `00:${Math.floor(waitRequestData.timeout / 1000).toString().padStart(2, '0')}` : '00:05',
               message: data.message || "Wait completed successfully",
               screenshot: screenshotUrl,
+              coordinates: elementData || null,
           };
         }
   
@@ -1424,6 +1428,22 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      if (nextStep.description.toLowerCase().startsWith("wait")) {
+        console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
+
+        if (!nextStep.waitRequestData) {
+          console.log("🔧 Wait command needs configuration, showing modal");
+          setWaitModalOpen(true);
+          // Store the step info for later use
+          setWaitStepIndex(nextIndex);
+          setWaitStepData(nextStep);
+          return;
+        }
+
+        console.log("⚠️ Wait step already configured and executed");
+        return; 
+      }
+
       const validationResult = validateStepAgainstResponse(nextStep, data.omniparser_data || data.coordinates);
       console.log(`🔍 Validation Result for Step ${nextIndex + 1}:`, validationResult);
 
@@ -1756,8 +1776,38 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   }, [newStep, pendingWaitStep]);
 
   const handleWaitConfirm = (waitCommand, waitRequestData) => {
-    setStepWaitData(waitRequestData);
-    setNewStep(waitCommand);
+    if (waitStepData && waitStepIndex !== null) {
+
+      const configuredStep = {
+        ...waitStepData,
+        description: waitCommand,
+        waitRequestData: waitRequestData
+      };
+      
+      // Add to test steps
+      setTestSteps(prev => [...prev, configuredStep]);
+      
+      // Execute the configured wait step
+      executeStep(configuredStep, waitStepIndex).then(result => {
+        console.log("🚀 Executed Configured Wait Step:", result);
+        
+        if (result && result.status) {
+          console.log(`✅ Proceeding to next step after Step ${waitStepIndex + 1} (configured wait)`);
+          setTestSteps(prev => prev.map(step =>
+            step.id === configuredStep.id ? { ...step, ...result } : step
+          ));
+          setCurrentGeneratedStepIndex(waitStepIndex);
+          handleNextStep(result, waitStepIndex);
+        } else {
+          console.error(`❌ Configured Wait Step ${waitStepIndex + 1} failed to execute properly.`);
+        }
+      });
+      
+      // Reset wait state
+      setWaitStepIndex(null);
+      setWaitStepData(null);
+    }
+    
     setWaitModalOpen(false);
   };
 
@@ -2862,7 +2912,7 @@ const ElementSelectionModal = () => {
                         </p>
                       );
                     })()}
-                                        
+
                     {/* Additional element properties */}
                     {match.element.attributes && (
                       <div className="mt-2 flex flex-wrap gap-1">

@@ -18,7 +18,7 @@ const AndroidPrompt = () => {
     testcase_name: 'test-1',
     testcase_type: 'Non-functional',
     testcase_priority: 'Minor',
-    projectId: '1',
+    projectId: 'GitHub-1',
     project_type: 'Mobile Application',
     platform:'Android'
   });
@@ -181,6 +181,9 @@ const saveTestDataEmail = async (email, password) => {
     const deviceConnectionRef = useRef(false);
     const connectionProcessingRef = useRef(false);
     
+  const [waitStepIndex, setWaitStepIndex] = useState(null);
+  const [waitStepData, setWaitStepData] = useState(null);
+
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
@@ -1369,9 +1372,157 @@ useEffect(() => {
           const data = await response.json();
           console.log("Wait Response:", data);
           
-          const screenshotUrl = data.screenshot_url
-              ? `http://127.0.0.1:8000${data.screenshot_url}`
-              : `/api/placeholder/800/300?text=Wait_Completed`;
+            // Single declaration of androidElementData
+            let androidElementData = {};
+            
+            if (data.screen_elements) {
+                // Process all UI elements and create suggestions from content_desc
+                const allElements = [
+                    ...data.screen_elements.buttons.map(btn => {
+                        const bounds = btn.bounds;
+                        let click_point = [0, 0];
+
+                        if (bounds && typeof bounds === 'string') {
+                            try {
+                                // Parse bounds format: "[290,380][510,597]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
+                            } catch (e) {
+                                console.warn('Error parsing bounds:', bounds, e);
+                            }
+                        }
+                        
+                        return {
+                            name: btn.description?.replace(/"/g, '') || '',
+                            displayName: btn.content_desc || btn.description?.replace(/"/g, '') || '',
+                            content_desc: btn.content_desc || '',
+                            click_point: click_point,
+                            bounds: bounds,
+                            resource_id: btn.resource_id,
+                            class: btn.class,
+                            clickable: btn.clickable
+                        };
+                    }),
+                    ...data.screen_elements.text_fields.map(field => {
+                        const bounds = field.bounds;
+                        let click_point = [0, 0];
+
+                        if (bounds && typeof bounds === 'string') {
+                            try {
+                                // Parse bounds format: "[290,380][510,597]"
+                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                                if (matches) {
+                                    const x1 = parseInt(matches[1]);
+                                    const y1 = parseInt(matches[2]);
+                                    const x2 = parseInt(matches[3]);
+                                    const y2 = parseInt(matches[4]);
+                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                                }
+                            } catch (e) {
+                                console.warn('Error parsing bounds:', bounds, e);
+                            }
+                        }
+                        
+                        return {
+                            name: field.description?.replace(/"/g, '') || '',
+                            displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                            content_desc: field.content_desc || '',
+                            click_point: click_point,
+                            bounds: bounds,
+                            resource_id: field.resource_id,
+                            class: field.class,
+                            clickable: field.clickable
+                        };
+                    }),
+                    ...data.screen_elements.icons.map(icon => {
+                        const bounds = icon.bounds;
+                        let click_point = [0, 0];
+                        
+                        if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds:', bounds, e);
+                          }
+                        }
+                        
+                        return {
+                            name: icon.description?.replace(/"/g, '') || '',
+                            displayName: icon.content_desc || icon.description?.replace(/"/g, '') || '',
+                            content_desc: icon.content_desc || '',
+                            click_point: click_point,
+                            bounds: bounds,
+                            resource_id: icon.resource_id,
+                            class: icon.class,
+                            clickable: icon.clickable
+                        };
+                    }),
+                    ...data.screen_elements.other.map(other => {
+                        const bounds = other.bounds;
+                        let click_point = [0, 0];
+                        
+                        if (bounds && typeof bounds === 'string') {
+                          try {
+                              // Parse bounds format: "[290,380][510,597]"
+                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                              if (matches) {
+                                  const x1 = parseInt(matches[1]);
+                                  const y1 = parseInt(matches[2]);
+                                  const x2 = parseInt(matches[3]);
+                                  const y2 = parseInt(matches[4]);
+                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                              }
+                          } catch (e) {
+                              console.warn('Error parsing bounds:', bounds, e);
+                          }
+                        }
+                        
+                        return {
+                            name: other.description?.replace(/"/g, '') || '',
+                            displayName: other.content_desc || other.description?.replace(/"/g, '') || '',
+                            content_desc: other.content_desc || '',
+                            click_point: click_point,
+                            bounds: bounds,
+                            resource_id: other.resource_id,
+                            class: other.class,
+                            clickable: other.clickable
+                        };
+                    })
+                ];
+
+                androidElementData = {
+                    elements: allElements
+                };
+                
+                // Create suggestions from content_desc (filter out empty ones)
+                const suggestions = allElements
+                    .filter(element => element.content_desc && element.content_desc.trim() !== '')
+                    .map(element => element.content_desc);
+                
+                setElementData(androidElementData);
+                sessionStorage.setItem('latestElementData', JSON.stringify(androidElementData));
+                setSuggestions(suggestions);
+            } else {
+                setSuggestions([]);
+            }
+
+            const screenshotUrl = data.screenshot_result?.url
+                ? `http://localhost:8000${data.screenshot_result.url}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
 
             console.log("Screenshot URL:", screenshotUrl);
               
@@ -1380,6 +1531,7 @@ useEffect(() => {
               duration: waitRequestData.timeout ? `00:${Math.floor(waitRequestData.timeout / 1000).toString().padStart(2, '0')}` : '00:05',
               message: data.message || "Wait completed successfully",
               screenshot: screenshotUrl,
+              coordinates: elementData || null,
           };
         }
 
@@ -2320,6 +2472,22 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      if (nextStep.description.toLowerCase().startsWith("wait")) {
+        console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
+
+        if (!nextStep.waitRequestData) {
+          console.log("🔧 Wait command needs configuration, showing modal");
+          setWaitModalOpen(true);
+          // Store the step info for later use
+          setWaitStepIndex(nextIndex);
+          setWaitStepData(nextStep);
+          return;
+        }
+
+        console.log("⚠️ Wait step already configured and executed");
+        return; 
+      }
+
       const validationResult = validateStepAgainstResponse(nextStep, data.omniparser_data || data.coordinates);
       console.log(`🔍 Validation Result for Step ${nextIndex + 1}:`, validationResult);
 
@@ -2532,8 +2700,38 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   }, [newStep, pendingWaitStep]);
 
   const handleWaitConfirm = (waitCommand, waitRequestData) => {
-    setStepWaitData(waitRequestData);
-    setNewStep(waitCommand);
+    if (waitStepData && waitStepIndex !== null) {
+
+      const configuredStep = {
+        ...waitStepData,
+        description: waitCommand,
+        waitRequestData: waitRequestData
+      };
+      
+      // Add to test steps
+      setTestSteps(prev => [...prev, configuredStep]);
+      
+      // Execute the configured wait step
+      executeStep(configuredStep, waitStepIndex).then(result => {
+        console.log("🚀 Executed Configured Wait Step:", result);
+        
+        if (result && result.status) {
+          console.log(`✅ Proceeding to next step after Step ${waitStepIndex + 1} (configured wait)`);
+          setTestSteps(prev => prev.map(step =>
+            step.id === configuredStep.id ? { ...step, ...result } : step
+          ));
+          setCurrentGeneratedStepIndex(waitStepIndex);
+          handleNextStep(result, waitStepIndex);
+        } else {
+          console.error(`❌ Configured Wait Step ${waitStepIndex + 1} failed to execute properly.`);
+        }
+      });
+      
+      // Reset wait state
+      setWaitStepIndex(null);
+      setWaitStepData(null);
+    }
+    
     setWaitModalOpen(false);
   };
 

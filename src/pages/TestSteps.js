@@ -471,6 +471,11 @@ const containsOtpPlaceholder = (text) => {
         }
       }
 
+      // 🟨 If command is 'wait', force coordinates to {0,0}
+      if (actionType === 'wait') {
+        coordinates = { click_x: 0, click_y: 0 };
+      }
+
       const requestBody = {
         user_id: userId,  
         project_name: projectName,  
