@@ -39,6 +39,7 @@ const AddStep = ({
   const [tabsLoading, setTabsLoading] = useState(false);
   const [CurrentStepNumber, setCurrentStepNumber] = useState(null);
   const [showWaitModal, setShowWaitModal] = useState(false);
+  const [waitRequestData, setWaitRequestData] = useState(null);
 
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
@@ -545,7 +546,7 @@ const containsOtpPlaceholder = (text) => {
   return text && text.toLowerCase().includes('<otp>');
 };
 
-const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => {
+const handleInsertStep = async (afterStepNumber, waitCommandOverride = null, waitData = null) => {
   const stepDescription = waitCommandOverride || newInsertedStepValue.trim();
 
   if (!stepDescription.trim()) {
@@ -594,17 +595,6 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
       setOtpPlaceholderUsed(true);
     }
 
-    // if (requiresOtp && actionType === 'type') {
-    //   const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
-    //   const defaultEmail = otpVerificationState.enteredContact?.trim();
-      
-    //   if (emailInStep && emailInStep[0] !== defaultEmail) {
-    //     alert(`For OTP verification, please use the default email: ${defaultEmail}`);
-    //     setInsertingLoading(false);
-    //     return;
-    //   }
-    // }
-
     if (requiresOtp && actionType === 'type') {
       const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
       const selectedContact = otpVerificationState.enteredContact?.trim();
@@ -621,6 +611,7 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
         }
       }
     }
+    console.log("DEBUG - waitData:", waitData);  
 
     const payload = {
       user_id: parseInt(userId),
@@ -636,7 +627,8 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
           has_otp_placeholder: hasOtpPlaceholder,
           otp_type: requiresOtp && otpVerificationState.enteredContact
             ? (/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact) ? 'email' : 'phone')
-            : null
+            : null,
+          ...(stepDescription?.toLowerCase().startsWith("wait") && waitData ? { wait_config: waitData } : {})
         }
       ]
     };
@@ -667,6 +659,7 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null) => 
     setSelectedElement(null);
     setCommandType("");
     setError(null);
+    setWaitRequestData(null); 
 
     console.log("Step inserted successfully");
 
@@ -1286,11 +1279,13 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
   };
 
   const handleWaitConfirm = async (waitCommand, requestData) => {
+
+    setWaitRequestData(requestData);
     
     if (insertingAfterStep !== null) {
 
       setNewInsertedStepValue(waitCommand);
-      handleInsertStep(insertingAfterStep, waitCommand);
+      handleInsertStep(insertingAfterStep, waitCommand, requestData);
 
     } else if (editingStepId) {
       updateEditValue(waitCommand);
@@ -1411,7 +1406,11 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
 
     const handleConfirm = () => {
-      const userid = localStorage.getItem("user_id");
+      // const userid = localStorage.getItem("user_id");
+      if (!waitTimeout || waitTimeout <= 0) {
+        alert('Please enter a valid wait time greater than 0.');
+        return;
+      }
       const timeoutMs = waitTimeout * 1000;
       
       let waitCommand = '';
@@ -1420,31 +1419,32 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
       if (waitCondition === 'static_wait') {
         waitCommand = `wait ${waitTimeout} seconds`;
         requestData = {
-          user_id: userid,
+          // user_id: userid,
           timeout: timeoutMs,
           debug: true
         };
       } else if (waitCondition === 'text_match') {
         waitCommand = `wait until text "${waitText}" appears`;
         requestData = {
-          user_id: userid,
-          condition: "text_match",
-          text: waitText,
+          // user_id: userid,
+          // condition: "text_match",
+          expected_text: waitText,
           timeout: timeoutMs,
           poll_interval: pollInterval,
           debug: true
         };
-      } else if (waitCondition === 'url_match') {
-        waitCommand = `wait until URL contains "${waitText}"`;
-        requestData = {
-          user_id: userid,
-          condition: "url_match",
-          text: waitText,
-          timeout: timeoutMs,
-          poll_interval: pollInterval,
-          debug: true
-        };
-      }
+      } 
+      // else if (waitCondition === 'url_match') {
+      //   waitCommand = `wait until URL contains "${waitText}"`;
+      //   requestData = {
+      //     user_id: userid,
+      //     condition: "url_match",
+      //     expected_text: waitText,
+      //     timeout: timeoutMs,
+      //     poll_interval: pollInterval,
+      //     debug: true
+      //   };
+      // }
       
       // Close the modal first
       onClose();
@@ -1490,8 +1490,12 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
               type="number"
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
               value={waitTimeout}
-              onChange={(e) => setWaitTimeout(Number(e.target.value))}
-              min="1"
+              onChange={(e) => {
+                const val = e.target.value;
+                setWaitTimeout(val === '' ? '' : Number(val));
+              }}
+              placeholder="Default is 5 seconds if not specified"
+              step="1"
             />
           </div>
   
@@ -1915,6 +1919,8 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
     selectedElement,
     handleWaitConfirm,
     WaitModal: WaitModalWrapper, 
+    waitRequestData,
+    setWaitRequestData,
     getOtpState,
     testData
   };

@@ -1317,15 +1317,18 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               debug: true
           };
           
-          console.log("Wait Request Data:", waitRequestData);
+          const waitPayload = {
+            ...waitRequestData,
+            command: updatedStepDescription || stepObj.choice || 'wait'
+          };
+
+          console.log("🟦 Full Wait Command Payload:", waitPayload);
+
             
-          const response = await fetch('http://localhost:8000/android/command/wait/', {
+          const response = await fetch('http://127.0.0.1:8000/android/wait/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  ...waitRequestData,
-                  user_id: user_id
-              }),
+              body: JSON.stringify(waitPayload),
           });
           
           if (!response.ok) {
@@ -2511,7 +2514,8 @@ const createTestCase = async () => {
         expected_result: step.expectedResult || "",
         actual_result: "",
         requires_otp: step.requiresOtp || false,
-        otp_type: step.otpType || null
+        otp_type: step.otpType || null,
+        ...(stepDescription?.toLowerCase().startsWith("wait") && step.waitRequestData ? { wait_config: step.waitRequestData } : {})
       };
     });
 
@@ -3155,6 +3159,10 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
 
   const handleConfirm = () => {
     // const userid = localStorage.getItem("user_id");
+    if (!waitTimeout || waitTimeout <= 0) {
+      alert('Please enter a valid wait time greater than 0.');
+      return;
+    }
     const timeoutMs = waitTimeout * 1000;
     
     let waitCommand = '';
@@ -3227,7 +3235,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
           >
             <option value="static_wait">Wait for a specific time</option>
             <option value="text_match">Wait until specific text appears</option>
-            <option value="url_match">Wait until URL contains page</option>
+
           </select>
         </div>
 
@@ -3239,8 +3247,12 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
             type="number"
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
             value={waitTimeout}
-            onChange={(e) => setWaitTimeout(Number(e.target.value))}
-            min="1"
+            onChange={(e) => {
+              const val = e.target.value;
+              setWaitTimeout(val === '' ? '' : Number(val));
+            }}
+            placeholder="Default is 5 seconds if not specified"
+            step="1"
           />
         </div>
 

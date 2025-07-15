@@ -264,7 +264,8 @@ const handleCreateTestCase = async () => {
               step_description: step.choice,
               has_otp_placeholder: hasOtpPlaceholder,
               step_requires_otp: stepRequiresOtp,
-              otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null
+              otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+              ...(step.choice?.toLowerCase().startsWith('wait') && step.waitData ? { wait_config: step.waitData } : {})
           });
             
             // Format each step for the teststep API
@@ -276,7 +277,8 @@ const handleCreateTestCase = async () => {
                 expected_result: step.expectedResult || "",
                 actual_result: "",
                 requires_otp: stepRequiresOtp,
-                otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null
+                otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+                ...(step.choice?.toLowerCase().startsWith('wait') && step.waitData ? { wait_config: step.waitData } : {})
             };
         });
 
@@ -1268,9 +1270,13 @@ const handleCreateTestCase = async () => {
         setPollInterval(500);
       }
     }, [isOpen]);
-  
+
     const handleConfirm = () => {
       const userid = localStorage.getItem("user_id");
+      if (!waitTimeout || waitTimeout <= 0) {
+        alert('Please enter a valid wait time greater than 0.');
+        return;
+      }
       const timeoutMs = waitTimeout * 1000;
       
       let waitCommand = '';
@@ -1288,7 +1294,7 @@ const handleCreateTestCase = async () => {
         requestData = {
           user_id: userid,
           condition: "text_match",
-          text: waitText,
+          expected_text: waitText,
           timeout: timeoutMs,
           poll_interval: pollInterval,
           debug: true
@@ -1298,9 +1304,10 @@ const handleCreateTestCase = async () => {
         requestData = {
           user_id: userid,
           condition: "url_match",
-          text: waitText,
+          expected_text: waitText,
           timeout: timeoutMs,
           poll_interval: pollInterval,
+          check_address_bar: true,
           debug: true
         };
       }
@@ -1311,14 +1318,14 @@ const handleCreateTestCase = async () => {
       // Then call onConfirm
       onConfirm(waitCommand, requestData);
     };
-  
+
     const handleClose = () => {
       onClose();
     };
-  
+
     // Don't render anything if the modal is not open
     if (!isOpen) return null;
-  
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleClose}>
         <div className="bg-white p-6 rounded-lg w-96" onClick={(e) => e.stopPropagation()}>
@@ -1341,7 +1348,7 @@ const handleCreateTestCase = async () => {
               <option value="url_match">Wait until URL contains page</option>
             </select>
           </div>
-  
+
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">
               {waitCondition === 'static_wait' ? 'Wait Time (seconds)' : 'Timeout (seconds)'}
@@ -1350,11 +1357,15 @@ const handleCreateTestCase = async () => {
               type="number"
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
               value={waitTimeout}
-              onChange={(e) => setWaitTimeout(Number(e.target.value))}
-              min="1"
+              onChange={(e) => {
+                const val = e.target.value;
+                setWaitTimeout(val === '' ? '' : Number(val));
+              }}
+              placeholder="Default is 5 seconds if not specified"
+              step="1"
             />
           </div>
-  
+
           {waitCondition !== 'static_wait' && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">
@@ -1369,7 +1380,7 @@ const handleCreateTestCase = async () => {
               />
             </div>
           )}
-  
+
           {waitCondition !== 'static_wait' && (
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Poll Interval (ms)</label>

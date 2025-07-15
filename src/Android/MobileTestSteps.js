@@ -400,6 +400,8 @@ const handleAddStepClick = async (stepNumber, command = "") => {
     if (editingStep) {
       // Update the editValue when editing a step
       setEditValue(waitCommand);
+      // Store the request data in addStepComponent for later use
+      addStepComponent.setWaitRequestData(requestData);
       // Close the modal
       addStepComponent.handleWaitConfirm(waitCommand, requestData);
       // Automatically update the step
@@ -600,7 +602,8 @@ const containsOtpPlaceholder = (text) => {
         requires_otp: containsOtpPlaceholder(stepDescription) ? true : (otpState.otpPlaceholderUsed ? false : (otpState.requiresOtp || false)),
         otp_type: otpState.requiresOtp && otpState.enteredContact 
           ? (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') 
-          : null
+          : null,
+        ...(stepDescription?.toLowerCase().startsWith("wait") && addStepComponent.waitRequestData ? { wait_config: addStepComponent.waitRequestData } : {})
       };
 
       console.log("🟦 PUT request body to /integrate/teststep/:", requestBody);
@@ -618,7 +621,8 @@ const containsOtpPlaceholder = (text) => {
           requires_otp: otpState.requiresOtp || false,
           otp_type: otpState.requiresOtp && otpState.enteredContact ? 
             (/\S+@\S+\.\S+/.test(otpState.enteredContact) ? 'email' : 'phone') : 
-            null
+            null,
+          ...(stepDescription?.toLowerCase().startsWith("wait") && addStepComponent.waitRequestData ? { wait_config: addStepComponent.waitRequestData } : {})
         })
       });
 
@@ -631,6 +635,8 @@ const containsOtpPlaceholder = (text) => {
 
       setEditingStep(null);
       addStepComponent.clearSuggestions();
+      addStepComponent.setWaitRequestData(null);
+
     } catch (error) {
       console.error("Error updating step:", error);
     } finally {

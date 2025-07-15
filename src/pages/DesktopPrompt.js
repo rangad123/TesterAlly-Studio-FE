@@ -1856,7 +1856,8 @@ const createTestCase = async () => {
         expected_result: step.expectedResult || "",
         actual_result: "",
         requires_otp: step.requiresOtp || false,
-        otp_type: step.otpType || null
+        otp_type: step.otpType || null,
+        ...(stepDescription?.toLowerCase().startsWith("wait") && step.waitRequestData ? { wait_config: step.waitRequestData } : {})
       };
     });
 
@@ -2644,6 +2645,10 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
 
   const handleConfirm = () => {
     const userid = localStorage.getItem("user_id");
+    if (!waitTimeout || waitTimeout <= 0) {
+      alert('Please enter a valid wait time greater than 0.');
+      return;
+    }
     const timeoutMs = waitTimeout * 1000;
     
     let waitCommand = '';
@@ -2662,7 +2667,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
       requestData = {
         user_id: userid,
         condition: "text_match",
-        text: waitText,
+        expected_text: waitText,
         timeout: timeoutMs,
         poll_interval: pollInterval,
         is_final_step: true,
@@ -2673,7 +2678,7 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
       requestData = {
         user_id: userid,
         condition: "url_match",
-        text: waitText,
+        expected_text: waitText,
         timeout: timeoutMs,
         poll_interval: pollInterval,
         check_address_bar: true,
@@ -2727,8 +2732,12 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
             type="number"
             className="w-full px-3 py-2 border border-gray-300 rounded-md"
             value={waitTimeout}
-            onChange={(e) => setWaitTimeout(Number(e.target.value))}
-            min="1"
+            onChange={(e) => {
+              const val = e.target.value;
+              setWaitTimeout(val === '' ? '' : Number(val));
+            }}
+            placeholder="Default is 5 seconds if not specified"
+            step="1"
           />
         </div>
 

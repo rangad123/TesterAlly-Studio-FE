@@ -560,7 +560,8 @@ const handleCreateTestCase = async () => {
               step_description: step.choice,
               has_otp_placeholder: hasOtpPlaceholder,
               step_requires_otp: stepRequiresOtp,
-              otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null
+              otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+              ...(step.choice?.toLowerCase().startsWith('wait') && step.waitData ? { wait_config: step.waitData } : {})
           });
             
             // Format each step for the teststep API
@@ -572,7 +573,8 @@ const handleCreateTestCase = async () => {
                 expected_result: step.expectedResult || "",
                 actual_result: "",
                 requires_otp: stepRequiresOtp,
-                otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null
+                otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+                ...(step.choice?.toLowerCase().startsWith('wait') && step.waitData ? { wait_config: step.waitData } : {})
             };
         });
 
@@ -1667,7 +1669,11 @@ const convertAndroidElements = (screenElements) => {
     }, [isOpen]);
   
     const handleConfirm = () => {
-      const userid = localStorage.getItem("user_id");
+      // const userid = localStorage.getItem("user_id");
+      if (!waitTimeout || waitTimeout <= 0) {
+        alert('Please enter a valid wait time greater than 0.');
+        return;
+      }
       const timeoutMs = waitTimeout * 1000;
       
       let waitCommand = '';
@@ -1676,31 +1682,32 @@ const convertAndroidElements = (screenElements) => {
       if (waitCondition === 'static_wait') {
         waitCommand = `wait ${waitTimeout} seconds`;
         requestData = {
-          user_id: userid,
+          // user_id: userid,
           timeout: timeoutMs,
           debug: true
         };
       } else if (waitCondition === 'text_match') {
         waitCommand = `wait until text "${waitText}" appears`;
         requestData = {
-          user_id: userid,
-          condition: "text_match",
-          text: waitText,
+          // user_id: userid,
+          // condition: "text_match",
+          expected_text: waitText,
           timeout: timeoutMs,
           poll_interval: pollInterval,
           debug: true
         };
-      } else if (waitCondition === 'url_match') {
-        waitCommand = `wait until URL contains "${waitText}"`;
-        requestData = {
-          user_id: userid,
-          condition: "url_match",
-          text: waitText,
-          timeout: timeoutMs,
-          poll_interval: pollInterval,
-          debug: true
-        };
-      }
+      } 
+      // else if (waitCondition === 'url_match') {
+      //   waitCommand = `wait until URL contains "${waitText}"`;
+      //   requestData = {
+      //     user_id: userid,
+      //     condition: "url_match",
+      //     expected_text: waitText,
+      //     timeout: timeoutMs,
+      //     poll_interval: pollInterval,
+      //     debug: true
+      //   };
+      // }
       
       // Close the modal first
       onClose();
@@ -1747,8 +1754,12 @@ const convertAndroidElements = (screenElements) => {
               type="number"
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
               value={waitTimeout}
-              onChange={(e) => setWaitTimeout(Number(e.target.value))}
-              min="1"
+              onChange={(e) => {
+                const val = e.target.value;
+                setWaitTimeout(val === '' ? '' : Number(val));
+              }}
+              placeholder="Default is 5 seconds if not specified"
+              step="1"
             />
           </div>
   
