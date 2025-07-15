@@ -1259,10 +1259,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     
         if (actionType === 'scroll up') {
           updatedStepDescription = "scroll up";
-          console.log("Converting 'scrollup' to 'scroll_up page'");
+          console.log("Converting 'scroll up' to 'scroll up page'");
         } else if (actionType === 'scroll down') {
           updatedStepDescription = "scroll down";
-          console.log("Converting 'scrolldown' to 'scroll_down page'");
+          console.log("Converting 'scroll down' to 'scroll down page'");
         } else {
           words[0] = actionType;
           updatedStepDescription = words.join(' ');

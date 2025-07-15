@@ -364,7 +364,7 @@ const WriteRecord = () => {
         setSuggestions(suggestedElements);
         setShowSuggestions(suggestedElements.length > 0);
         
-    } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
+    } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down', 'scroll up', 'scroll down', 'scroll'].includes(firstWord)) {
       setCommandType('scroll');
       setShowSuggestions(false);
     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
@@ -761,14 +761,23 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     setShowSuggestions(false);
     
     const words = newStep.trim().split(' ');
-    const actionType = words[0].toLowerCase();
+    let actionType = words[0].toLowerCase();
+    const fullInput = newStep.trim().toLowerCase();
 
-    // Add 'wait' to the list of allowed commands
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait'];
+    if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
+      actionType = 'scrolldown';
+    } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
+      actionType = 'scrollup';
+    } 
+
+    console.log("🔍 DEBUG - actionType after normalize:", actionType);
+
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
     if (!allowedCommands.includes(actionType)) {
       alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
       return;
     }
+
     
     // If it's a wait command but no configuration has been done yet, show the wait modal
     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
@@ -975,9 +984,15 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         const stepDescription = stepObj.description;
         
         const words = stepDescription.trim().split(' ');
-        const actionType = words[0].toLowerCase();
-        words[0] = actionType;
-  
+        let actionType = words[0].toLowerCase();
+        const fullInput = stepDescription.trim().toLowerCase();
+
+        if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
+          actionType = 'scrolldown';
+        } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
+          actionType = 'scrollup';
+        } 
+
         let updatedStepDescription = stepDescription;
     
         if (actionType === 'scrollup') {
