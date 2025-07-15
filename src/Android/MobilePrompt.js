@@ -560,8 +560,9 @@ useEffect(() => {
           };
 
           console.log("🟦 Full Wait Command Payload:", waitPayload);
+
             
-            const response = await fetch('http://127.0.0.1:8000/android/wait/', {
+          const response = await fetch('http://127.0.0.1:8000/android/wait/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(waitPayload),
@@ -715,7 +716,7 @@ useEffect(() => {
   
           console.log(`Sending coordinates for verify step:`, requestBody);
   
-          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+          const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody), 
@@ -728,14 +729,15 @@ useEffect(() => {
           const data = await response.json();
           console.log(`Verify response:`, data);
   
-          if (data.omniparser_data && data.omniparser_data.elements) {
-              setElementData(data.omniparser_data);
-              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-          }
+            if (data.omniparser_response && data.omniparser_response.elements) {
+                setElementData(data.omniparser_response);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_response));
+            }
   
-          const screenshotUrl = data.screenshot
-              ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
+            const screenshotUrl = data.screenshot_result
+                ? `http://127.0.0.1:8000${data.screenshot_result}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
+
   
 //              const verificationPassed = c.verify_result === "pass";
   
@@ -745,7 +747,7 @@ useEffect(() => {
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status,
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates:  data.omniparser_response || elementData,
               verificationType: verificationType,
 //              verificationResult: verificationPassed ? 'passed' : 'failed',
               verifiedText: data.copied_text || "",
@@ -768,7 +770,7 @@ useEffect(() => {
               requestBody: requestBody
           });
 
-          const response = await fetch('http://localhost:8000/android/command/', {
+          const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody),
@@ -781,156 +783,22 @@ useEffect(() => {
           const data = await response.json();
           console.log(`${actionType} response:`, data);
 
-          // Process screen elements same as other commands
-          let androidElementData = {};
           
-          if (data.screen_elements) {
-              const allElements = [
-                  ...data.screen_elements.buttons.map(btn => {
-                      const bounds = btn.bounds;
-                      let click_point = [0, 0];
-                      
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for button:', bounds, e);
-                          }
-                      }
-                      
-                      return {
-                          name: btn.description?.replace(/"/g, '') || '',
-                          displayName: btn.content_desc || btn.description?.replace(/"/g, '') || '',
-                          content_desc: btn.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: btn.resource_id,
-                          class: btn.class,
-                          clickable: btn.clickable
-                      };
-                  }),
-                  ...data.screen_elements.text_fields.map(field => {
-                      const bounds = field.bounds;
-                      let click_point = [0, 0];
-                      
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for text field:', bounds, e);
-                          }
-                      }
-                      
-                      return {
-                          name: field.description?.replace(/"/g, '') || '',
-                          displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                          content_desc: field.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: field.resource_id,
-                          class: field.class,
-                          clickable: field.clickable
-                      };
-                  }),
-                  ...data.screen_elements.icons.map(icon => {
-                      const bounds = icon.bounds;
-                      let click_point = [0, 0];
-                      
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for icon:', bounds, e);
-                          }
-                      }
-                      
-                      return {
-                          name: icon.description?.replace(/"/g, '') || '',
-                          displayName: icon.content_desc || icon.description?.replace(/"/g, '') || '',
-                          content_desc: icon.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: icon.resource_id,
-                          class: icon.class,
-                          clickable: icon.clickable
-                      };
-                  }),
-                  ...data.screen_elements.other.map(other => {
-                      const bounds = other.bounds;
-                      let click_point = [0, 0];
-                      
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for other element:', bounds, e);
-                          }
-                      }
-                      
-                      return {
-                          name: other.description?.replace(/"/g, '') || '',
-                          displayName: other.content_desc || other.description?.replace(/"/g, '') || '',
-                          content_desc: other.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: other.resource_id,
-                          class: other.class,
-                          clickable: other.clickable
-                      };
-                  })
-              ];
-
-              androidElementData = { elements: allElements };
-              
-              const suggestions = allElements
-                  .filter(element => element.content_desc && element.content_desc.trim() !== '')
-                  .map(element => element.content_desc);
-              
-              setElementData(androidElementData);
-              sessionStorage.setItem('latestElementData', JSON.stringify(androidElementData));
-              setSuggestions(suggestions);
-          } else {
-              setSuggestions([]);
-          }
-
-          const screenshotUrl = data.screenshot_result?.url
-              ? `http://localhost:8000${data.screenshot_result.url}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
+            if (data.omniparser_response && data.omniparser_response.elements) {
+                setElementData(data.omniparser_response);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_response));
+            }
+  
+            const screenshotUrl = data.screenshot_result
+                ? `http://127.0.0.1:8000${data.screenshot_result}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
 
           return {
               status: 'complete',
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.action_result?.message || `${actionType} command executed successfully`,
               screenshot: screenshotUrl,
-              coordinates: androidElementData,
+              coordinates: data.omniparser_response || elementData,
               requestBody,
               debug_images: data.coordinates?.debug_images || {},
           };
@@ -952,7 +820,7 @@ useEffect(() => {
 
             console.log(`Sending coordinates for get step:`, requestBody);
 
-            const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+            const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody), 
@@ -965,21 +833,21 @@ useEffect(() => {
             const data = await response.json();
             console.log(`Get response:`, data);
 
-            if (data.omniparser_data && data.omniparser_data.elements) {
-              setElementData(data.omniparser_data);
-              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            if (data.omniparser_response && data.omniparser_response.elements) {
+                setElementData(data.omniparser_response);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_response));
             }
-
-            const screenshotUrl = data.screenshot
-              ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
+  
+            const screenshotUrl = data.screenshot_result
+                ? `http://127.0.0.1:8000${data.screenshot_result}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
 
             return {
               status: 'complete',
               duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: data.omniparser_response || elementData,
               retrievedText: data.copied_text || "",
               elementRetrieved: selectedElement,
               requestBody,
