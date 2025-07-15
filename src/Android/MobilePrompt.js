@@ -554,15 +554,17 @@ useEffect(() => {
               debug: true
           };
           
-          console.log("Wait Request Data:", waitRequestData);
+          const waitPayload = {
+            ...waitRequestData,
+            command: updatedStepDescription || stepObj.choice || 'wait'
+          };
+
+          console.log("🟦 Full Wait Command Payload:", waitPayload);
             
-          const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
+            const response = await fetch('http://127.0.0.1:8000/android/wait/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  ...waitRequestData,
-                  user_id: user_id
-              }),
+              body: JSON.stringify(waitPayload),
           });
           
           if (!response.ok) {

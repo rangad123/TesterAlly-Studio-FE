@@ -1069,8 +1069,8 @@ useEffect(() => {
           const data = await response.json();
           console.log("Wait Response:", data);
           
-          const screenshotUrl = data.screenshot_url
-              ? `http://127.0.0.1:8000${data.screenshot_url}`
+          const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
               : `/api/placeholder/800/300?text=Wait_Completed`;
 
             console.log("Screenshot URL:", screenshotUrl);
