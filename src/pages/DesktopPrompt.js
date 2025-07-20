@@ -57,21 +57,24 @@ const DesktopPrompt = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
+  const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
   const toggleOtpCheckbox = () => {
     setRequiresOtp(prev => {
       const newValue = !prev;
       if (newValue) {
-        // When enabling OTP, show contact options and hide elements
-        setContactSelected(true);
+        // When enabling OTP, show contact options but DON'T auto-select
+        setContactSelected(false); // ❌ Change this to false
       } else {
         // When disabling OTP, reset everything
         setContactSelected(false);
+        setIsOtpStepConfirmed(false); // ✅ Add this line
         setOtpVerificationState(prev => ({
           ...prev,
           contactEntered: false,
           waitingForOtp: false,
           enteredContact: '',
-          sessionTime: null
+          sessionTime: null,
+          otpReceiver: '' // ✅ Add this line
         }));
       }
       return newValue;
@@ -96,9 +99,16 @@ const DesktopPrompt = () => {
   const [testDataPhone, setTestDataPhone] = useState('');
   const [testDataEmail, setTestDataEmail] = useState('');
   const [testDataPassword, setTestDataPassword] = useState('');
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
-    if (requiresOtp) {
+    console.log("🔍 DEBUG - useEffect for testData:", {
+      requiresOtp,
+      needsOtpVerification: location.state?.needsOtpVerification,
+      shouldLoad: location.state?.needsOtpVerification || requiresOtp
+    });
+    
+    if (location.state?.needsOtpVerification || requiresOtp) {
       const userId = localStorage.getItem("userId");
       const projectKey = `selectedProject_${userId}`;
       const selectedProject = JSON.parse(localStorage.getItem(projectKey));
@@ -118,7 +128,7 @@ const DesktopPrompt = () => {
           .finally(() => setIsTestDataLoading(false));
       }
     }
-  }, [requiresOtp]);
+  }, [requiresOtp, location.state?.needsOtpVerification]);
 
   const saveTestDataEmail = async (email, password) => {
     const userId = localStorage.getItem("userId");
@@ -203,6 +213,13 @@ const DesktopPrompt = () => {
   const [waitStepIndex, setWaitStepIndex] = useState(null);
   const [waitStepData, setWaitStepData] = useState(null);
 
+  const [otpVerificationModal, setOtpVerificationModal] = useState({
+    isOpen: false,
+    stepsWithOtp: [],
+    currentSetupIndex: 0,
+    isSettingUp: false
+  });
+
   const showDeviceConnectionModal = () => {
     setShowDeviceModal(true);
   };
@@ -276,10 +293,8 @@ const DesktopPrompt = () => {
 }, [newStep]);
 
 useEffect(() => {
-  if (location.state?.generatedSteps && location.state?.autoExecuteFirst && !stepsProcessed) {
+  if (location.state?.generatedSteps && !stepsProcessed) {
     const steps = location.state.generatedSteps;
-    console.log("Received steps from prompt:", steps);
-
     const stepObjects = steps.map((step, index) => ({
       id: `${Date.now()}-${index}-${Math.random()}`, 
       description: step.command,  
@@ -292,12 +307,20 @@ useEffect(() => {
       selectedElement: null
     }));
 
-    setGeneratedSteps(stepObjects); 
-    setStepsProcessed(true);
-  
+    setGeneratedSteps(stepObjects);
+    // ✅ Don't set stepsProcessed here - let the execution useEffect handle it
+      
     console.log("Steps after processing:", stepObjects);
   }
 }, [location.state, stepsProcessed]);
+
+useEffect(() => {
+  console.log("🔍 NAVIGATION STATE DEBUG:", {
+    fullLocationState: location.state,
+    needsOtpVerification: location.state?.needsOtpVerification,
+    generatedSteps: location.state?.generatedSteps?.length
+  });
+}, [location.state]);
 
   useEffect(() => {
 
@@ -457,7 +480,8 @@ const handlePhoneNumberClick = async (contact) => {
         waitingForOtp: true,
         enteredContact: contact,
         enteredContactInboxId: contact,
-        sessionTime: timeData
+        sessionTime: timeData,
+        otpReceiver: 'phone'
       }));
             
       console.log('OTP Session Time stored:', timeData);
@@ -466,7 +490,7 @@ const handlePhoneNumberClick = async (contact) => {
     console.error('Error calling get_time API:', error);
   }
 
-  setContactSelected(false);
+  // setContactSelected(false);
 };
 
 const handleEmailClick = async () => {
@@ -777,14 +801,23 @@ const extractKeyTerms = (searchTerm) => {
     setShowSuggestions(false);
     
     const words = newStep.trim().split(' ');
-    const actionType = words[0].toLowerCase();
+    let actionType = words[0].toLowerCase();
+    const fullInput = newStep.trim().toLowerCase();
 
-    // Add 'wait' to the list of allowed commands
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait'];
+    if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
+      actionType = 'scrolldown';
+    } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
+      actionType = 'scrollup';
+    } 
+
+    console.log("🔍 DEBUG - actionType after normalize:", actionType);
+
+    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
     if (!allowedCommands.includes(actionType)) {
       alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
       return;
     }
+
     
     // If it's a wait command but no configuration has been done yet, show the wait modal
     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
@@ -871,15 +904,29 @@ const extractKeyTerms = (searchTerm) => {
     console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
     console.log("📞 Is phone number step?", isPhoneNumberStep);
 
+    // if (otpVerificationState.waitingForOtp && actionType === 'type') {
+    //   // Check if user is entering OTP (4-8 digits)
+    //   const match = newStep.match(/\b\d{4,8}\b/);
+    //   if (match) {
+    //     isOtpStep = true;
+    //     finalStepText = newStep;
+    //     console.log('Detected OTP input:', match[0]);
+    //   }
+    // }
+
     if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      // Check if user is entering OTP (4-8 digits)
       const match = newStep.match(/\b\d{4,8}\b/);
       if (match) {
         isOtpStep = true;
+
+        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
+        isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
         finalStepText = newStep;
-        console.log('Detected OTP input:', match[0]);
       }
     }
+
+    const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
+    const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
 
     const newStepObj = {
       id: Date.now(),
@@ -890,8 +937,10 @@ const extractKeyTerms = (searchTerm) => {
       selectedElement: selectedElement,
       verificationType: selectedElement?.verificationType || 'text',
       waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp,
-      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
+      requiresOtp: requiresOtp, 
+      otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
+      isActualOtpStep: isActualOtpStep,
+      isOtpRelatedStep: isOtpRelatedStep,
       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
       isPhoneNumberStep: isPhoneNumberStep,
       isEmailStep: isEmailStep 
@@ -964,8 +1013,22 @@ const extractKeyTerms = (searchTerm) => {
     }
     
     setNewStep('');
-    if (newStepObj.otpSessionData) {
+    // if (newStepObj.otpSessionData) {
+    //   setRequiresOtp(false);
+    // }
+    // ✅ Clear OTP state after actual OTP entry
+    if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
+      console.log('🔄 Clearing OTP verification state after successful OTP entry');
       setRequiresOtp(false);
+      setIsOtpStepConfirmed(false);
+
+      setOtpVerificationState(prev => ({
+        ...prev,
+        waitingForOtp: false,
+        contactEntered: false,
+        enteredContact: '',
+        otpReceiver: ''
+      }));
     }
           
     setTimeout(() => {
@@ -1358,52 +1421,77 @@ const validateStepAgainstResponse = (step, omniparserData) => {
   const stepDesc = step.description.toLowerCase();
   const words = stepDesc.split(' ');
   const actionType = words[0];
-  
+
   if (actionType === 'click' || actionType === 'type') {
     let searchTerm = '';
-    
+
     if (actionType === 'click') {
       searchTerm = words.slice(1).join(' ');
     } else if (actionType === 'type' && stepDesc.includes(' in ')) {
       searchTerm = stepDesc.substring(stepDesc.indexOf(' in ') + 4);
     }
-    
+
     if (!searchTerm) return { isValid: false, matches: [] };
-    
-    // Extract key terms for flexible matching
+
     const keyTerms = extractKeyTerms(searchTerm);
-    
-    // Find matching elements
-    const matchingElements = omniparserData.elements.filter(element => {
+
+    // First: Try exact match
+    let exactMatches = omniparserData.elements.filter(element => {
       const elementName = (element.name || '').toLowerCase();
       const elementDisplayName = (element.displayName || '').toLowerCase();
       const elementText = (element.text || '').toLowerCase();
-      
-      // Check if any key term matches
+
       return keyTerms.some(term => 
-        elementName.includes(term) || 
+        elementName === term ||
+        elementDisplayName === term ||
+        elementText === term
+      );
+    });
+
+    if (exactMatches.length > 0) {
+      console.log("✅ Exact matches found:", exactMatches);
+      return {
+        isValid: true,
+        matches: exactMatches,
+        searchTerm: searchTerm,
+        keyTerms: keyTerms
+      };
+    }
+
+    // Second: Try partial matches if no exact match
+    let partialMatches = omniparserData.elements.filter(element => {
+      const elementName = (element.name || '').toLowerCase();
+      const elementDisplayName = (element.displayName || '').toLowerCase();
+      const elementText = (element.text || '').toLowerCase();
+
+      return keyTerms.some(term =>
+        elementName.includes(term) ||
         elementDisplayName.includes(term) ||
         elementText.includes(term)
       );
     });
-    
-    console.log("🔍 Matched elements:", matchingElements);
-    console.log("🔍 First matched element:", matchingElements[0]);
-    
-    return {
-      isValid: matchingElements.length > 0,
-      matches: matchingElements,
-      searchTerm: searchTerm,
-      keyTerms: keyTerms
-    };
+
+    if (partialMatches.length > 0) {
+      console.log("🔍 Partial matches found:", partialMatches);
+      return {
+        isValid: true,
+        matches: partialMatches,
+        searchTerm: searchTerm,
+        keyTerms: keyTerms
+      };
+    }
+
+    console.log("🚫 No matches found for step:", stepDesc);
+    return { isValid: false, matches: [], searchTerm: searchTerm, keyTerms: keyTerms };
   }
-  
+
   return { isValid: true, matches: [] };
 };
 
 const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
-  console.log("🔍 handleNextStep called | index (arg):", index, "| currentGeneratedStepIndex (state):", currentGeneratedStepIndex);
-  console.log("🔢 Total generated steps:", generatedSteps.length);
+  console.log("🔍 handleNextStep called | index:", index, "| currentGeneratedStepIndex (state):", currentGeneratedStepIndex);
+  console.log("📌 testData inside handleNextStep:", testData);
+  console.log("🧩 generatedSteps length:", generatedSteps.length, "index:", index);
 
   if (generatedSteps.length > 0 && index < generatedSteps.length) {
     const nextIndex = index + 1;
@@ -1413,37 +1501,81 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      console.log("🔍 DEBUG - Step analysis:", {
+        stepDescription: nextStep.description,
+        stepValue: nextStep.value,
+        stepAction: nextStep.action,
+        needsOtpVerification: location.state?.needsOtpVerification,
+        testDataEmail: testData?.email,
+        testDataPhone: testData?.phone_number,
+        currentRequiresOtp: nextStep.requires_otp || nextStep.requiresOtp
+      });
+
+      // if ((location.state?.needsOtpVerification || requiresOtp) && !testData) {
+      //   console.warn("⚠️ Waiting for test data to load before proceeding with OTP verification logic.");
+      //   return;
+      // }
+
+      // ✅ IMPROVED LOGIC:
+      let isEmailMatch = false;
+      let isPhoneMatch = false;
+
+      if (nextStep.action === 'type' && testData) {
+        const stepValue = (nextStep.value || '').toLowerCase();
+        const stepDesc = (nextStep.description || '').toLowerCase();
+        
+        // Check email match
+        if (testData.email) {
+          const testEmail = testData.email.toLowerCase();
+          isEmailMatch = stepValue.includes(testEmail) || stepDesc.includes(testEmail);
+        }
+        
+        // Check phone match
+        if (testData.phone_number) {
+          const testPhone = testData.phone_number.toLowerCase();
+          isPhoneMatch = stepValue.includes(testPhone) || stepDesc.includes(testPhone);
+        }
+      }
+
+      console.log("🔍 DEBUG - Match results:", {
+        stepValue: nextStep.value,
+        stepDescription: nextStep.description,
+        testPhone: testData?.phone_number,
+        testEmail: testData?.email,
+        isEmailMatch,
+        isPhoneMatch
+      });
+
+      if (nextStep.action === 'type' && 
+        location.state?.needsOtpVerification && 
+        (isEmailMatch || isPhoneMatch) && 
+        !nextStep.otpConfirmed) {
+
+        console.log("🔐 This step requires OTP confirmation. Showing OTP Modal.");
+        console.log("🔍 DEBUG - Step NOT added to testSteps yet, will be added after confirmation");
+        
+        setOtpVerificationModal({
+          isOpen: true,
+          currentStep: { 
+            ...nextStep, 
+            isPhoneStep: isPhoneMatch, 
+            isEmailStep: isEmailMatch 
+          },
+          stepIndex: nextIndex 
+        });
+        return; 
+      }
+
       if (nextStep.description.toLowerCase().startsWith("wait")) {
         console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
 
         if (!nextStep.waitRequestData) {
           console.log("🔧 Wait command needs configuration, showing modal");
           setWaitModalOpen(true);
-          // Store the step info for later use
           setWaitStepIndex(nextIndex);
           setWaitStepData(nextStep);
           return;
         }
-        
-        // If waitRequestData exists, proceed with execution
-        // console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
-
-        // setTestSteps(prev => [...prev, nextStep]);
-
-        // const nextExecutionResult = await executeStep(nextStep, nextIndex);
-        // console.log("🚀 Executed Wait Step:", nextExecutionResult);
-
-        // if (nextExecutionResult && nextExecutionResult.status) {
-        //   console.log(`✅ Proceeding to next step after Step ${nextIndex + 1} (wait step)`);
-        //   setTestSteps(prev => prev.map(step =>
-        //     step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
-        //   ));
-        //   setCurrentGeneratedStepIndex(nextIndex);
-        //   handleNextStep(nextExecutionResult, nextIndex);
-        // } else {
-        //   console.error(`❌ Wait Step ${nextIndex + 1} failed to execute properly.`);
-        // }
-
         console.log("⚠️ Wait step already configured and executed");
         return; 
       }
@@ -1452,8 +1584,6 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       console.log(`🔍 Validation Result for Step ${nextIndex + 1}:`, validationResult);
 
       if (validationResult.isValid) {
-        console.log(`✅ Step ${nextIndex + 1} passed validation. Matches found: ${validationResult.matches.length}`);
-
         if (validationResult.matches.length > 1) {
           console.log(`⚠️ Step ${nextIndex + 1} has multiple matches. Awaiting user selection.`);
 
@@ -1476,6 +1606,33 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
                 ));
                 setCurrentGeneratedStepIndex(nextIndex);
+
+                // ✅ OTP fetching after contact entry
+                if (nextExecutionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
+                  console.log("🔍 DEBUG - After execution:", {
+    stepId: stepWithElement.id,
+    isPhoneNumberStep: stepWithElement.isPhoneNumberStep,
+    isEmailStep: stepWithElement.isEmailStep,
+    otpVerificationState: otpVerificationState.waitingForOtp
+  });
+                  console.log('📲 Fetching OTP after contact entry (Multiple Match)');
+                  await callGetOtpAfterExecution(stepWithElement.id, stepWithElement.isPhoneNumberStep, stepWithElement.isEmailStep);
+                }
+
+                // ✅ Clear OTP state after actual OTP step
+                if (nextExecutionResult.status === 'complete' && stepWithElement.isActualOtpStep) {
+                  console.log('✅ Actual OTP entry completed. Clearing OTP verification state.');
+                  setRequiresOtp(false);
+                  setIsOtpStepConfirmed(false);
+                  setOtpVerificationState(prev => ({
+                    ...prev,
+                    waitingForOtp: false,
+                    contactEntered: false,
+                    enteredContact: '',
+                    otpReceiver: ''
+                  }));
+                }
+
                 handleNextStep(nextExecutionResult, nextIndex);
               } else {
                 console.error(`❌ Step ${nextIndex + 1} (multiple match) failed to execute properly.`);
@@ -1504,6 +1661,33 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
             ));
             setCurrentGeneratedStepIndex(nextIndex);
+
+            // ✅ OTP fetching after contact entry
+            if (nextExecutionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
+              console.log("🔍 DEBUG - After execution:", {
+    stepId: stepWithElement.id,
+    isPhoneNumberStep: stepWithElement.isPhoneNumberStep,
+    isEmailStep: stepWithElement.isEmailStep,
+    otpVerificationState: otpVerificationState.waitingForOtp
+  });
+              console.log('📲 Fetching OTP after contact entry (Single Match)');
+              await callGetOtpAfterExecution(stepWithElement.id, stepWithElement.isPhoneNumberStep, stepWithElement.isEmailStep);
+            }
+
+            // ✅ Clear OTP state after actual OTP step
+            if (nextExecutionResult.status === 'complete' && stepWithElement.isActualOtpStep) {
+              console.log('✅ Actual OTP entry completed. Clearing OTP verification state.');
+              setRequiresOtp(false);
+              setIsOtpStepConfirmed(false);
+              setOtpVerificationState(prev => ({
+                ...prev,
+                waitingForOtp: false,
+                contactEntered: false,
+                enteredContact: '',
+                otpReceiver: ''
+              }));
+            }
+
             handleNextStep(nextExecutionResult, nextIndex);
           } else {
             console.error(`❌ Step ${nextIndex + 1} (single match) failed to execute properly.`);
@@ -1523,6 +1707,202 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
 
 const autoExecuteStepsRef = useRef();
 
+const handleOtpVerificationConfirm = async () => {
+  if (isConfirming) return; 
+  setIsConfirming(true);
+
+  console.log("✅ OTP verification confirmed");
+  console.log("🔍 DEBUG - Modal state:", {
+    stepIndex: otpVerificationModal.stepIndex,
+    contactSelected,
+    requiresOtp,
+    isOtpStepConfirmed,
+    currentStep: otpVerificationModal.currentStep
+  });
+
+  const currentStepIndex = otpVerificationModal.stepIndex;
+  const currentStep = generatedSteps[currentStepIndex];
+
+  // ✅ FIRST: Add the current step to testSteps with proper flags
+  const stepWithOtpFlags = {
+    ...currentStep,
+    otpConfirmed: true,
+    requires_otp: requiresOtp,
+    otpType: otpVerificationState.otpReceiver || (otpVerificationModal.currentStep?.isPhoneStep ? 'phone' : 'email'),
+    isPhoneNumberStep: otpVerificationModal.currentStep?.isPhoneStep,
+    isEmailStep: otpVerificationModal.currentStep?.isEmailStep
+  };
+
+  console.log("🔍 DEBUG - Adding step to testSteps:", stepWithOtpFlags);
+  const stepExists = testSteps.some(step => step.id === stepWithOtpFlags.id);
+  if (!stepExists) {
+    setTestSteps(prev => [...prev, stepWithOtpFlags]);
+  } else {
+    console.log("⚠️ Step already exists in testSteps, skipping duplicate");
+  }
+
+  // ✅ SECOND: Update generatedSteps
+  setGeneratedSteps(prev => prev.map((s, idx) =>
+    idx === currentStepIndex
+      ? stepWithOtpFlags
+      : s
+  ));
+
+  // ✅ THIRD: Close modal
+  setOtpVerificationModal({ isOpen: false });
+
+  // ✅ FOURTH: Execute the CURRENT step (not next step)
+  // Execute this step directly
+  const executionResult = await executeStep(stepWithOtpFlags, currentStepIndex);
+  
+  if (executionResult && executionResult.status) {
+    // Update the step with execution result
+    setTestSteps(prev => prev.map(step => 
+      step.id === stepWithOtpFlags.id ? { ...step, ...executionResult } : step
+    ));
+    setCurrentGeneratedStepIndex(currentStepIndex);
+    
+    // Now move to the NEXT step
+    handleNextStep(executionResult, currentStepIndex);
+  }
+
+  setIsConfirming(false);
+};
+
+const handleSkipOtpVerification = () => {
+  console.log("⏭️ OTP verification skipped by user");
+  setOtpVerificationModal({ isOpen: false });
+
+  // Move to next step
+  setTimeout(() => {
+    handleNextStep({}, otpVerificationModal.stepIndex + 1);
+  }, 100);
+};
+
+const OtpVerificationModal = ({
+  isOpen,
+  currentStep,
+  requiresOtp,
+  toggleOtpCheckbox,
+  isOtpStepConfirmed,
+  setIsOtpStepConfirmed,
+  otpVerificationState,
+  contactSelected,
+  handlePhoneNumberClick,
+  handleEmailClick,
+  testData,
+  onConfirm,
+  setContactSelected,  
+  setOtpVerificationState,
+  onSkip
+}) => {
+  if (!isOpen) return null;
+  console.log("🔍 DEBUG - Modal props:", {
+    isOpen,
+    currentStep,
+    requiresOtp,
+    testData,
+    contactSelected
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 className="text-lg font-semibold mb-4">OTP Verification Required</h3>
+        <p>{currentStep?.description}</p>
+
+        {currentStep?.action === 'type' && requiresOtp && (
+          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isOtpStepConfirmed}
+                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+                className="accent-orange-500"
+              />
+              ✅ Confirm this is OTP input step
+            </label>
+          </div>
+        )}
+
+        {currentStep?.action === 'type' && (
+          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={requiresOtp}
+                onChange={toggleOtpCheckbox}
+                className="accent-blue-500"
+              />
+              OTP Verification
+            </label>
+
+            {requiresOtp && !otpVerificationState.contactEntered && (
+              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+                <span className="text-sm font-medium text-gray-700 block mb-2">Select Contact Method:</span>
+                {testData?.phone_number && (
+                  <button
+                    onClick={() => handlePhoneNumberClick(testData.phone_number)}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-300 rounded-md text-green-700 transition-colors"
+                  >
+                    📱 Phone: {testData.phone_number}
+                  </button>
+                )}
+                {testData?.email && (
+                  <button
+                    onClick={handleEmailClick}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-300 rounded-md text-blue-700 transition-colors"
+                  >
+                    📧 Email: {testData.email}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-green-700">
+                    ✅ Selected: {otpVerificationState.enteredContact}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setContactSelected(false);
+                      setOtpVerificationState(prev => ({
+                        ...prev,
+                        contactEntered: false,
+                        enteredContact: ''
+                      }));
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Change Contact
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 transition-colors"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={onSkip}
+            className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+          >
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 autoExecuteStepsRef.current = async (generatedSteps) => {
   const firstStep = generatedSteps[0];
   
@@ -1533,7 +1913,7 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     alert("First step must be an 'open' command");
     return;
   }
-  
+
   // Add step 1 to testSteps (left side)
   setTestSteps([firstStep]);
   
@@ -1557,10 +1937,27 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
 }; 
 
 useEffect(() => {
-  if (generatedSteps && generatedSteps.length > 0) {
+  const shouldWaitForTestData = location.state?.needsOtpVerification;
+  
+  const readyToExecute = generatedSteps && generatedSteps.length > 0 && 
+    (!shouldWaitForTestData || testData !== null) &&
+    !stepsProcessed;
+    
+  console.log("🔍 Execution readiness check:", {
+    hasGeneratedSteps: generatedSteps?.length > 0,
+    shouldWaitForTestData,
+    hasTestData: testData !== null,
+    isTestDataLoading,
+    stepsProcessed,
+    readyToExecute
+  });
+
+  if (readyToExecute) {
+    console.log("✅ Both conditions met - starting execution");
     autoExecuteStepsRef.current(generatedSteps);
+    setStepsProcessed(true); 
   }
-}, [generatedSteps]);
+}, [generatedSteps, testData, isTestDataLoading, location.state?.needsOtpVerification, stepsProcessed]);
 
 useEffect(() => {
   if (pendingWaitStep && newStep.includes('wait')) {
@@ -2324,6 +2721,23 @@ const SuggestionsDropdown = () => {
             </>
           ) : null}
         </h4>
+
+        {commandType === 'type' && requiresOtp && (
+          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isOtpStepConfirmed}
+                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+                className="accent-orange-500"
+              />
+              ✅ Confirm this is OTP input step
+            </label>
+            <div className="text-xs text-gray-600 mt-1">
+              Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+            </div>
+          </div>
+        )}
         
         {commandType === 'type' && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
@@ -3697,6 +4111,28 @@ const ElementSelectionModal = () => {
             </div>
           </div>
         )}
+        {/* Add the OTP Verification Modal */}
+        <OtpVerificationModal
+          isOpen={otpVerificationModal.isOpen}
+          currentStep={otpVerificationModal.currentStep}
+
+          requiresOtp={requiresOtp}
+          toggleOtpCheckbox={toggleOtpCheckbox}
+          isOtpStepConfirmed={isOtpStepConfirmed}
+          setIsOtpStepConfirmed={setIsOtpStepConfirmed}
+
+          otpVerificationState={otpVerificationState}
+          contactSelected={contactSelected}
+          handlePhoneNumberClick={handlePhoneNumberClick}
+          handleEmailClick={handleEmailClick}
+          setContactSelected={setContactSelected}   
+          setOtpVerificationState={setOtpVerificationState}
+
+          testData={testData}
+
+          onConfirm={handleOtpVerificationConfirm}
+          onSkip={handleSkipOtpVerification}
+        />
 
         <ElementSelectionModal />
 

@@ -447,6 +447,40 @@ const handleAddStepClick = async (stepNumber, command = "") => {
     }
   }, [testCaseName, projectName, fetchSteps]);
 
+const adjustCapturedDataAfterDeletion = (deletedStepNumber) => {
+  console.log(`Deleting captured data for step ${deletedStepNumber}`);
+  
+  // Remove only the deleted step's data from sessionStorage
+  const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+  const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
+  const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+  
+  if (storedScreenshots) {
+    const screenshots = JSON.parse(storedScreenshots);
+    delete screenshots[deletedStepNumber];
+    sessionStorage.setItem(`capturedScreenshots_${projectName}_${testCaseName}`, JSON.stringify(screenshots));
+  }
+  
+  if (storedElements) {
+    const elements = JSON.parse(storedElements);
+    delete elements[deletedStepNumber];
+    sessionStorage.setItem(`capturedElements_${projectName}_${testCaseName}`, JSON.stringify(elements));
+  }
+  
+  if (storedOriginalIds) {
+    const originalIds = JSON.parse(storedOriginalIds);
+    delete originalIds[deletedStepNumber];
+    sessionStorage.setItem(`originalCaptureIds_${projectName}_${testCaseName}`, JSON.stringify(originalIds));
+  }
+  
+  // Update the child component's state to reflect the changes
+  if (addStepComponent && addStepComponent.updateCapturedStepsFromStorage) {
+    addStepComponent.updateCapturedStepsFromStorage();
+  }
+  
+  console.log(`✅ Deleted captured data for step ${deletedStepNumber}`);
+};
+
 const handleDeleteStep = async (stepNumber) => {
   if (!window.confirm("Are you sure you want to delete this step?")) return;
   setError(null);
@@ -479,7 +513,7 @@ const handleDeleteStep = async (stepNumber) => {
       throw new Error("Failed to delete step");
     }
 
-    addStepComponent.clearCapturedData();
+    adjustCapturedDataAfterDeletion(stepNumber);
     
     await fetchSteps(testCaseName, projectName);
 

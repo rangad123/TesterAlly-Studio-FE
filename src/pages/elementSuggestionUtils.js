@@ -90,28 +90,28 @@ export const scoreElement = (element, searchTerm, commandType, previousState = {
     if (distance < 5) {
       // Almost exact location match - maximum proximity boost
       proximityScore = 70;
-      console.log(`  VERY HIGH PROXIMITY: ${proximityScore} points (distance < 5px)`);
+      // console.log(`  VERY HIGH PROXIMITY: ${proximityScore} points (distance < 5px)`);
     } else if (distance < 50) {
       // Very close proximity - high boost with sharp falloff
       proximityScore = Math.max(0, 65 - Math.pow(distance/10, 1.5));
-      console.log(`  HIGH PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 50px)`);
+      // console.log(`  HIGH PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 50px)`);
 
     } else if (distance < 150) {
       // Moderate proximity - moderate boost
       proximityScore = Math.max(0, 40 - Math.pow(distance/30, 1.5));
-      console.log(`  MODERATE PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 150px)`);
+      // console.log(`  MODERATE PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 150px)`);
     } else if (distance < 300) {
       // Further away but still in view
       proximityScore = Math.max(0, 20 - (distance / 30));
-      console.log(`  LOW PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 300px)`);
+      // console.log(`  LOW PROXIMITY: ${proximityScore.toFixed(2)} points (distance < 300px)`);
     } else {
       // Far but still somewhat relevant
       proximityScore = Math.max(0, 10 - (distance / 100));
-      console.log(`  DISTANT: ${proximityScore.toFixed(2)} points (distance >= 300px)`);
+      // console.log(`  DISTANT: ${proximityScore.toFixed(2)} points (distance >= 300px)`);
     }
     
     score += proximityScore;
-    console.log(`  Current total score after proximity: ${score.toFixed(2)}`);
+    // console.log(`  Current total score after proximity: ${score.toFixed(2)}`);
   }
   
   // Previously clicked elements boost logic remains, but with adjusted values
@@ -221,9 +221,32 @@ export const identifyDuplicates = (elements) => {
     // Assign position numbers (1-based) for elements with the same name
     let positionNumber = 0;
     if (isDuplicate) {
-      positionNumber = nameGroups[lowerName].findIndex(el => 
-        el === element
-      ) + 1;
+    //   const sortedByPosition = nameGroups[lowerName].slice().sort((a, b) => {
+    //   const aY = a.click_point ? a.click_point[1] : Infinity;
+    //   const bY = b.click_point ? b.click_point[1] : Infinity;
+      
+    //   if (aY !== bY) {
+    //     return aY - bY;  // primary: vertical position
+    //   }
+      
+    //   // If Y is same, sort by X (horizontal)
+    //   const aX = a.click_point ? a.click_point[0] : Infinity;
+    //   const bX = b.click_point ? b.click_point[0] : Infinity;
+      
+    //   return aX - bX;
+    // });
+
+      // Sort duplicates by Y coordinate (click_point[1]) - top to bottom
+
+      const sortedByY = nameGroups[lowerName].slice().sort((a, b) => {
+        const aY = a.click_point ? a.click_point[1] : Infinity;
+        const bY = b.click_point ? b.click_point[1] : Infinity;
+        return aY - bY;
+      });
+
+      // Assign position number based on sorted index
+      positionNumber = sortedByY.findIndex(el => el.id === element.id) + 1;
+
     }
     
     return { ...element, isDuplicate, positionNumber };

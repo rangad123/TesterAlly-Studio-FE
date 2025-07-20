@@ -212,18 +212,18 @@ const handleCaptureElement = async (stepNumber) => {
   }
 };
 
-const clearCapturedData = () => {
-  console.log("✅ Clearing captured data...");
-  setCapturedSteps({});
-  setAllCapturedElements({});
-  setOriginalCaptureIds({});
+// const clearCapturedData = () => {
+//   console.log("✅ Clearing captured data...");
+//   setCapturedSteps({});
+//   setAllCapturedElements({});
+//   setOriginalCaptureIds({});
   
-  sessionStorage.removeItem(`capturedScreenshots_${projectName}_${testCaseName}`);
-  sessionStorage.removeItem(`capturedElements_${projectName}_${testCaseName}`);
-  sessionStorage.removeItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`capturedElements_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`originalCaptureIds_${projectName}_${testCaseName}`);
   
-  console.log("✅ Captured data cleared successfully");
-};
+//   console.log("✅ Captured data cleared successfully");
+// };
 
 const convertOmniaParserElements = (elements) => {
   if (!Array.isArray(elements)) return [];
@@ -299,6 +299,26 @@ const handleCommandInputChange = (e) => {
   else {
     setCommandType("");
     setShowSuggestions(false);
+  }
+};
+
+const updateCapturedStepsFromStorage = () => {
+  try {
+    const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+    const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
+    const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+    
+    if (storedScreenshots) {
+      setCapturedSteps(JSON.parse(storedScreenshots));
+    }
+    if (storedElements) {
+      setAllCapturedElements(JSON.parse(storedElements));
+    }
+    if (storedOriginalIds) {
+      setOriginalCaptureIds(JSON.parse(storedOriginalIds));
+    }
+  } catch (error) {
+    console.error("Error updating captured steps from storage:", error);
   }
 };
   
@@ -512,17 +532,18 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
   }
   
   // Remove duplicates based on element text or name
-  const uniqueElements = [];
-  const uniqueKeys = new Set();
+  // const uniqueElements = [];
+  // const uniqueKeys = new Set();
   
-  filtered.forEach(el => {
-    const key = (el.name || '') + (el.text || '');
-    if (!uniqueKeys.has(key)) {
-      uniqueKeys.add(key);
-      uniqueElements.push(el);
-    }
-  });
-  
+  // filtered.forEach(el => {
+  //   const key = (el.name || '') + (el.text || '');
+  //   if (!uniqueKeys.has(key)) {
+  //     uniqueKeys.add(key);
+  //     uniqueElements.push(el);
+  //   }
+  // });
+  const uniqueElements = filtered;
+
   // Limited to 20 results
   const finalResults = uniqueElements.slice(0, 20);
   
@@ -935,6 +956,16 @@ const handleOtpPlaceholderClick = (setEditValue = null) => {
   }
 };
 
+const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
+  const aY = a.click_point ? a.click_point[1] : Infinity;
+  const bY = b.click_point ? b.click_point[1] : Infinity;
+  if (aY !== bY) return aY - bY;
+
+  const aX = a.click_point ? a.click_point[0] : Infinity;
+  const bX = b.click_point ? b.click_point[0] : Infinity;
+  return aX - bX;
+});
+
 const renderEditSuggestions = (stepNumber, setEditValue) => {
   const currentStep = steps.find(s => s.step_number === stepNumber);
   // Fixed: Compare with stepNumber instead of currentStep.id
@@ -1090,108 +1121,124 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
       )}
 
       {commandSuggestions.length === 0 ? (
-        <div className="p-2 text-gray-500 text-center">No suggestions available</div>
+        <div className="p-2 text-gray-500 text-center">
+          No suggestions available. Please capture the screenshot and fetch elements.
+        </div>
       ) : (
-        commandSuggestions.map((element, index) => (
-          <div 
-            key={index}
+        sortedSuggestions.map((element, index) => {
+          const sameNameElements = sortedSuggestions.filter((el) => 
+            (el.name && element.name && el.name === element.name) || 
+            (el.text && element.text && el.text === element.text)
+          );
+
+          const occurrencesBefore = sortedSuggestions
+            .slice(0, index)
+            .filter((el) => 
+              (el.name && element.name && el.name === element.name) ||
+              (el.text && element.text && el.text === element.text)
+            ).length;
+
+          const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
+
+          // Fix for coordinates display
+          let coordinatesDisplay = "";
+          if (element.click_point && Array.isArray(element.click_point)) {
+            coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+          } else if (element.coordinates) {
+            if (Array.isArray(element.coordinates)) {
+              coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+            } else {
+              const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+              const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+              coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+            }
+          }
+
+          return (
+            <div 
+              key={index}
               onClick={() => {
-              // Using step_number as identifier since no DB id exists
-              if (!currentStep) return;
-              
-              let updatedStep = '';
-              
-              if (commandType === 'click') {
-                updatedStep = `click ${element.name || element.text || 'element'}`;
-              } else if (commandType === 'type') {
-                const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
-                const inIndex = currentText.toLowerCase().indexOf(' in ');
-                if (inIndex !== -1) {
-                  const textToType = currentText.substring(5, inIndex).trim();
-                  if (textToType) {
-                    updatedStep = `type ${textToType} in ${element.name || element.text || 'element'}`;
-                  } else {
-                    updatedStep = `type  in ${element.name || element.text || 'element'}`;
+                  if (!currentStep) return;
+
+                  let updatedStep = '';
+                  if (commandType === 'click') {
+                    updatedStep = `click ${element.name || element.text || 'element'}`;
+                  } else if (commandType === 'type') {
+                    const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
+                    const inIndex = currentText.toLowerCase().indexOf(' in ');
+                    const typedText = currentText.substring(5, inIndex).trim();
+                    updatedStep = `type ${typedText || ''} in ${element.name || element.text || 'element'}`;
+                  } else if (commandType === 'verify') {
+                    updatedStep = `verify ${element.text || element.name || 'element'}`;
+                  } else if (commandType === 'get') {
+                    updatedStep = `get ${element.text || element.name || 'element'}`;
                   }
-                } else {
-                  updatedStep = `type  in ${element.name || element.text || 'element'}`;
-                } 
-              } else if (commandType === 'verify') {
-                updatedStep = `verify ${element.text || element.name || 'element'}`;
-              } else if (commandType === 'get') {
-                updatedStep = `get ${element.text || element.name || 'element'}`;
-              } else if (commandType === 'open') {
-                updatedStep = `open ${element.displayName || element.name || 'app'}`;
-              }
-              
-              // Update the edit input value
-              setEditValue(updatedStep);
-              
-              // Save the selected element coordinates for this step
-              setSelectedElement(element);
-              
-              // Process coordinates from the suggestion
-              let coordinates = null;
-              
-              if (element.click_point && Array.isArray(element.click_point)) {
-                coordinates = {
-                  click_x: parseFloat(element.click_point[0]) || 0,
-                  click_y: parseFloat(element.click_point[1]) || 0
-                };
-              } else if (element.coordinates) {
-                if (Array.isArray(element.coordinates)) {
-                  coordinates = {
-                    click_x: parseFloat(element.coordinates[0]) || 0,
-                    click_y: parseFloat(element.coordinates[1]) || 0
-                  };
-                } else {
-                  coordinates = {
-                    click_x: parseFloat(element.coordinates.x || element.coordinates.click_x || 0),
-                    click_y: parseFloat(element.coordinates.y || element.coordinates.click_y || 0)
-                  };
-                }
-              }
-              
-              // If we have coordinates, update captured steps with new coordinates
-              if (coordinates) {
-                // Use step_number as identifier since no DB id exists
-                const stepId = stepNumber;
-                const relevantCaptureId = originalCaptureIds[stepId] || stepId;
-                
-                if (capturedSteps[relevantCaptureId]) {
-                  const updatedCaptureData = {
-                    ...capturedSteps[relevantCaptureId],
-                    coordinates: coordinates
-                  };
-                  
-                  setCapturedSteps(prev => ({
-                    ...prev,
-                    [stepId]: updatedCaptureData
-                  }));
-                  
-                  console.log(`Updated coordinates for step ${stepId}:`, coordinates);
-                }
-              }
-              
-              // Hide suggestions after selection
-              setShowSuggestions(false);
-            }}
-            className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-          >
-            <div className={`w-4 h-4 rounded-full ${
-              commandType === 'click' ? 'bg-blue-100' : 
-              commandType === 'type' ? 'bg-green-100' : 
-              commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-            }`}></div>
-            <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
-            {element.text && (
-              <span className="text-xs text-gray-500 truncate max-w-xs">
-                "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+
+                  setEditValue(updatedStep);
+                  setSelectedElement(element);
+
+                  let coordinates = null;
+                  if (element.click_point && Array.isArray(element.click_point)) {
+                    coordinates = {
+                      click_x: parseFloat(element.click_point[0]) || 0,
+                      click_y: parseFloat(element.click_point[1]) || 0
+                    };
+                  } else if (element.coordinates) {
+                    const coords = element.coordinates;
+                    coordinates = {
+                      click_x: parseFloat(coords[0] || coords.x || coords.click_x || 0),
+                      click_y: parseFloat(coords[1] || coords.y || coords.click_y || 0)
+                    };
+                  }
+
+                  if (coordinates) {
+                    const stepId = stepNumber;
+                    const relevantCaptureId = originalCaptureIds[stepId] || stepId;
+                    if (capturedSteps[relevantCaptureId]) {
+                      setCapturedSteps(prev => ({
+                        ...prev,
+                        [stepId]: {
+                          ...capturedSteps[relevantCaptureId],
+                          coordinates
+                        }
+                      }));
+                    }
+                  }
+
+                  setShowSuggestions(false);
+                }}
+
+              className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+            >
+              <div className={`w-4 h-4 rounded-full ${
+                commandType === 'click' ? 'bg-blue-100' : 
+                commandType === 'type' ? 'bg-green-100' : 
+                commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+              }`}></div>
+              <span>
+                {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                {positionLabel}
               </span>
-            )}
-          </div>
-        ))
+
+              <div className="flex items-center gap-2 text-xs">
+                {coordinatesDisplay && (
+                  <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                    {coordinatesDisplay}
+                  </span>
+                )}
+                
+                {/* {element.text && (
+                  <span className="text-gray-500 truncate max-w-xs">
+                    "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                  </span>
+                )} */}
+              </div>
+
+            </div>
+          );
+        })
       )}
+
     </div>
   );
 };
@@ -1835,32 +1882,70 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                     No suggestions available. Please capture the screenshot and fetch elements.
                   </div>
                 ) : (
-                  commandSuggestions.map((element, index) => (
-                    <div 
-                      key={index}
-                      onClick={() => handleSuggestionClick(element)}
-                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                    >
-                      <div className={`w-4 h-4 rounded-full ${
-                        commandType === 'click' ? 'bg-blue-100' : 
-                        commandType === 'type' ? 'bg-green-100' : 
-                        commandType === 'verify' ? 'bg-yellow-100' :
-                        commandType === 'open' ? 'bg-orange-100' : 'bg-purple-100'
-                      }`}></div>
-                      <span>{element.displayName || element.name || element.text || 'Element ' + (index + 1)}</span>
-                      {element.packageName && (
-                        <span className="text-xs text-gray-500 truncate max-w-xs">
-                          {element.packageName}
+                  sortedSuggestions.map((element, index) => {
+                    const sameNameElements = sortedSuggestions.filter((el) => 
+                      (el.name && element.name && el.name === element.name) || 
+                      (el.text && element.text && el.text === element.text)
+                    );
+
+                    const occurrencesBefore = sortedSuggestions
+                      .slice(0, index)
+                      .filter((el) => 
+                        (el.name && element.name && el.name === element.name) ||
+                        (el.text && element.text && el.text === element.text)
+                      ).length;
+
+                    const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
+
+                    // Fix for coordinates display
+                    let coordinatesDisplay = "";
+                    if (element.click_point && Array.isArray(element.click_point)) {
+                      coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+                    } else if (element.coordinates) {
+                      if (Array.isArray(element.coordinates)) {
+                        coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+                      } else {
+                        const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                        const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                        coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                      }
+                    }
+
+                    return (
+                      <div 
+                        key={index}
+                        onClick={() => handleSuggestionClick(element)}
+                        className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                      >
+                        <div className={`w-4 h-4 rounded-full ${
+                          commandType === 'click' ? 'bg-blue-100' : 
+                          commandType === 'type' ? 'bg-green-100' : 
+                          commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                        }`}></div>
+                        <span>
+                          {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                          {positionLabel}
                         </span>
-                      )}
-                      {element.text && !element.packageName && (
-                        <span className="text-xs text-gray-500 truncate max-w-xs">
-                          "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
-                        </span>
-                      )}
-                    </div>
-                  ))
+
+                        <div className="flex items-center gap-2 text-xs">
+                          {coordinatesDisplay && (
+                            <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                              {coordinatesDisplay}
+                            </span>
+                          )}
+                          
+                          {/* {element.text && (
+                            <span className="text-gray-500 truncate max-w-xs">
+                              "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                            </span>
+                          )} */}
+                        </div>
+
+                      </div>
+                    );
+                  })
                 )}
+
               </div>
             )}
             
@@ -1906,7 +1991,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
   return {
     capturedSteps,
-    clearCapturedData,
+    updateCapturedStepsFromStorage,
     renderStepActions,
     renderStepContent,
     ScreenshotModal,

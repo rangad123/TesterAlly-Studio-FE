@@ -121,7 +121,7 @@ const CreateTestCases = () => {
     navigate(route, {
       state: {
         testCaseInfo: {
-          testcase_name,
+          testcase_name: testcase_name.trim(),
           testcase_type: testCaseType,
           testcase_priority: testCasePriority,
           projectId: selectedProject.project_name,

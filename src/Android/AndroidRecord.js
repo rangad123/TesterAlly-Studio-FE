@@ -65,26 +65,31 @@ const AndroidRecord = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
+  const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
+
   const toggleOtpCheckbox = () => {
     setRequiresOtp(prev => {
       const newValue = !prev;
       if (newValue) {
-        // When enabling OTP, show contact options and hide elements
-        setContactSelected(true);
+        // When enabling OTP, show contact options but DON'T auto-select
+        setContactSelected(false); // ❌ Change this to false
       } else {
         // When disabling OTP, reset everything
         setContactSelected(false);
+        setIsOtpStepConfirmed(false); // ✅ Add this line
         setOtpVerificationState(prev => ({
           ...prev,
           contactEntered: false,
           waitingForOtp: false,
           enteredContact: '',
-          sessionTime: null
+          sessionTime: null,
+          otpReceiver: '' // ✅ Add this line
         }));
       }
       return newValue;
     });
   };
+
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
@@ -104,6 +109,26 @@ const AndroidRecord = () => {
   const [testDataPhone, setTestDataPhone] = useState('');
   const [testDataEmail, setTestDataEmail] = useState('');
   const [testDataPassword, setTestDataPassword] = useState('');
+
+  const [showScrollSuggestions, setShowScrollSuggestions] = useState(false);
+  const scrollOptions = [
+    "scroll up",
+    "scroll up a bit",
+    "scroll up a lot",
+    "scroll up fast",
+    "scroll down",
+    "scroll down a bit",
+    "scroll down a lot",
+    "scroll down fast",
+    "scroll left",
+    "scroll right"
+  ];
+  const swipeOptions = [
+    "swipe left",
+    "swipe right", 
+    "swipe long left",
+    "swipe long right"
+  ];
 
   useEffect(() => {
     if (requiresOtp) {
@@ -328,12 +353,11 @@ useEffect(() => {
       if (['click', 'type', 'verify', 'get', 'open', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
         setCommandType(fullCommand);
 
-        if (
-            ['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)
-          ) {
-            setShowSuggestions(false);
-            return;
-          }
+        if (['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
+          setShowScrollSuggestions(true);
+          setShowSuggestions(false);
+          return;
+        }
 
         if (firstWord === 'wait') {
             setShowSuggestions(false);
@@ -433,9 +457,11 @@ useEffect(() => {
 
       } else if (firstWord === 'scroll') {
         setCommandType('scroll');
+        setShowScrollSuggestions(true);
         setShowSuggestions(false);
       } else if (firstWord === 'swipe') {
         setCommandType('swipe');
+        setShowScrollSuggestions(true);
         setShowSuggestions(false);
       } else if (firstWord === 'search') {
         setCommandType('search');
@@ -642,7 +668,6 @@ useEffect(() => {
     }
     return null;
   };
-
 
 const handlePhoneNumberClick = async (contact) => {
   setContactSelected(true);
@@ -1019,6 +1044,11 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       return;
     }
 
+    if ((actionType === 'scroll' || actionType === 'swipe') && !selectedElement) {
+      alert("Please select a scroll option from the suggestions before adding this step.");
+      return;
+    }
+
     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
       setWaitModalOpen(true);
       return;
@@ -1102,14 +1132,19 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     console.log("📞 Is phone number step?", isPhoneNumberStep);
 
     if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      // Check if user is entering OTP (4-8 digits)
       const match = newStep.match(/\b\d{4,8}\b/);
       if (match) {
         isOtpStep = true;
+
+        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
+        isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
         finalStepText = newStep;
-        console.log('Detected OTP input:', match[0]);
       }
     }
+
+    const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
+    const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
+
 
     const newStepObj = {
       id: Date.now(),
@@ -1122,8 +1157,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       selectedElement: selectedElement,
       verificationType: selectedElement?.verificationType || 'text',
       waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp,
-      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
+      requiresOtp: requiresOtp, 
+      otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
+      isActualOtpStep: isActualOtpStep,
+      isOtpRelatedStep: isOtpRelatedStep,
       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
       isPhoneNumberStep: isPhoneNumberStep,
       isEmailStep: isEmailStep 
@@ -1135,7 +1172,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     setSelectedElement(null);
     setStepWaitData(null);
     setNewStep('');
-    
+
     setTestSteps(prev => [...prev, newStepObj]);
     
     try {
@@ -1146,6 +1183,20 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       if (executionResult === undefined) {
         console.log("Step execution was aborted, not adding to test case");
         return;
+      }
+
+      if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
+        console.log('🔄 Clearing OTP verification state after successful OTP entry');
+        setRequiresOtp(false);
+        setIsOtpStepConfirmed(false);
+
+        setOtpVerificationState(prev => ({
+          ...prev,
+          waitingForOtp: false,
+          contactEntered: false,
+          enteredContact: '',
+          otpReceiver: ''
+        }));
       }
       
       if (executionResult.status === 'error') {
@@ -1257,16 +1308,16 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
         let updatedStepDescription = stepDescription;
     
-        if (actionType === 'scroll up') {
-          updatedStepDescription = "scroll up";
-          console.log("Converting 'scroll up' to 'scroll up page'");
-        } else if (actionType === 'scroll down') {
-          updatedStepDescription = "scroll down";
-          console.log("Converting 'scroll down' to 'scroll down page'");
-        } else {
-          words[0] = actionType;
-          updatedStepDescription = words.join(' ');
-        }
+        // if (actionType === 'scroll up') {
+        //   updatedStepDescription = "scroll up";
+        //   console.log("Converting 'scroll up' to 'scroll up page'");
+        // } else if (actionType === 'scroll down') {
+        //   updatedStepDescription = "scroll down";
+        //   console.log("Converting 'scroll down' to 'scroll down page'");
+        // } else {
+        //   words[0] = actionType;
+        //   updatedStepDescription = words.join(' ');
+        // }
 
         console.log("Updated Step Description:", updatedStepDescription); 
         
@@ -1405,37 +1456,37 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                             clickable: btn.clickable
                         };
                     }),
-                    ...data.screen_elements.text_fields.map(field => {
-                        const bounds = field.bounds;
-                        let click_point = [0, 0];
+                    // ...data.screen_elements.text_fields.map(field => {
+                    //     const bounds = field.bounds;
+                    //     let click_point = [0, 0];
 
-                        if (bounds && typeof bounds === 'string') {
-                            try {
-                                // Parse bounds format: "[290,380][510,597]"
-                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                                if (matches) {
-                                    const x1 = parseInt(matches[1]);
-                                    const y1 = parseInt(matches[2]);
-                                    const x2 = parseInt(matches[3]);
-                                    const y2 = parseInt(matches[4]);
-                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                                }
-                            } catch (e) {
-                                console.warn('Error parsing bounds:', bounds, e);
-                            }
-                        }
+                    //     if (bounds && typeof bounds === 'string') {
+                    //         try {
+                    //             // Parse bounds format: "[290,380][510,597]"
+                    //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                    //             if (matches) {
+                    //                 const x1 = parseInt(matches[1]);
+                    //                 const y1 = parseInt(matches[2]);
+                    //                 const x2 = parseInt(matches[3]);
+                    //                 const y2 = parseInt(matches[4]);
+                    //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                    //             }
+                    //         } catch (e) {
+                    //             console.warn('Error parsing bounds:', bounds, e);
+                    //         }
+                    //     }
                         
-                        return {
-                            name: field.description?.replace(/"/g, '') || '',
-                            displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                            content_desc: field.content_desc || '',
-                            click_point: click_point,
-                            bounds: bounds,
-                            resource_id: field.resource_id,
-                            class: field.class,
-                            clickable: field.clickable
-                        };
-                    }),
+                    //     return {
+                    //         name: field.description?.replace(/"/g, '') || '',
+                    //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                    //         content_desc: field.content_desc || '',
+                    //         click_point: click_point,
+                    //         bounds: bounds,
+                    //         resource_id: field.resource_id,
+                    //         class: field.class,
+                    //         clickable: field.clickable
+                    //     };
+                    // }),
                     ...data.screen_elements.icons.map(icon => {
                         const bounds = icon.bounds;
                         let click_point = [0, 0];
@@ -1610,37 +1661,37 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                             clickable: btn.clickable
                         };
                     }),
-                    ...data.screen_elements.text_fields.map(field => {
-                        const bounds = field.bounds;
-                        let click_point = [0, 0];
+                    // ...data.screen_elements.text_fields.map(field => {
+                    //     const bounds = field.bounds;
+                    //     let click_point = [0, 0];
                         
-                        if (bounds && typeof bounds === 'string') {
-                            try {
-                                // Parse bounds format: "[2025,113][2157,245]"
-                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                                if (matches) {
-                                    const x1 = parseInt(matches[1]);
-                                    const y1 = parseInt(matches[2]);
-                                    const x2 = parseInt(matches[3]);
-                                    const y2 = parseInt(matches[4]);
-                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                                }
-                            } catch (e) {
-                                console.warn('Error parsing bounds for text field:', bounds, e);
-                            }
-                        }
+                    //     if (bounds && typeof bounds === 'string') {
+                    //         try {
+                    //             // Parse bounds format: "[2025,113][2157,245]"
+                    //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                    //             if (matches) {
+                    //                 const x1 = parseInt(matches[1]);
+                    //                 const y1 = parseInt(matches[2]);
+                    //                 const x2 = parseInt(matches[3]);
+                    //                 const y2 = parseInt(matches[4]);
+                    //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                    //             }
+                    //         } catch (e) {
+                    //             console.warn('Error parsing bounds for text field:', bounds, e);
+                    //         }
+                    //     }
                         
-                        return {
-                            name: field.description?.replace(/"/g, '') || '',
-                            displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                            content_desc: field.content_desc || '',
-                            click_point: click_point,
-                            bounds: bounds,
-                            resource_id: field.resource_id,
-                            class: field.class,
-                            clickable: field.clickable
-                        };
-                    }),
+                    //     return {
+                    //         name: field.description?.replace(/"/g, '') || '',
+                    //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                    //         content_desc: field.content_desc || '',
+                    //         click_point: click_point,
+                    //         bounds: bounds,
+                    //         resource_id: field.resource_id,
+                    //         class: field.class,
+                    //         clickable: field.clickable
+                    //     };
+                    // }),
                     ...data.screen_elements.icons.map(icon => {
                         const bounds = icon.bounds;
                         let click_point = [0, 0];
@@ -1800,37 +1851,37 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                           clickable: btn.clickable
                       };
                   }),
-                  ...data.screen_elements.text_fields.map(field => {
-                      const bounds = field.bounds;
-                      let click_point = [0, 0];
+                  // ...data.screen_elements.text_fields.map(field => {
+                  //     const bounds = field.bounds;
+                  //     let click_point = [0, 0];
                       
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              // Parse bounds format: "[290,380][510,597]"
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for text field:', bounds, e);
-                          }
-                      }
+                  //     if (bounds && typeof bounds === 'string') {
+                  //         try {
+                  //             // Parse bounds format: "[290,380][510,597]"
+                  //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                  //             if (matches) {
+                  //                 const x1 = parseInt(matches[1]);
+                  //                 const y1 = parseInt(matches[2]);
+                  //                 const x2 = parseInt(matches[3]);
+                  //                 const y2 = parseInt(matches[4]);
+                  //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                  //             }
+                  //         } catch (e) {
+                  //             console.warn('Error parsing bounds for text field:', bounds, e);
+                  //         }
+                  //     }
                       
-                      return {
-                          name: field.description?.replace(/"/g, '') || '',
-                          displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                          content_desc: field.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: field.resource_id,
-                          class: field.class,
-                          clickable: field.clickable
-                      };
-                  }),
+                  //     return {
+                  //         name: field.description?.replace(/"/g, '') || '',
+                  //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                  //         content_desc: field.content_desc || '',
+                  //         click_point: click_point,
+                  //         bounds: bounds,
+                  //         resource_id: field.resource_id,
+                  //         class: field.class,
+                  //         clickable: field.clickable
+                  //     };
+                  // }),
                   ...data.screen_elements.icons.map(icon => {
                       const bounds = icon.bounds;
                       let click_point = [0, 0];
@@ -1993,37 +2044,37 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                             clickable: btn.clickable
                         };
                     }),
-                    ...data.screen_elements.text_fields.map(field => {
-                        const bounds = field.bounds;
-                        let click_point = [0, 0];
+                    // ...data.screen_elements.text_fields.map(field => {
+                    //     const bounds = field.bounds;
+                    //     let click_point = [0, 0];
                         
-                        if (bounds && typeof bounds === 'string') {
-                            try {
-                                // Parse bounds format: "[2025,113][2157,245]"
-                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                                if (matches) {
-                                    const x1 = parseInt(matches[1]);
-                                    const y1 = parseInt(matches[2]);
-                                    const x2 = parseInt(matches[3]);
-                                    const y2 = parseInt(matches[4]);
-                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                                }
-                            } catch (e) {
-                                console.warn('Error parsing bounds for text field:', bounds, e);
-                            }
-                        }
+                    //     if (bounds && typeof bounds === 'string') {
+                    //         try {
+                    //             // Parse bounds format: "[2025,113][2157,245]"
+                    //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                    //             if (matches) {
+                    //                 const x1 = parseInt(matches[1]);
+                    //                 const y1 = parseInt(matches[2]);
+                    //                 const x2 = parseInt(matches[3]);
+                    //                 const y2 = parseInt(matches[4]);
+                    //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                    //             }
+                    //         } catch (e) {
+                    //             console.warn('Error parsing bounds for text field:', bounds, e);
+                    //         }
+                    //     }
                         
-                        return {
-                            name: field.description?.replace(/"/g, '') || '',
-                            displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                            content_desc: field.content_desc || '',
-                            click_point: click_point,
-                            bounds: bounds,
-                            resource_id: field.resource_id,
-                            class: field.class,
-                            clickable: field.clickable
-                        };
-                    }),
+                    //     return {
+                    //         name: field.description?.replace(/"/g, '') || '',
+                    //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                    //         content_desc: field.content_desc || '',
+                    //         click_point: click_point,
+                    //         bounds: bounds,
+                    //         resource_id: field.resource_id,
+                    //         class: field.class,
+                    //         clickable: field.clickable
+                    //     };
+                    // }),
                     ...data.screen_elements.icons.map(icon => {
                         const bounds = icon.bounds;
                         let click_point = [0, 0];
@@ -2126,12 +2177,11 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               debug_images: data.coordinates?.debug_images || {},
           };
         } 
-        else if (actionType === 'scroll up' || actionType === 'scroll down' || actionType === 'swipe left' || actionType === 'swipe right' || actionType === 'swipe long right' || actionType === 'swipe long left') {
-
+        else if (actionType.startsWith('scroll') || actionType.startsWith('swipe')) {
           let modifiedCommand = actionType;
 
           let requestBody = {
-              command: modifiedCommand
+            command: stepDescription
           };
 
           console.log('Sending scroll/swipe command:', {
@@ -2188,36 +2238,36 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                           clickable: btn.clickable
                       };
                   }),
-                  ...data.screen_elements.text_fields.map(field => {
-                      const bounds = field.bounds;
-                      let click_point = [0, 0];
+                  // ...data.screen_elements.text_fields.map(field => {
+                  //     const bounds = field.bounds;
+                  //     let click_point = [0, 0];
                       
-                      if (bounds && typeof bounds === 'string') {
-                          try {
-                              const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                              if (matches) {
-                                  const x1 = parseInt(matches[1]);
-                                  const y1 = parseInt(matches[2]);
-                                  const x2 = parseInt(matches[3]);
-                                  const y2 = parseInt(matches[4]);
-                                  click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                              }
-                          } catch (e) {
-                              console.warn('Error parsing bounds for text field:', bounds, e);
-                          }
-                      }
+                  //     if (bounds && typeof bounds === 'string') {
+                  //         try {
+                  //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                  //             if (matches) {
+                  //                 const x1 = parseInt(matches[1]);
+                  //                 const y1 = parseInt(matches[2]);
+                  //                 const x2 = parseInt(matches[3]);
+                  //                 const y2 = parseInt(matches[4]);
+                  //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                  //             }
+                  //         } catch (e) {
+                  //             console.warn('Error parsing bounds for text field:', bounds, e);
+                  //         }
+                  //     }
                       
-                      return {
-                          name: field.description?.replace(/"/g, '') || '',
-                          displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                          content_desc: field.content_desc || '',
-                          click_point: click_point,
-                          bounds: bounds,
-                          resource_id: field.resource_id,
-                          class: field.class,
-                          clickable: field.clickable
-                      };
-                  }),
+                  //     return {
+                  //         name: field.description?.replace(/"/g, '') || '',
+                  //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                  //         content_desc: field.content_desc || '',
+                  //         click_point: click_point,
+                  //         bounds: bounds,
+                  //         resource_id: field.resource_id,
+                  //         class: field.class,
+                  //         clickable: field.clickable
+                  //     };
+                  // }),
                   ...data.screen_elements.icons.map(icon => {
                       const bounds = icon.bounds;
                       let click_point = [0, 0];
@@ -2374,37 +2424,37 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                             clickable: btn.clickable
                         };
                     }),
-                    ...data.screen_elements.text_fields.map(field => {
-                        const bounds = field.bounds;
-                        let click_point = [0, 0];
+                    // ...data.screen_elements.text_fields.map(field => {
+                    //     const bounds = field.bounds;
+                    //     let click_point = [0, 0];
                         
-                        if (bounds && typeof bounds === 'string') {
-                            try {
-                                // Parse bounds format: "[2025,113][2157,245]"
-                                const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
-                                if (matches) {
-                                    const x1 = parseInt(matches[1]);
-                                    const y1 = parseInt(matches[2]);
-                                    const x2 = parseInt(matches[3]);
-                                    const y2 = parseInt(matches[4]);
-                                    click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
-                                }
-                            } catch (e) {
-                                console.warn('Error parsing bounds for text field:', bounds, e);
-                            }
-                        }
+                    //     if (bounds && typeof bounds === 'string') {
+                    //         try {
+                    //             // Parse bounds format: "[2025,113][2157,245]"
+                    //             const matches = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+                    //             if (matches) {
+                    //                 const x1 = parseInt(matches[1]);
+                    //                 const y1 = parseInt(matches[2]);
+                    //                 const x2 = parseInt(matches[3]);
+                    //                 const y2 = parseInt(matches[4]);
+                    //                 click_point = [(x1 + x2) / 2, (y1 + y2) / 2];
+                    //             }
+                    //         } catch (e) {
+                    //             console.warn('Error parsing bounds for text field:', bounds, e);
+                    //         }
+                    //     }
                         
-                        return {
-                            name: field.description?.replace(/"/g, '') || '',
-                            displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
-                            content_desc: field.content_desc || '',
-                            click_point: click_point,
-                            bounds: bounds,
-                            resource_id: field.resource_id,
-                            class: field.class,
-                            clickable: field.clickable
-                        };
-                    }),
+                    //     return {
+                    //         name: field.description?.replace(/"/g, '') || '',
+                    //         displayName: field.content_desc || field.description?.replace(/"/g, '') || '',
+                    //         content_desc: field.content_desc || '',
+                    //         click_point: click_point,
+                    //         bounds: bounds,
+                    //         resource_id: field.resource_id,
+                    //         class: field.class,
+                    //         clickable: field.clickable
+                    //     };
+                    // }),
                     ...data.screen_elements.icons.map(icon => {
                         const bounds = icon.bounds;
                         let click_point = [0, 0];
@@ -2779,7 +2829,7 @@ const createTestCase = async () => {
       }
       
       let stepDescription = step.description;
-      if (/(\b\d{4,8}\b)/.test(step.description)) {
+      if (step.isActualOtpStep && /\b\d{4,8}\b/.test(step.description)) {
         stepDescription = step.description.replace(/\b\d{4,8}\b/, "<otp>");
       }
       
@@ -2794,17 +2844,23 @@ const createTestCase = async () => {
       // ✅ Check if this step uses OTP
       // const usesOtp = step.description.includes('{{OTP}}');
       
-      return {
+      const stepData = {
         step_number: index + 1,
         step_description: stepDescription,
         teststep_result: teststep_result,
         step_coordinates: coordinates,
         expected_result: step.expectedResult || "",
         actual_result: "",
-        requires_otp: step.requiresOtp || false,
-        otp_type: step.otpType || null,
         ...(stepDescription?.toLowerCase().startsWith("wait") && step.waitRequestData ? { wait_config: step.waitRequestData } : {})
       };
+
+      // Only add OTP fields if this step actually uses OTP
+      if (step.isActualOtpStep || step.isOtpRelatedStep) {
+        stepData.requires_otp = true;
+        stepData.otp_type = step.otpType;
+      }
+
+      return stepData;
     });
 
     // Create steps payload matching the working API structure
@@ -3002,7 +3058,74 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
   );
 };
 
+const handleScrollOptionClick = (option) => {
+  setNewStep(option);
+  setShowScrollSuggestions(false);
+  setSelectedElement({ type: 'scroll', name: option });
+};
+
 const SuggestionsDropdown = () => {
+
+  const filteredScrollOptions = scrollOptions
+    .filter(option => option.toLowerCase().includes(newStep.toLowerCase()))
+    .concat(scrollOptions.filter(option => !option.toLowerCase().includes(newStep.toLowerCase())));
+
+  const filteredSwipeOptions = swipeOptions
+    .filter(option => option.toLowerCase().includes(newStep.toLowerCase()))
+    .concat(swipeOptions.filter(option => !option.toLowerCase().includes(newStep.toLowerCase())));
+
+  if (commandType === 'scroll' && showScrollSuggestions) {
+    return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+        <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+          <h4 className="font-medium text-purple-800 flex items-center">
+            🖱️ Scroll Options:
+          </h4>
+          <p className="text-xs text-gray-600">
+            Select a scroll action
+          </p>
+        </div>
+        <ul className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
+          {filteredScrollOptions.map((option, index) => (
+            <li 
+              key={index}
+              className="p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150"
+              onClick={() => handleScrollOptionClick(option)}
+              tabIndex={0}
+            >
+              {option}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  if (commandType === 'swipe' && showScrollSuggestions) {
+    return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+        <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+          <h4 className="font-medium text-purple-800 flex items-center">
+            👆 Swipe Options:
+          </h4>
+          <p className="text-xs text-gray-600">Select a swipe action</p>
+        </div>
+        <ul className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
+          {filteredSwipeOptions.map((option, index) => (
+            <li 
+              key={index}
+              className="p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150"
+              onClick={() => handleScrollOptionClick(option)}
+              tabIndex={0}
+            >
+              {option}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   if (!showSuggestions) return null;
 
   const shouldShowNoDataMessage =
@@ -3087,6 +3210,23 @@ const SuggestionsDropdown = () => {
           ) : null}
 
         </h4>
+
+        {commandType === 'type' && requiresOtp && (
+          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isOtpStepConfirmed}
+                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+                className="accent-orange-500"
+              />
+              ✅ Confirm this is OTP input step
+            </label>
+            <div className="text-xs text-gray-600 mt-1">
+              Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+            </div>
+          </div>
+        )}
 
         {commandType === 'type' && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">

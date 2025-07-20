@@ -495,17 +495,19 @@ const fetchElementSuggestions = (command, inputValue, words, currentStepNumber =
   }
   
   // Remove duplicates based on element text or name
-  const uniqueElements = [];
-  const uniqueKeys = new Set();
+  // const uniqueElements = [];
+  // const uniqueKeys = new Set();
   
-  filtered.forEach(el => {
-    const key = (el.name || '') + (el.text || '');
-    if (!uniqueKeys.has(key)) {
-      uniqueKeys.add(key);
-      uniqueElements.push(el);
-    }
-  });
-  
+  // filtered.forEach(el => {
+  //   const key = (el.name || '') + (el.text || '');
+  //   if (!uniqueKeys.has(key)) {
+  //     uniqueKeys.add(key);
+  //     uniqueElements.push(el);
+  //   }
+  // });
+
+  const uniqueElements = filtered;
+
   // Limited to 20 results
   const finalResults = uniqueElements.slice(0, 20);
   
@@ -897,6 +899,16 @@ const handleOtpPlaceholderClick = (setEditValue = null) => {
   }
 };
 
+const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
+  const aY = a.click_point ? a.click_point[1] : Infinity;
+  const bY = b.click_point ? b.click_point[1] : Infinity;
+  if (aY !== bY) return aY - bY;
+
+  const aX = a.click_point ? a.click_point[0] : Infinity;
+  const bX = b.click_point ? b.click_point[0] : Infinity;
+  return aX - bX;
+});
+
 const renderEditSuggestions = (stepNumber, setEditValue) => {
   const currentStep = steps.find(s => s.step_number === stepNumber);
   if (!currentStep || !showSuggestions || editingStepId !== stepNumber) return null;
@@ -1051,77 +1063,120 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
         )}
 
         {commandSuggestions.length === 0 ? (
-          <div className="p-2 text-gray-500 text-center">No suggestions available</div>
+          <div className="p-2 text-gray-500 text-center">
+            No suggestions available. Please capture the screenshot and fetch elements.
+          </div>
         ) : (
-          commandSuggestions.map((element, index) => (
-            <div
-              key={index}
-              onClick={() => {
-                if (!currentStep) return;
+          sortedSuggestions.map((element, index) => {
+            // Find all elements with the same name or text
+            const sameNameElements = sortedSuggestions.filter(el => 
+              (el.name && element.name && el.name === element.name) || 
+              (el.text && element.text && el.text === element.text)
+            );
 
-                let updatedStep = '';
-                if (commandType === 'click') {
-                  updatedStep = `click ${element.name || element.text || 'element'}`;
-                } else if (commandType === 'type') {
-                  const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
-                  const inIndex = currentText.toLowerCase().indexOf(' in ');
-                  const typedText = currentText.substring(5, inIndex).trim();
-                  updatedStep = `type ${typedText || ''} in ${element.name || element.text || 'element'}`;
-                } else if (commandType === 'verify') {
-                  updatedStep = `verify ${element.text || element.name || 'element'}`;
-                } else if (commandType === 'get') {
-                  updatedStep = `get ${element.text || element.name || 'element'}`;
-                }
+            // Position based on index in the sorted list
+            const position = sameNameElements.findIndex(el => el.id === element.id) + 1;
+            const positionLabel = sameNameElements.length > 1 ? ` (Position ${position})` : '';
 
-                setEditValue(updatedStep);
-                setSelectedElement(element);
+            // Fix for coordinates display
+            let coordinatesDisplay = "";
+            if (element.click_point && Array.isArray(element.click_point)) {
+              coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+            } else if (element.coordinates) {
+              if (Array.isArray(element.coordinates)) {
+                coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+              } else {
+                const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+              }
+            }
 
-                let coordinates = null;
-                if (element.click_point && Array.isArray(element.click_point)) {
-                  coordinates = {
-                    click_x: parseFloat(element.click_point[0]) || 0,
-                    click_y: parseFloat(element.click_point[1]) || 0
-                  };
-                } else if (element.coordinates) {
-                  const coords = element.coordinates;
-                  coordinates = {
-                    click_x: parseFloat(coords[0] || coords.x || coords.click_x || 0),
-                    click_y: parseFloat(coords[1] || coords.y || coords.click_y || 0)
-                  };
-                }
+            return (
+              <div 
+                key={index}
+                onClick={() => {
+                  if (!currentStep) return;
 
-                if (coordinates) {
-                  const stepId = stepNumber;
-                  const relevantCaptureId = originalCaptureIds[stepId] || stepId;
-                  if (capturedSteps[relevantCaptureId]) {
-                    setCapturedSteps(prev => ({
-                      ...prev,
-                      [stepId]: {
-                        ...capturedSteps[relevantCaptureId],
-                        coordinates
-                      }
-                    }));
+                  let updatedStep = '';
+                  if (commandType === 'click') {
+                    updatedStep = `click ${element.name || element.text || 'element'}`;
+                  } else if (commandType === 'type') {
+                    const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
+                    const inIndex = currentText.toLowerCase().indexOf(' in ');
+                    const typedText = currentText.substring(5, inIndex).trim();
+                    updatedStep = `type ${typedText || ''} in ${element.name || element.text || 'element'}`;
+                  } else if (commandType === 'verify') {
+                    updatedStep = `verify ${element.text || element.name || 'element'}`;
+                  } else if (commandType === 'get') {
+                    updatedStep = `get ${element.text || element.name || 'element'}`;
                   }
-                }
 
-                setShowSuggestions(false);
-              }}
-              className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-            >
-              <div className={`w-4 h-4 rounded-full ${
-                commandType === 'click' ? 'bg-blue-100' :
-                commandType === 'type' ? 'bg-green-100' :
-                commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-              }`} />
-              <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
-              {element.text && (
-                <span className="text-xs text-gray-500 truncate max-w-xs">
-                  "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                  setEditValue(updatedStep);
+                  setSelectedElement(element);
+
+                  let coordinates = null;
+                  if (element.click_point && Array.isArray(element.click_point)) {
+                    coordinates = {
+                      click_x: parseFloat(element.click_point[0]) || 0,
+                      click_y: parseFloat(element.click_point[1]) || 0
+                    };
+                  } else if (element.coordinates) {
+                    const coords = element.coordinates;
+                    coordinates = {
+                      click_x: parseFloat(coords[0] || coords.x || coords.click_x || 0),
+                      click_y: parseFloat(coords[1] || coords.y || coords.click_y || 0)
+                    };
+                  }
+
+                  if (coordinates) {
+                    const stepId = stepNumber;
+                    const relevantCaptureId = originalCaptureIds[stepId] || stepId;
+                    if (capturedSteps[relevantCaptureId]) {
+                      setCapturedSteps(prev => ({
+                        ...prev,
+                        [stepId]: {
+                          ...capturedSteps[relevantCaptureId],
+                          coordinates
+                        }
+                      }));
+                    }
+                  }
+
+                  setShowSuggestions(false);
+                }}
+
+                className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+              >
+                <div className={`w-4 h-4 rounded-full ${
+                  commandType === 'click' ? 'bg-blue-100' : 
+                  commandType === 'type' ? 'bg-green-100' : 
+                  commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                }`}></div>
+                <span>
+                  {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                  {positionLabel}
                 </span>
-              )}
-            </div>
-          ))
+
+                <div className="flex items-center gap-2 text-xs">
+                  {coordinatesDisplay && (
+                    <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                      {coordinatesDisplay}
+                    </span>
+                  )}
+                  
+                  {/* {element.text && (
+                    <span className="text-gray-500 truncate max-w-xs">
+                      "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                    </span>
+                  )} */}
+                </div>
+
+              </div>
+            );
+          })
         )}
+
       </div>
     </div>
   );
@@ -1829,25 +1884,64 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                     No suggestions available. Please capture the screenshot and fetch elements.
                   </div>
                 ) : (
-                  commandSuggestions.map((element, index) => (
-                    <div 
-                      key={index}
-                      onClick={() => handleSuggestionClick(element)}
-                      className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                    >
-                      <div className={`w-4 h-4 rounded-full ${
-                        commandType === 'click' ? 'bg-blue-100' : 
-                        commandType === 'type' ? 'bg-green-100' : 
-                        commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                      }`}></div>
-                      <span>{element.name || element.text || element.id || 'Element ' + (index + 1)}</span>
-                      {element.text && (
-                        <span className="text-xs text-gray-500 truncate max-w-xs">
-                          "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                  sortedSuggestions.map((element, index) => {
+                    // Find all elements with the same name or text
+                    const sameNameElements = sortedSuggestions.filter(el => 
+                      (el.name && element.name && el.name === element.name) || 
+                      (el.text && element.text && el.text === element.text)
+                    );
+
+                    // Position based on index in the sorted list
+                    const position = sameNameElements.findIndex(el => el.id === element.id) + 1;
+                    const positionLabel = sameNameElements.length > 1 ? ` (Position ${position})` : '';
+
+                    // Fix for coordinates display
+                    let coordinatesDisplay = "";
+                    if (element.click_point && Array.isArray(element.click_point)) {
+                      coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+                    } else if (element.coordinates) {
+                      if (Array.isArray(element.coordinates)) {
+                        coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+                      } else {
+                        const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                        const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                        coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                      }
+                    }
+
+                    return (
+                      <div 
+                        key={index}
+                        onClick={() => handleSuggestionClick(element)}
+                        className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                      >
+                        <div className={`w-4 h-4 rounded-full ${
+                          commandType === 'click' ? 'bg-blue-100' : 
+                          commandType === 'type' ? 'bg-green-100' : 
+                          commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                        }`}></div>
+                        <span>
+                          {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                          {positionLabel}
                         </span>
-                      )}
-                    </div>
-                  ))
+
+                        <div className="flex items-center gap-2 text-xs">
+                          {coordinatesDisplay && (
+                            <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                              {coordinatesDisplay}
+                            </span>
+                          )}
+                          
+                          {/* {element.text && (
+                            <span className="text-gray-500 truncate max-w-xs">
+                              "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                            </span>
+                          )} */}
+                        </div>
+
+                      </div>
+                    );
+                  })
                 )}
 
               </div>

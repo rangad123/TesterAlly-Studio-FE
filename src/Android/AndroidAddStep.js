@@ -210,18 +210,18 @@ const handleCaptureElement = async (stepNumber) => {
   }
 };
 
-const clearCapturedData = () => {
-  console.log("✅ Clearing captured data...");
-  setCapturedSteps({});
-  setAllCapturedElements({});
-  setOriginalCaptureIds({});
+// const clearCapturedData = () => {
+//   console.log("✅ Clearing captured data...");
+//   setCapturedSteps({});
+//   setAllCapturedElements({});
+//   setOriginalCaptureIds({});
   
-  sessionStorage.removeItem(`capturedScreenshots_${projectName}_${testCaseName}`);
-  sessionStorage.removeItem(`capturedElements_${projectName}_${testCaseName}`);
-  sessionStorage.removeItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`capturedElements_${projectName}_${testCaseName}`);
+//   sessionStorage.removeItem(`originalCaptureIds_${projectName}_${testCaseName}`);
   
-  console.log("✅ Captured data cleared successfully");
-};
+//   console.log("✅ Captured data cleared successfully");
+// };
 
 const processAndroidElements = (screenElements) => {
   const allElements = [];
@@ -269,6 +269,26 @@ const processAndroidElements = (screenElements) => {
   });
   
   return allElements;
+};
+
+const updateCapturedStepsFromStorage = () => {
+  try {
+    const storedScreenshots = sessionStorage.getItem(`capturedScreenshots_${projectName}_${testCaseName}`);
+    const storedElements = sessionStorage.getItem(`capturedElements_${projectName}_${testCaseName}`);
+    const storedOriginalIds = sessionStorage.getItem(`originalCaptureIds_${projectName}_${testCaseName}`);
+    
+    if (storedScreenshots) {
+      setCapturedSteps(JSON.parse(storedScreenshots));
+    }
+    if (storedElements) {
+      setAllCapturedElements(JSON.parse(storedElements));
+    }
+    if (storedOriginalIds) {
+      setOriginalCaptureIds(JSON.parse(storedOriginalIds));
+    }
+  } catch (error) {
+    console.error("Error updating captured steps from storage:", error);
+  }
 };
   
 const handleCommandInputChange = (e) => {
@@ -1925,7 +1945,8 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
   return {
     capturedSteps,
-    clearCapturedData,
+    // clearCapturedData,
+    updateCapturedStepsFromStorage,
     renderStepActions,
     renderStepContent,
     ScreenshotModal,

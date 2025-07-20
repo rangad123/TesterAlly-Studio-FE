@@ -533,6 +533,22 @@ const convertOmniaParserElements = (elements) => {
 
     const stepDescription = testSteps[index].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+    // ✅ NEW VALIDATION: Check if command starts with allowed commands
+    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait'];
+    if (!allowedCommands.includes(actionType)) {
+      alert(`Invalid command. Please start with one of: ${allowedCommands.join(', ')}`);
+      return;
+    }
+    
+    // ✅ NEW VALIDATION: Check if element-dependent commands have selected element
+    const elementDependentCommands = ['click', 'type', 'get', 'verify'];
+    if (elementDependentCommands.includes(actionType)) {
+      if (!testSteps[index].selectedElement) {
+        alert("Please select an element from the suggestions dropdown for this command.");
+        return;
+      }
+    }
     const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
@@ -648,6 +664,22 @@ const convertOmniaParserElements = (elements) => {
 
     const stepDescription = testSteps[currentEditingIndex].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+    // ✅ NEW VALIDATION: Check if command starts with allowed commands
+    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait'];
+    if (!allowedCommands.includes(actionType)) {
+      alert(`Invalid command. Please start with one of: ${allowedCommands.join(', ')}`);
+      return;
+    }
+    
+    // ✅ NEW VALIDATION: Check if element-dependent commands have selected element
+    const elementDependentCommands = ['click', 'type', 'get', 'verify'];
+    if (elementDependentCommands.includes(actionType)) {
+      if (!testSteps[currentEditingIndex].selectedElement) {
+        alert("Please select an element from the suggestions dropdown for this command.");
+        return;
+      }
+    }
     const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
@@ -1151,12 +1183,19 @@ const convertOmniaParserElements = (elements) => {
     let step = updatedSteps[index];
     let updatedStepValue = '';
   
-    const sameNameElements = commandSuggestions.filter((el, i) => 
-      commandSuggestions.indexOf(suggestion) > i && 
-      ((el.name && suggestion.name && el.name === suggestion.name) || 
-       (el.text && suggestion.text && el.text === suggestion.text))
-    );
-    const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+    // const sameNameElements = commandSuggestions.filter((el) => 
+    //   (el.name && suggestion.name && el.name === suggestion.name) || 
+    //   (el.text && suggestion.text && el.text === suggestion.text)
+    // );
+
+    // const occurrencesBefore = commandSuggestions
+    //   .slice(0, index)
+    //   .filter((el) => 
+    //     (el.name && suggestion.name && el.name === suggestion.name) ||
+    //     (el.text && suggestion.text && el.text === suggestion.text)
+    //   ).length;
+
+    // const position = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
   
     if (commandType === 'open' && suggestion.type === 'app') {
       updatedStepValue = `open ${suggestion.name}`; 
@@ -1164,7 +1203,7 @@ const convertOmniaParserElements = (elements) => {
       step.packageName = suggestion.package; 
 
     } else if (commandType === 'click') {
-      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
+      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}`;
     } else if (commandType === 'type') {
       const currentText = step.choice;
       const inIndex = currentText.toLowerCase().indexOf(' in ');
@@ -1725,6 +1764,18 @@ const convertOmniaParserElements = (elements) => {
     }
   };
 
+const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
+  const aY = a.click_point ? a.click_point[1] : Infinity;
+  const bY = b.click_point ? b.click_point[1] : Infinity;
+
+  if (aY !== bY) return aY - bY;
+
+  const aX = a.click_point ? a.click_point[0] : Infinity;
+  const bX = b.click_point ? b.click_point[0] : Infinity;
+
+  return aX - bX;
+});
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1995,7 +2046,7 @@ const convertOmniaParserElements = (elements) => {
                             </div>
                           )}
 
-                          {commandSuggestions.map((suggestion, idx) => (
+                          {/* {commandSuggestions.map((suggestion, idx) => (
                             <div 
                               key={idx}
                               onClick={() => handleSuggestionClick(suggestion, index)}
@@ -2009,7 +2060,71 @@ const convertOmniaParserElements = (elements) => {
                                 <span className="text-xs text-gray-500">{suggestion.package}</span>
                               </div>
                             </div>
-                          ))}
+                          ))} */}
+
+                         {sortedSuggestions.map((element, idx) => {
+                            const sameNameElements = sortedSuggestions.filter((el) => 
+                              (el.name && element.name && el.name === element.name) || 
+                              (el.text && element.text && el.text === element.text)
+                            );
+
+                            const occurrencesBefore = sortedSuggestions
+                              .slice(0, idx)
+                              .filter((el) => 
+                                (el.name && element.name && el.name === element.name) ||
+                                (el.text && element.text && el.text === element.text)
+                              ).length;
+
+                            const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
+                            
+                            // Fix for coordinates display
+                            let coordinatesDisplay = "";
+                            if (element.click_point && Array.isArray(element.click_point)) {
+                              coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+                            } else if (element.coordinates) {
+                              if (Array.isArray(element.coordinates)) {
+                                coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+                              } else {
+                                const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                                const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                                coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                              }
+                            }
+                            
+                            return (
+                              <div 
+                                key={idx}
+                                onClick={() => handleSuggestionClick(element, idx)}
+                                className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                              >
+                                <div className={`w-4 h-4 rounded-full ${
+                                  commandType === 'click' ? 'bg-blue-100' : 
+                                  commandType === 'type' ? 'bg-green-100' : 
+                                  commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                                }`}></div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {element.name || element.text || element.id || 'Element ' + (idx + 1)}
+                                    {positionLabel}
+                                  </span>
+                                  
+                                  <div className="flex items-center gap-2 text-xs">
+                                    {coordinatesDisplay && (
+                                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                                        {coordinatesDisplay}
+                                      </span>
+                                    )}
+                                    
+                                    {/* {element.text && (
+                                      <span className="text-gray-500 truncate max-w-xs">
+                                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                                      </span>
+                                    )} */}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       {showSuggestions === index && commandSuggestions.length === 0 && commandType === 'open' && (

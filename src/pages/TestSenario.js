@@ -7,6 +7,9 @@ function TestSenario() {
   const [showExtractedSteps, setShowExtractedSteps] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [projectData, setProjectData] = useState(null);
+  const [editingStepIndex, setEditingStepIndex] = useState(null);
+  const [editingStepText, setEditingStepText] = useState('');
+  const [needsOtpVerification, setNeedsOtpVerification] = useState(false);
 
   const navigate = useNavigate();
 
@@ -93,7 +96,8 @@ const handleAddSteps = () => {
 
   const navigationState = {
     generatedSteps: extractedSteps,
-    autoExecuteFirst: true
+    autoExecuteFirst: true,
+    needsOtpVerification: needsOtpVerification
   };
 
   // Navigation Logic:
@@ -111,6 +115,38 @@ const handleAddSteps = () => {
   }
 };
 
+const handleEditStep = (index) => {
+  setEditingStepIndex(index);
+  const stepText = typeof extractedSteps[index] === 'object' 
+    ? extractedSteps[index].command 
+    : extractedSteps[index];
+  setEditingStepText(stepText);
+};
+
+const handleSaveEdit = () => {
+  const updatedSteps = [...extractedSteps];
+  if (typeof updatedSteps[editingStepIndex] === 'object') {
+    updatedSteps[editingStepIndex] = {
+      ...updatedSteps[editingStepIndex],
+      command: editingStepText
+    };
+  } else {
+    updatedSteps[editingStepIndex] = editingStepText;
+  }
+  setExtractedSteps(updatedSteps);
+  setEditingStepIndex(null);
+  setEditingStepText('');
+};
+
+const handleCancelEdit = () => {
+  setEditingStepIndex(null);
+  setEditingStepText('');
+};
+
+const handleDeleteStep = (index) => {
+  const updatedSteps = extractedSteps.filter((_, i) => i !== index);
+  setExtractedSteps(updatedSteps);
+};
 
   const handleClearSteps = () => {
     setExtractedSteps([]);
@@ -211,7 +247,7 @@ const handleAddSteps = () => {
 
             {/* Right Side - Generated Steps */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-                <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                     Generated Test Steps
                 </h2>
@@ -230,7 +266,25 @@ const handleAddSteps = () => {
                     </>
                     )}
                 </div>
-                </div>
+              </div>
+
+              {/* Add OTP Checkbox - NEW SECTION */}
+                {showExtractedSteps && extractedSteps.length > 0 && (
+                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={needsOtpVerification}
+                        onChange={(e) => setNeedsOtpVerification(e.target.checked)}
+                        className="accent-orange-500"
+                      />
+                      <span className="font-medium">This scenario requires OTP verification</span>
+                    </label>
+                    <div className="text-xs text-gray-600 mt-1">
+                      Check this if your test steps include OTP/verification code steps
+                    </div>
+                  </div>
+                )}
 
                 {!showExtractedSteps ? (
                 <div className="text-center py-8 md:py-12">
@@ -253,38 +307,87 @@ const handleAddSteps = () => {
                     </div>
                     ) : (
                     <div className="max-h-64 md:max-h-80 overflow-y-auto space-y-3">
-                        {extractedSteps.map((step, index) => (
-                        <div
-                            key={index}
-                            className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150"
-                        >
-                            <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                            {typeof step === 'object' ? step.step : index + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                            <p className="text-sm md:text-base text-gray-800 break-words">
-                                {typeof step === 'object' ? step.command : step}
-                            </p>
-                            {typeof step === 'object' && step.action && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    {step.action}
-                                </span>
-                                {step.target && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    Target: {step.target}
-                                    </span>
-                                )}
-                                {step.value && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Value: {step.value}
-                                    </span>
-                                )}
-                                </div>
-                            )}
-                            </div>
+                    {extractedSteps.map((step, index) => (
+                      <div
+                        key={index}
+                        className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150"
+                      >
+                        <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                          {typeof step === 'object' ? step.step : index + 1}
                         </div>
-                        ))}
+                        <div className="flex-1 min-w-0">
+                          {editingStepIndex === index ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={editingStepText}
+                                onChange={(e) => setEditingStepText(e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-none"
+                                rows="2"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleSaveEdit}
+                                  className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-sm md:text-base text-gray-800 break-words">
+                                {typeof step === 'object' ? step.command : step}
+                              </p>
+                              {typeof step === 'object' && step.action && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    {step.action}
+                                  </span>
+                                  {step.target && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      Target: {step.target}
+                                    </span>
+                                  )}
+                                  {step.value && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Value: {step.value}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {editingStepIndex !== index && (
+                          <div className="flex-shrink-0 flex gap-1">
+                            <button
+                              onClick={() => handleEditStep(index)}
+                              className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Edit step"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStep(index)}
+                              className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                              title="Delete step"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                     </div>
                     )}
                 </div>

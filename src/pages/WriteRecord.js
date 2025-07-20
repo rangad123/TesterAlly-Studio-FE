@@ -55,26 +55,31 @@ const WriteRecord = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
+
+  const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
   const toggleOtpCheckbox = () => {
     setRequiresOtp(prev => {
       const newValue = !prev;
       if (newValue) {
-        // When enabling OTP, show contact options and hide elements
-        setContactSelected(true);
+        // When enabling OTP, show contact options but DON'T auto-select
+        setContactSelected(false); // ❌ Change this to false
       } else {
         // When disabling OTP, reset everything
         setContactSelected(false);
+        setIsOtpStepConfirmed(false); // ✅ Add this line
         setOtpVerificationState(prev => ({
           ...prev,
           contactEntered: false,
           waitingForOtp: false,
           enteredContact: '',
-          sessionTime: null
+          sessionTime: null,
+          otpReceiver: '' // ✅ Add this line
         }));
       }
       return newValue;
     });
   };
+
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
@@ -864,15 +869,29 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
     console.log("📞 Is phone number step?", isPhoneNumberStep);
 
+    // if (otpVerificationState.waitingForOtp && actionType === 'type') {
+    //   // Check if user is entering OTP (4-8 digits)
+    //   const match = newStep.match(/\b\d{4,8}\b/);
+    //   if (match) {
+    //     isOtpStep = true;
+    //     finalStepText = newStep;
+    //     console.log('Detected OTP input:', match[0]);
+    //   }
+    // }
+
     if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      // Check if user is entering OTP (4-8 digits)
       const match = newStep.match(/\b\d{4,8}\b/);
       if (match) {
         isOtpStep = true;
+
+        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
+        isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
         finalStepText = newStep;
-        console.log('Detected OTP input:', match[0]);
       }
     }
+
+    const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
+    const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
 
     const newStepObj = {
       id: Date.now(),
@@ -883,8 +902,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       selectedElement: selectedElement,
       verificationType: selectedElement?.verificationType || 'text',
       waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp,
-      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
+      requiresOtp: requiresOtp, 
+      otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
+      isActualOtpStep: isActualOtpStep,
+      isOtpRelatedStep: isOtpRelatedStep,
       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
       isPhoneNumberStep: isPhoneNumberStep,
       isEmailStep: isEmailStep 
@@ -957,8 +978,22 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     }
     
     setNewStep('');
-    if (newStepObj.otpSessionData) {
+    // if (newStepObj.otpSessionData) {
+    //   setRequiresOtp(false);
+    // }
+    // ✅ Clear OTP state after actual OTP entry
+    if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
+      console.log('🔄 Clearing OTP verification state after successful OTP entry');
       setRequiresOtp(false);
+      setIsOtpStepConfirmed(false);
+
+      setOtpVerificationState(prev => ({
+        ...prev,
+        waitingForOtp: false,
+        contactEntered: false,
+        enteredContact: '',
+        otpReceiver: ''
+      }));
     }
           
     setTimeout(() => {
@@ -1584,7 +1619,7 @@ const createTestCase = async () => {
       }
 
       let stepDescription = step.description;
-      if (/(\b\d{4,8}\b)/.test(step.description)) {
+      if (step.isActualOtpStep && /\b\d{4,8}\b/.test(step.description)) {
         stepDescription = step.description.replace(/\b\d{4,8}\b/, "<otp>");
       }
       
@@ -1599,17 +1634,23 @@ const createTestCase = async () => {
       // ✅ Check if this step uses OTP
       // const usesOtp = step.description.includes('{{OTP}}');
       
-      return {
+      const stepData = {
         step_number: index + 1,
         step_description: stepDescription,
         teststep_result: teststep_result,
         step_coordinates: coordinates,
         expected_result: step.expectedResult || "",
         actual_result: "",
-        requires_otp: step.requiresOtp || false,
-        otp_type: step.otpType || null,
         ...(stepDescription?.toLowerCase().startsWith("wait") && step.waitRequestData ? { wait_config: step.waitRequestData } : {})
       };
+
+      // Only add OTP fields if this step actually uses OTP
+      if (step.isActualOtpStep || step.isOtpRelatedStep) {
+        stepData.requires_otp = true;
+        stepData.otp_type = step.otpType;
+      }
+
+      return stepData;
     });
 
     // Create steps payload matching the working API structure
@@ -2075,6 +2116,23 @@ const SuggestionsDropdown = () => {
             </>
           ) : null}
         </h4>
+
+        {commandType === 'type' && requiresOtp && (
+          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isOtpStepConfirmed}
+                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+                className="accent-orange-500"
+              />
+              ✅ Confirm this is OTP input step
+            </label>
+            <div className="text-xs text-gray-600 mt-1">
+              Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+            </div>
+          </div>
+        )}
         
         {commandType === 'type' && (
           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">

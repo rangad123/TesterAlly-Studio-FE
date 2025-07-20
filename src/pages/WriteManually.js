@@ -276,8 +276,10 @@ const handleCreateTestCase = async () => {
                 step_coordinates: coordinates,
                 expected_result: step.expectedResult || "",
                 actual_result: "",
-                requires_otp: stepRequiresOtp,
-                otp_type: stepRequiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
+                ...(stepRequiresOtp && {
+                    requires_otp: true,
+                    otp_type: otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone'
+                }),
                 ...(step.choice?.toLowerCase().startsWith('wait') && step.waitData ? { wait_config: step.waitData } : {})
             };
         });
@@ -471,6 +473,22 @@ const handleCreateTestCase = async () => {
 
     const stepDescription = testSteps[index].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+    // ✅ NEW VALIDATION: Check if command starts with allowed commands
+    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait'];
+    if (!allowedCommands.includes(actionType)) {
+      alert(`Invalid command. Please start with one of: ${allowedCommands.join(', ')}`);
+      return;
+    }
+    
+    // ✅ NEW VALIDATION: Check if element-dependent commands have selected element
+    const elementDependentCommands = ['click', 'type', 'get', 'verify'];
+    if (elementDependentCommands.includes(actionType)) {
+      if (!testSteps[index].selectedElement) {
+        alert("Please select an element from the suggestions dropdown for this command.");
+        return;
+      }
+    }
     const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
@@ -586,6 +604,22 @@ const handleCreateTestCase = async () => {
 
     const stepDescription = testSteps[currentEditingIndex].choice;
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
+
+    // ✅ NEW VALIDATION: Check if command starts with allowed commands
+    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait'];
+    if (!allowedCommands.includes(actionType)) {
+      alert(`Invalid command. Please start with one of: ${allowedCommands.join(', ')}`);
+      return;
+    }
+    
+    // ✅ NEW VALIDATION: Check if element-dependent commands have selected element
+    const elementDependentCommands = ['click', 'type', 'get', 'verify'];
+    if (elementDependentCommands.includes(actionType)) {
+      if (!testSteps[currentEditingIndex].selectedElement) {
+        alert("Please select an element from the suggestions dropdown for this command.");
+        return;
+      }
+    }
     const defaultEmail = testData.email;
     const emailInStep = stepDescription.match(/\S+@\S+\.\S+/);
 
@@ -1034,15 +1068,15 @@ const handleCreateTestCase = async () => {
     let step = updatedSteps[index];
     let updatedStepValue = '';
   
-    const sameNameElements = commandSuggestions.filter((el, i) => 
-      commandSuggestions.indexOf(suggestion) > i && 
-      ((el.name && suggestion.name && el.name === suggestion.name) || 
-       (el.text && suggestion.text && el.text === suggestion.text))
-    );
-    const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+    // const sameNameElements = commandSuggestions.filter((el, i) => 
+    //   commandSuggestions.indexOf(suggestion) > i && 
+    //   ((el.name && suggestion.name && el.name === suggestion.name) || 
+    //    (el.text && suggestion.text && el.text === suggestion.text))
+    // );
+    // const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
   
     if (commandType === 'click') {
-      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}${position}`;
+      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}`;
     } else if (commandType === 'type') {
       const currentText = step.choice;
       const inIndex = currentText.toLowerCase().indexOf(' in ');
@@ -1536,6 +1570,13 @@ const handleOtpPlaceholderClick = () => {
     // Mark placeholder for future steps
     setOtpPlaceholderUsed(true);
     setOtpVerificationCompleted(true);
+    setRequiresOtp(false);           
+    setContactSelected(false);
+    setOtpVerificationState(prev => ({
+      ...prev,
+      contactEntered: false,
+      enteredContact: ''
+    }));
     console.log("🔥 OTP Placeholder used - Final OTP state:", {
         requires_otp: requiresOtp,
         otp_type: requiresOtp ? (otpVerificationState.enteredContact?.includes('@') ? 'email' : 'phone') : null,
@@ -1545,6 +1586,18 @@ const handleOtpPlaceholderClick = () => {
     });
   }
 };
+
+const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
+  const aY = a.click_point ? a.click_point[1] : Infinity;
+  const bY = b.click_point ? b.click_point[1] : Infinity;
+
+  if (aY !== bY) return aY - bY;
+
+  const aX = a.click_point ? a.click_point[0] : Infinity;
+  const bX = b.click_point ? b.click_point[0] : Infinity;
+
+  return aX - bX;
+});
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -1768,13 +1821,21 @@ const handleOtpPlaceholderClick = () => {
                             </div>
                           )}
 
-                          {commandSuggestions.map((element, idx) => {
-                            const sameNameElements = commandSuggestions.filter((el, i) => 
-                              i < idx && 
-                              ((el.name && element.name && el.name === element.name) || 
-                              (el.text && element.text && el.text === element.text))
-                            );
-                            const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
+                          {sortedSuggestions.map((element, idx) => {
+                            const sameNameElements = sortedSuggestions.filter((el) => 
+                            (el.name && element.name && el.name === element.name) || 
+                            (el.text && element.text && el.text === element.text)
+                          );
+
+                          const occurrencesBefore = sortedSuggestions
+                            .slice(0, idx)
+                            .filter((el) => 
+                              (el.name && element.name && el.name === element.name) ||
+                              (el.text && element.text && el.text === element.text)
+                            ).length;
+
+                          const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
+
                             
                             // Fix for coordinates display
                             let coordinatesDisplay = "";
@@ -1801,10 +1862,11 @@ const handleOtpPlaceholderClick = () => {
                                   commandType === 'type' ? 'bg-green-100' : 
                                   commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
                                 }`}></div>
+
                                 <div className="flex flex-col">
                                   <span className="font-medium">
                                     {element.name || element.text || element.id || 'Element ' + (idx + 1)}
-                                    {position}
+                                    {positionLabel}
                                   </span>
                                   
                                   <div className="flex items-center gap-2 text-xs">
@@ -1814,11 +1876,11 @@ const handleOtpPlaceholderClick = () => {
                                       </span>
                                     )}
                                     
-                                    {element.text && (
+                                    {/* {element.text && (
                                       <span className="text-gray-500 truncate max-w-xs">
                                         "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
                                       </span>
-                                    )}
+                                    )} */}
                                   </div>
                                 </div>
                               </div>
