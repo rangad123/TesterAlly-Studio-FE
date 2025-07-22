@@ -3478,7 +3478,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
   const currentIndex = otpReplacementModal.stepIndex;
   console.log("🚀 Executing OTP step at index:", currentIndex);
 
-  const validationResult = validateStepAgainstResponse(updatedStep, currentPageData.omniparser_data || currentPageData.coordinates);
+  const validationResult = validateStepAgainstResponse(updatedStep, otpReplacementModal.currentPageData.omniparser_data || otpReplacementModal.currentPageData.coordinates);
 
   if (!validationResult.isValid) {
     console.error("❌ OTP step validation failed - element not found on current page");
@@ -3487,7 +3487,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
     openEditModal(
       updatedStep,
       "OTP input field not found on current page",
-      currentPageData,
+      otpReplacementModal.currentPageData,
       currentIndex
     );
     return;
@@ -4022,7 +4022,7 @@ const handleSuggestionClick = (suggestion) => {
 
 const calculateDirectionalOffset = (coordinates, direction) => {
   const [x, y] = coordinates;
-  const offset = 60; 
+  const offset = 40; 
   
   switch (direction.toLowerCase()) {
     case 'above':
