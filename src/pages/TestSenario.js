@@ -11,6 +11,9 @@ function TestSenario() {
   const [editingStepText, setEditingStepText] = useState('');
   const [needsOtpVerification, setNeedsOtpVerification] = useState(false);
 
+  const [complexityLevel, setComplexityLevel] = useState("simple");
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [selectedOtpStep, setSelectedOtpStep] = useState('none');
@@ -110,6 +113,61 @@ function TestSenario() {
       alert('Failed to extract steps. Please try again.');
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const generatePromptFromAssistant = async () => {
+    setIsGeneratingPrompt(true);
+
+    // Log current request config
+    const requestBody = {
+      project_type: projectData?.project_type,
+      platform: projectData?.platform,
+      category: "interaction",
+      complexity: complexityLevel,
+    };
+
+    console.log("🧠 Sending prompt generation request:", requestBody);
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/generate-prompt/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to generate prompt");
+      }
+
+      const data = await response.json();
+      console.log("✅ Received generated prompt:", data);
+
+      if (data.prompt) {
+        setPromptText(data.prompt);
+      } else {
+        alert("No prompt received from assistant.");
+      }
+
+      // Update complexity level for next click
+      setComplexityLevel((prev) => {
+        if (prev === "simple") return "medium";
+        if (prev === "medium") return "complex";
+        return "simple";
+      });
+    } catch (error) {
+      console.error(
+        `❌ Error generating ${complexityLevel} prompt:`,
+        error.message
+      );
+      alert(`Error generating ${complexityLevel} prompt: ${error.message}`);
+    } finally {
+      setIsGeneratingPrompt(false);
     }
   };
 
@@ -538,6 +596,54 @@ const handleOtpCheckboxChange = (e) => {
                     className="w-full h-40 md:h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent resize-none text-sm md:text-base"
                     disabled={isExtracting}
                 />
+                <div className="flex justify-end mt-2">
+                    <button
+                      onClick={generatePromptFromAssistant}
+                      disabled={isGeneratingPrompt}
+                      className="text-blue-600 text-sm flex items-center hover:underline disabled:opacity-50"
+                    >
+                      {isGeneratingPrompt ? (
+                        <svg
+                          className="animate-spin w-4 h-4 mr-2 text-blue-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4H8v4H4z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4 mr-2 text-blue-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          />
+                        </svg>
+                      )}
+                      {isGeneratingPrompt
+                        ? "Generating..."
+                        : "Prompt Assistant"}
+                    </button>
+                  </div>
                 </div>
             </div>
 
