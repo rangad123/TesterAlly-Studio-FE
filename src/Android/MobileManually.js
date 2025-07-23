@@ -1037,7 +1037,12 @@ const convertOmniaParserElements = (elements) => {
         });
 
     if (words.length > 1) {
-        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+        let searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+
+        const directionKeywords = ['left', 'right', 'above', 'below', 'bottom'];
+        directionKeywords.forEach(dir => {
+            searchTerm = searchTerm.replace(dir, '').trim();
+        });
         if (searchTerm) {
         filtered = filtered.filter(el =>
             (el.name && el.name.toLowerCase().includes(searchTerm)) ||
@@ -1070,7 +1075,12 @@ const convertOmniaParserElements = (elements) => {
   
       if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
         const inIndex = inputValue.toLowerCase().indexOf(" in ");
-        const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+        let afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+    
+        const directionKeywords = ['left', 'right', 'above', 'below', 'bottom'];
+        directionKeywords.forEach(dir => {
+            afterInText = afterInText.replace(dir, '').trim();
+        });
   
         if (afterInText) {
           filtered = filtered.filter(el => 
@@ -1181,6 +1191,10 @@ const convertOmniaParserElements = (elements) => {
   const handleSuggestionClick = (suggestion, index) => {
     const updatedSteps = [...testSteps];
     let step = updatedSteps[index];
+    if (!step) {
+      console.error('Step not found at index:', index);
+      return;
+    }
     let updatedStepValue = '';
   
     // const sameNameElements = commandSuggestions.filter((el) => 
@@ -1196,27 +1210,66 @@ const convertOmniaParserElements = (elements) => {
     //   ).length;
 
     // const position = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
-  
+
+    const directionKeywords = ['left', 'right', 'above', 'below', 'bottom'];
+    const currentInput = step.choice.toLowerCase();
+    const directionWord = directionKeywords.find(dir => currentInput.includes(` ${dir} `));
+      
     if (commandType === 'open' && suggestion.type === 'app') {
       updatedStepValue = `open ${suggestion.name}`; 
       step.step_description = `open ${suggestion.package}`; 
       step.packageName = suggestion.package; 
 
     } else if (commandType === 'click') {
-      updatedStepValue = `click ${suggestion.name || suggestion.text || 'element'}`;
+      const baseName = suggestion.name || suggestion.text || 'element';
+      if (directionWord) {
+        updatedStepValue = `click ${directionWord} ${baseName}`;
+        
+        // Apply directional offset
+        const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+        const offsetCoords = calculateDirectionalOffset(originalCoords, directionWord);
+        
+        suggestion = {
+            ...suggestion,
+            click_point: offsetCoords,
+            coordinates: offsetCoords,
+            hasDirectionalOffset: true,
+            originalCoordinates: originalCoords,
+            direction: directionWord
+        };
+      } else {
+        updatedStepValue = `click ${baseName}`;
+      }
     } else if (commandType === 'type') {
       const currentText = step.choice;
       const inIndex = currentText.toLowerCase().indexOf(' in ');
+      let textToType = '';
       if (inIndex !== -1) {
-        const textToType = currentText.substring(5, inIndex).trim();
-        if (textToType) {
-          updatedStepValue = `type ${textToType} in ${suggestion.name || suggestion.text || 'element'}`;
-        } else {
-          updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
-        }
+        textToType = currentText.substring(5, inIndex).trim();
+      }
+      const baseName = suggestion.name || suggestion.text || 'element';
+    
+      if (directionWord) {
+        updatedStepValue = `type ${textToType} in ${directionWord} ${baseName}`;
+        
+        const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+        const offsetCoords = calculateDirectionalOffset(originalCoords, directionWord);
+        
+        suggestion = {
+            ...suggestion,
+            click_point: offsetCoords,
+            coordinates: offsetCoords,
+            hasDirectionalOffset: true,
+            originalCoordinates: originalCoords,
+            direction: directionWord
+        };
       } else {
-        updatedStepValue = `type  in ${suggestion.name || suggestion.text || 'element'}`;
-      } 
+        if (textToType) {
+            updatedStepValue = `type ${textToType} in ${baseName}`;
+        } else {
+            updatedStepValue = `type  in ${baseName}`;
+        }
+      }
     } else if (commandType === 'verify') {
       updatedStepValue = `verify ${suggestion.text || suggestion.name || 'element'}`;
     } else if (commandType === 'get') {
@@ -1318,6 +1371,25 @@ const convertOmniaParserElements = (elements) => {
       }
     }, 10);
   };  
+
+  const calculateDirectionalOffset = (coordinates, direction) => {
+    const [x, y] = coordinates;
+    const offset = 40; 
+    
+    switch (direction.toLowerCase()) {
+      case 'above':
+        return [x, y - offset];
+      case 'below':
+      case 'bottom':
+        return [x, y + offset];
+      case 'left':
+        return [x - offset, y];
+      case 'right':
+        return [x + offset, y];
+      default:
+        return [x, y];
+    }
+  };
 
   const toggleScreenshotMinimize = (stepId) => {
     setMinimizedScreenshots(prev => ({
@@ -2094,7 +2166,7 @@ const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
                             return (
                               <div 
                                 key={idx}
-                                onClick={() => handleSuggestionClick(element, idx)}
+                                onClick={() => handleSuggestionClick(element, index)}
                                 className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
                               >
                                 <div className={`w-4 h-4 rounded-full ${

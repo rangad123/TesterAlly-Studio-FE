@@ -925,7 +925,13 @@ const handleCreateTestCase = async () => {
         });
         
       if (words.length > 1) {
-        const searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+        let searchTerm = inputValue.substring(command.length).trim().toLowerCase();
+
+        const directionKeywords = ['left', 'right', 'above', 'below', 'bottom'];
+        directionKeywords.forEach(dir => {
+          searchTerm = searchTerm.replace(dir, '').trim();
+        });
+
         if (searchTerm) {
           filtered = filtered.filter(el => 
             (el.name && el.name.toLowerCase().includes(searchTerm)) || 
@@ -957,7 +963,12 @@ const handleCreateTestCase = async () => {
   
       if (words.length > 1 && inputValue.toLowerCase().includes(" in ")) {
         const inIndex = inputValue.toLowerCase().indexOf(" in ");
-        const afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+        let afterInText = inputValue.substring(inIndex + 4).trim().toLowerCase();
+
+        const directionKeywords = ['left', 'right', 'above', 'below', 'bottom'];
+        directionKeywords.forEach(dir => {
+          afterInText = afterInText.replace(dir, '').trim();
+        });
   
         if (afterInText) {
           filtered = filtered.filter(el => 

@@ -350,28 +350,50 @@ const saveTestDataEmail = async (email, password) => {
       }
 
         if (firstWord === 'wait') {
-            setShowSuggestions(false);
-            return;
+          setShowSuggestions(false);
+          return;
         }
         
         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-            setSuggestions([]);
-            setShowSuggestions(false);
-            return;
+          setSuggestions([]);
+          setShowSuggestions(false);
+          return;
         }
         
         let searchTerm = '';
+        // eslint-disable-next-line no-unused-vars
+        let direction = null;
         
         // Extract search term based on command type
         if (firstWord === 'click' && words.length > 1) {
-            // For click commands, everything after "click" is the search term
+          const directions = ['left', 'right', 'above', 'below', 'bottom'];
+          const directionIndex = words.findIndex(word => directions.includes(word));
+          
+          if (directionIndex !== -1 && directionIndex === 1) {
+            // Format: "click left login" or "click above submit button"
+            direction = words[1];
+            searchTerm = words.slice(2).join(' ').toLowerCase();
+          } else {
+            // Normal click: "click login"
             searchTerm = words.slice(1).join(' ').toLowerCase();
+          }
         } else if (firstWord === 'type') {
-            // For type commands, extract what comes after "in "
-            const inIndex = inputText.indexOf(' in ');
-            if (inIndex !== -1) {
-                searchTerm = inputText.substring(inIndex + 4).trim();
+          // For type commands, extract what comes after "in "
+          const inIndex = inputText.indexOf(' in ');
+          if (inIndex !== -1) {
+            const afterIn = inputText.substring(inIndex + 4).trim();
+            const afterInWords = afterIn.split(' ');
+            
+            const directions = ['left', 'right', 'above', 'below', 'bottom'];
+            if (directions.includes(afterInWords[0])) {
+              // Format: "type password in right username"
+              direction = afterInWords[0];
+              searchTerm = afterInWords.slice(1).join(' ');
+            } else {
+              // Normal type: "type password in username"
+              searchTerm = afterIn;
             }
+          }
         }else if (firstWord === 'verify' && words.length > 1) {
           // For verify commands, everything after "verify" is the search term
           searchTerm = words.slice(1).join(' ').toLowerCase();
@@ -389,12 +411,11 @@ const saveTestDataEmail = async (email, password) => {
             searchTerm,
             firstWord,
             { 
-                previouslySelectedElements, 
-                lastClickCoordinates 
+              previouslySelectedElements, 
+              lastClickCoordinates,
+              direction
             }
         );
-
-        
         
         setSuggestions(suggestedElements);
         console.log("Suggestions set:", suggestedElements);
@@ -1520,10 +1541,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   };
 
   const handleSuggestionClick = (suggestion) => {
-    // Flag to indicate a suggestion was just selected
-    // This will help prevent the useEffect from reopening the dropdown
+    const directions = ['left', 'right', 'above', 'below', 'bottom'];
+
     const handleSelection = () => {
-      // Store the selected element ID in previouslySelectedElements
       setPreviouslySelectedElements(prev => ({
         ...prev,
         [suggestion.id]: {
@@ -1532,100 +1552,144 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         }
       }));
     };
-    
+
     let updatedStep = '';
-    
+    let modifiedSuggestion = { ...suggestion };
+
+    const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+
+    // Handle CLICK
     if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-    } else if (commandType === 'type') {
-      // Get the text the user has already typed (if any)
+      const words = newStep.trim().toLowerCase().split(' ');
+      const directionIndex = words.findIndex(word => directions.includes(word));
+
+      if (directionIndex !== -1 && directionIndex === 1) {
+        const direction = words[1];
+        updatedStep = `click ${direction} ${suggestion.displayName || suggestion.name}`;
+
+        const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+
+        modifiedSuggestion = {
+          ...modifiedSuggestion,
+          click_point: offsetCoords,
+          coordinates: offsetCoords,
+          hasDirectionalOffset: true,
+          originalCoordinates: originalCoords,
+          direction: direction
+        };
+      } else {
+        updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+      }
+    }
+
+    // Handle TYPE
+    else if (commandType === 'type') {
       let userText = '';
-      
-      if (newStep.toLowerCase().startsWith('type ')) {
-        const inIndex = newStep.toLowerCase().indexOf(' in ');
+      const lowerStep = newStep.toLowerCase();
+      const inIndex = lowerStep.indexOf(' in ');
+
+      if (lowerStep.startsWith('type ')) {
         if (inIndex !== -1) {
-          // If " in " exists, extract text between "type " and " in "
           userText = newStep.substring(5, inIndex).trim();
         } else {
-          // If " in " doesn't exist, extract all text after "type "
           userText = newStep.substring(5).trim();
         }
       }
-      
-      // Use the user's text if available, otherwise use placeholder
-      if (userText) {
-        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
+
+      const afterIn = newStep.substring(inIndex + 4).trim();
+      const afterInWords = afterIn.split(' ');
+      const direction = afterInWords[0];
+
+      if (inIndex !== -1 && directions.includes(direction)) {
+        updatedStep = `type ${userText || ''} in ${direction} ${suggestion.displayName || suggestion.name}`.trim();
+
+        const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+
+        modifiedSuggestion = {
+          ...modifiedSuggestion,
+          click_point: offsetCoords,
+          coordinates: offsetCoords,
+          hasDirectionalOffset: true,
+          originalCoordinates: originalCoords,
+          direction: direction
+        };
       } else {
-        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+        updatedStep = `type ${userText || ''} in ${suggestion.displayName || suggestion.name}`.trim();
       }
-    } else if (commandType === 'verify') {
+    }
+
+    // Handle VERIFY
+    else if (commandType === 'verify') {
       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
-      // Close suggestions dropdown
+
       setShowSuggestions(false);
       handleSelection();
-      
-      // Set verification modal data
-      const textToVerify = suggestion.displayName || suggestion.name;
-      const matchingElements = [suggestion]; 
-      
-      // Need to update these states together with minimal delay to avoid re-renders
       setNewStep(updatedStep);
       setSelectedElement(suggestion);
-      
-      // Show verification modal
+
       setVerificationModal({
         isOpen: true,
-        textToVerify,
-        matchingElements,
+        textToVerify: suggestion.displayName || suggestion.name,
+        matchingElements: [suggestion],
         selectedElement: suggestion
       });
-      
-      return;  
-    } else if (commandType === 'get') {
-      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
-      
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Update step in one batch to minimize effect triggers
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
+
       return;
     }
-    
-    // Immediately close suggestions dropdown and disable its reopening
+
+    // Handle GET
+    else if (commandType === 'get') {
+      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+
+      setShowSuggestions(false);
+      handleSelection();
+      setNewStep(updatedStep);
+      setSelectedElement(suggestion);
+      return;
+    }
+
+    // Finalize for CLICK and TYPE
     setShowSuggestions(false);
     handleSelection();
-    
-    // Batching state updates to minimize effect re-runs
     setNewStep(updatedStep);
-    setSelectedElement(suggestion);
-    
-    // Focus input after state updates
+    setSelectedElement(modifiedSuggestion); 
+
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
         if (commandType === 'type' && updatedStep.includes(' in ')) {
-          // Position cursor after "type " but before " in " for user to enter text
           const typeIndex = updatedStep.indexOf('type ') + 5;
-          
-          // If there's no text between "type " and " in ", set cursor right after "type "
-          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+          const inIndex = updatedStep.indexOf(' in ');
+
+          if (updatedStep.substring(typeIndex, inIndex).trim() === '') {
             inputRef.current.setSelectionRange(typeIndex, typeIndex);
           } else {
-            // If there's already text, position cursor at the end of the command
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
+            inputRef.current.setSelectionRange(updatedStep.length, updatedStep.length);
           }
         } else {
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
+          inputRef.current.setSelectionRange(updatedStep.length, updatedStep.length);
         }
       }
     }, 0);
+  };
+
+  const calculateDirectionalOffset = (coordinates, direction) => {
+    const [x, y] = coordinates;
+    const offset = 60; 
+    
+    switch (direction.toLowerCase()) {
+      case 'above':
+        return [x, y - offset];
+      case 'below':
+      case 'bottom':
+        return [x, y + offset];
+      case 'left':
+        return [x - offset, y];
+      case 'right':
+        return [x + offset, y];
+      default:
+        return [x, y];
+    }
   };
 
   const handleVerificationConfirm = () => {
@@ -1983,6 +2047,10 @@ const handleScrollOptionClick = (option) => {
 
 const SuggestionsDropdown = () => {
 
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  const [showPositionControls, setShowPositionControls] = useState(false);
+
   const filteredScrollOptions = scrollOptions
     .filter(option => option.toLowerCase().includes(newStep.toLowerCase()))
     .concat(scrollOptions.filter(option => !option.toLowerCase().includes(newStep.toLowerCase())));
@@ -2043,6 +2111,10 @@ const SuggestionsDropdown = () => {
     );
   }
 
+  // Position adjustment increments (in pixels)
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+
   if (!showSuggestions) return null;
 
   const shouldShowNoDataMessage =
@@ -2071,6 +2143,211 @@ const SuggestionsDropdown = () => {
       </div>
     );
   }
+
+  const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+    if (!selectedSuggestion) return;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.click_point;
+    let newPos = [...currentPos];
+    
+    switch (direction) {
+      case 'up':
+        newPos[1] -= step;
+        break;
+      case 'down':
+        newPos[1] += step;
+        break;
+      case 'left':
+        newPos[0] -= step;
+        break;
+      case 'right':
+        newPos[0] += step;
+        break;
+      default:
+        return;
+    }
+    
+    // Ensure position doesn't go negative
+    newPos[0] = Math.max(0, newPos[0]);
+    newPos[1] = Math.max(0, newPos[1]);
+    
+    setAdjustedPosition(newPos);
+  };
+
+  const handleSuggestionSelect = (suggestion) => {
+    setSelectedSuggestion(suggestion);
+    setAdjustedPosition(null);
+    setShowPositionControls(true);
+  };
+
+  const handleConfirmSelection = () => {
+    if (selectedSuggestion) {
+      const finalPosition = adjustedPosition || selectedSuggestion.click_point;
+      const updatedSuggestion = {
+        ...selectedSuggestion,
+        click_point: finalPosition
+      };
+      handleSuggestionClick(updatedSuggestion);
+      setShowPositionControls(false);
+      setSelectedSuggestion(null);
+      setAdjustedPosition(null);
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const resetPosition = () => {
+    setAdjustedPosition(null);
+  };
+
+  const PositionControls = () => {
+    if (!selectedSuggestion) return null;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.click_point;
+    const originalPos = selectedSuggestion.click_point;
+    const hasAdjustment = adjustedPosition && 
+      (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+        <div className="flex items-center justify-between mb-3">
+          <h5 className="font-medium text-blue-800 flex items-center">
+            🎯 Fine-tune Position
+          </h5>
+          <div className="flex gap-2">
+            {hasAdjustment && (
+              <button
+                onClick={resetPosition}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
+              >
+                Reset
+              </button>
+            )}
+            <button
+              onClick={handleCancelSelection}
+              className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+        
+        <div className="text-sm text-gray-700 mb-3">
+          <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
+          <div className="text-xs text-gray-600">
+            Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
+            {hasAdjustment && (
+              <span className="ml-2 text-blue-600">
+                (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Directional Controls */}
+        <div className="flex flex-col items-center gap-2 mb-4">
+          {/* Up Arrow */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+              title="Move up (fine)"
+            >
+              ⬆
+            </button>
+            <button
+              onClick={() => handlePositionAdjustment('up')}
+              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+              title="Move up"
+            >
+              ⬆
+            </button>
+          </div>
+          
+          {/* Left and Right Arrows */}
+          <div className="flex gap-2 items-center">
+            <div className="flex gap-1">
+              <button
+                onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                title="Move left (fine)"
+              >
+                ⬅
+              </button>
+              <button
+                onClick={() => handlePositionAdjustment('left')}
+                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                title="Move left"
+              >
+                ⬅
+              </button>
+            </div>
+            
+            <div className="mx-2 text-center">
+              <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                🎯
+              </div>
+              <div className="text-xs text-gray-600 mt-1">Target</div>
+            </div>
+            
+            <div className="flex gap-1">
+              <button
+                onClick={() => handlePositionAdjustment('right')}
+                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                title="Move right"
+              >
+                ➡
+              </button>
+              <button
+                onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                title="Move right (fine)"
+              >
+                ➡
+              </button>
+            </div>
+          </div>
+          
+          {/* Down Arrow */}
+          <div className="flex gap-1">
+            <button
+              onClick={() => handlePositionAdjustment('down')}
+              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+              title="Move down"
+            >
+              ⬇
+            </button>
+            <button
+              onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+              title="Move down (fine)"
+            >
+              ⬇
+            </button>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
+          <div className="font-medium mb-1">Controls:</div>
+          <div>• Bold arrows: Move {POSITION_STEP}px</div>
+          <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
+        </div>
+
+        {/* Confirm Button */}
+        <button
+          onClick={handleConfirmSelection}
+          className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+        >
+          ✓ Use This Position
+        </button>
+      </div>
+    );
+  };
   
   return (
     <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
@@ -2214,6 +2491,9 @@ const SuggestionsDropdown = () => {
           {lastClickCoordinates && " (ordered by proximity to last click)"}
         </p>
       </div>
+      {/* Position Controls */}
+      {showPositionControls && <PositionControls />}
+
       <ul className="divide-y divide-gray-100">
         {suggestions.map((suggestion, index) => (
           <li 
@@ -2231,7 +2511,7 @@ const SuggestionsDropdown = () => {
             onClick={() => handleSuggestionClick(suggestion)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                handleSuggestionClick(suggestion);
+                handleSuggestionSelect(suggestion);
               } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
                 e.preventDefault();
                 document.querySelectorAll('.suggestion-item')[index + 1].focus();
@@ -2263,6 +2543,14 @@ const SuggestionsDropdown = () => {
                 )}
               </span>
               <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSuggestionSelect(suggestion);
+                  }}
+                  >
+                    🎯 Adjust
+                </span>
                 <span className={`text-xs px-2 py-1 rounded-full ${
                   suggestion.type === 'button' || suggestion.tag === 'button' 
                       ? 'bg-blue-100 text-blue-700' 

@@ -1504,6 +1504,15 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               
             } else if (otpFetchResult?.status === 'waiting') {
               console.log(`⏳ OTP still waiting for ${nextStep.otpType}`);
+              setTestSteps(prev => prev.map(step =>
+                step.id === nextStep.id ? {
+                  ...step,
+                  otpWaiting: true,
+                  otpPending: false,
+                  otpReceived: false,
+                  otpType: nextStep.otpType
+                } : step
+              ));
               fetchedOtp = ''; 
             } else {
               console.log(`❌ OTP fetch failed:`, otpFetchResult);
