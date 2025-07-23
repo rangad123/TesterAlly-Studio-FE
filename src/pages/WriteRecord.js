@@ -331,17 +331,38 @@ const WriteRecord = () => {
         }
         
         let searchTerm = '';
+        let direction = null;
         
         // Extract search term based on command type
         if (firstWord === 'click' && words.length > 1) {
-            // For click commands, everything after "click" is the search term
+          const directions = ['left', 'right', 'above', 'below', 'bottom'];
+          const directionIndex = words.findIndex(word => directions.includes(word));
+          
+          if (directionIndex !== -1 && directionIndex === 1) {
+            // Format: "click left login" or "click above submit button"
+            direction = words[1];
+            searchTerm = words.slice(2).join(' ').toLowerCase();
+          } else {
+            // Normal click: "click login"
             searchTerm = words.slice(1).join(' ').toLowerCase();
+          }
         } else if (firstWord === 'type') {
-            // For type commands, extract what comes after "in "
-            const inIndex = inputText.indexOf(' in ');
-            if (inIndex !== -1) {
-                searchTerm = inputText.substring(inIndex + 4).trim();
+          // For type commands, extract what comes after "in "
+          const inIndex = inputText.indexOf(' in ');
+          if (inIndex !== -1) {
+            const afterIn = inputText.substring(inIndex + 4).trim();
+            const afterInWords = afterIn.split(' ');
+            
+            const directions = ['left', 'right', 'above', 'below', 'bottom'];
+            if (directions.includes(afterInWords[0])) {
+              // Format: "type password in right username"
+              direction = afterInWords[0];
+              searchTerm = afterInWords.slice(1).join(' ');
+            } else {
+              // Normal type: "type password in username"
+              searchTerm = afterIn;
             }
+          }
         }else if (firstWord === 'verify' && words.length > 1) {
           // For verify commands, everything after "verify" is the search term
           searchTerm = words.slice(1).join(' ').toLowerCase();
@@ -355,17 +376,16 @@ const WriteRecord = () => {
         
         // Use our enhanced algorithm to get suggestions with proper state
         const suggestedElements = getSuggestedElements(
-            elementData.elements,
-            searchTerm,
-            firstWord,
-            { 
-                previouslySelectedElements, 
-                lastClickCoordinates 
-            }
-        );
-
-        
-        
+          elementData.elements,
+          searchTerm,
+          firstWord,
+          { 
+            previouslySelectedElements, 
+            lastClickCoordinates,
+            direction 
+          }
+        );    
+  
         setSuggestions(suggestedElements);
         setShowSuggestions(suggestedElements.length > 0);
         
@@ -1393,10 +1413,9 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
 };
 
   const handleSuggestionClick = (suggestion) => {
-    // Flag to indicate a suggestion was just selected
-    // This will help prevent the useEffect from reopening the dropdown
+    const directions = ['left', 'right', 'above', 'below', 'bottom'];
+
     const handleSelection = () => {
-      // Store the selected element ID in previouslySelectedElements
       setPreviouslySelectedElements(prev => ({
         ...prev,
         [suggestion.id]: {
@@ -1405,100 +1424,144 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
         }
       }));
     };
-    
+
     let updatedStep = '';
-    
+    let modifiedSuggestion = { ...suggestion };
+
+    const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+
+    // Handle CLICK
     if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-    } else if (commandType === 'type') {
-      // Get the text the user has already typed (if any)
+      const words = newStep.trim().toLowerCase().split(' ');
+      const directionIndex = words.findIndex(word => directions.includes(word));
+
+      if (directionIndex !== -1 && directionIndex === 1) {
+        const direction = words[1];
+        updatedStep = `click ${direction} ${suggestion.displayName || suggestion.name}`;
+
+        const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+
+        modifiedSuggestion = {
+          ...modifiedSuggestion,
+          click_point: offsetCoords,
+          coordinates: offsetCoords,
+          hasDirectionalOffset: true,
+          originalCoordinates: originalCoords,
+          direction: direction
+        };
+      } else {
+        updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+      }
+    }
+
+    // Handle TYPE
+    else if (commandType === 'type') {
       let userText = '';
-      
-      if (newStep.toLowerCase().startsWith('type ')) {
-        const inIndex = newStep.toLowerCase().indexOf(' in ');
+      const lowerStep = newStep.toLowerCase();
+      const inIndex = lowerStep.indexOf(' in ');
+
+      if (lowerStep.startsWith('type ')) {
         if (inIndex !== -1) {
-          // If " in " exists, extract text between "type " and " in "
           userText = newStep.substring(5, inIndex).trim();
         } else {
-          // If " in " doesn't exist, extract all text after "type "
           userText = newStep.substring(5).trim();
         }
       }
-      
-      // Use the user's text if available, otherwise use placeholder
-      if (userText) {
-        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
+
+      const afterIn = newStep.substring(inIndex + 4).trim();
+      const afterInWords = afterIn.split(' ');
+      const direction = afterInWords[0];
+
+      if (inIndex !== -1 && directions.includes(direction)) {
+        updatedStep = `type ${userText || ''} in ${direction} ${suggestion.displayName || suggestion.name}`.trim();
+
+        const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+
+        modifiedSuggestion = {
+          ...modifiedSuggestion,
+          click_point: offsetCoords,
+          coordinates: offsetCoords,
+          hasDirectionalOffset: true,
+          originalCoordinates: originalCoords,
+          direction: direction
+        };
       } else {
-        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+        updatedStep = `type ${userText || ''} in ${suggestion.displayName || suggestion.name}`.trim();
       }
-    } else if (commandType === 'verify') {
+    }
+
+    // Handle VERIFY
+    else if (commandType === 'verify') {
       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
-      // Close suggestions dropdown
+
       setShowSuggestions(false);
       handleSelection();
-      
-      // Set verification modal data
-      const textToVerify = suggestion.displayName || suggestion.name;
-      const matchingElements = [suggestion]; 
-      
-      // Need to update these states together with minimal delay to avoid re-renders
       setNewStep(updatedStep);
       setSelectedElement(suggestion);
-      
-      // Show verification modal
+
       setVerificationModal({
         isOpen: true,
-        textToVerify,
-        matchingElements,
+        textToVerify: suggestion.displayName || suggestion.name,
+        matchingElements: [suggestion],
         selectedElement: suggestion
       });
-      
-      return;  
-    } else if (commandType === 'get') {
-      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
-      
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Update step in one batch to minimize effect triggers
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
+
       return;
     }
-    
-    // Immediately close suggestions dropdown and disable its reopening
+
+    // Handle GET
+    else if (commandType === 'get') {
+      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+
+      setShowSuggestions(false);
+      handleSelection();
+      setNewStep(updatedStep);
+      setSelectedElement(suggestion);
+      return;
+    }
+
+    // Finalize for CLICK and TYPE
     setShowSuggestions(false);
     handleSelection();
-    
-    // Batching state updates to minimize effect re-runs
     setNewStep(updatedStep);
-    setSelectedElement(suggestion);
-    
-    // Focus input after state updates
+    setSelectedElement(modifiedSuggestion); 
+
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
         if (commandType === 'type' && updatedStep.includes(' in ')) {
-          // Position cursor after "type " but before " in " for user to enter text
           const typeIndex = updatedStep.indexOf('type ') + 5;
-          
-          // If there's no text between "type " and " in ", set cursor right after "type "
-          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+          const inIndex = updatedStep.indexOf(' in ');
+
+          if (updatedStep.substring(typeIndex, inIndex).trim() === '') {
             inputRef.current.setSelectionRange(typeIndex, typeIndex);
           } else {
-            // If there's already text, position cursor at the end of the command
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
+            inputRef.current.setSelectionRange(updatedStep.length, updatedStep.length);
           }
         } else {
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
+          inputRef.current.setSelectionRange(updatedStep.length, updatedStep.length);
         }
       }
     }, 0);
+  };
+
+  const calculateDirectionalOffset = (coordinates, direction) => {
+    const [x, y] = coordinates;
+    const offset = 40; 
+    
+    switch (direction.toLowerCase()) {
+      case 'above':
+        return [x, y - offset];
+      case 'below':
+      case 'bottom':
+        return [x, y + offset];
+      case 'left':
+        return [x - offset, y];
+      case 'right':
+        return [x + offset, y];
+      default:
+        return [x, y];
+    }
   };
 
 const handleVerificationConfirm = () => {
@@ -2101,10 +2164,12 @@ const SuggestionsDropdown = () => {
           {commandType === 'click' ? (
             <>
               <span className="mr-2">🖱️</span> Click on an element:
+              <span className="ml-2 text-sm text-purple-500">(supports: left, right, above, below)</span>
             </>
           ) : commandType === 'type' ? (
             <>
               <span className="mr-2">⌨️</span> Select where to type:
+              <span className="ml-2 text-sm text-purple-500">(supports: in left/right/above/below Element)</span>
             </>
           ) : commandType === 'verify' ? (
             <>

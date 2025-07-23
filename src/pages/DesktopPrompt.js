@@ -3917,7 +3917,7 @@ const EditStepModal = ({
         { 
           previouslySelectedElements, 
           lastClickCoordinates,
-          direction // Pass direction info if needed
+          direction 
         }
       );      
       
@@ -4428,7 +4428,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                       {commandType === 'click' && (
                         <>
                           <span className="mr-2">🖱️</span> Click on an element:
-                          Click on an element:
+                    
                           {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
                           {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
                           {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
@@ -4438,7 +4438,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                       {commandType === 'type' && (
                         <>
                           <span className="mr-2">⌨️</span> Select where to type:
-                          Select where to type:
+                          
                           {editableStep.includes(' in left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
                           {editableStep.includes(' in right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
                           {editableStep.includes(' in above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
