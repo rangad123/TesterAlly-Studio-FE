@@ -30,13 +30,13 @@ const DesktopPrompt = () => {
     selectedElement: null
   });
 
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [commandType, setCommandType] = useState('');
+  // const [showSuggestions, setShowSuggestions] = useState(false);
+  // const [suggestions, setSuggestions] = useState([]);
+  // const [commandType, setCommandType] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('');
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  const [selectedElement, setSelectedElement] = useState(null);
+  // const [selectedElement, setSelectedElement] = useState(null);
   const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
   const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
   const [secondaryVerification, setSecondaryVerification] = useState({
@@ -45,11 +45,11 @@ const DesktopPrompt = () => {
   });
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   const [waitModalOpen, setWaitModalOpen] = useState(false);
-  const [stepWaitData, setStepWaitData] = useState(null);
-  const [pendingWaitStep, setPendingWaitStep] = useState(false);
+  // const [stepWaitData, setStepWaitData] = useState(null);
+  // const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
   const [requiresOtp, setRequiresOtp] = useState(false);
-  const [contactSelected, setContactSelected] = useState(false);
+  // const [contactSelected, setContactSelected] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
     isEnabled: false,
     phoneNumberEntered: false,
@@ -57,29 +57,29 @@ const DesktopPrompt = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
-  const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
-  const toggleOtpCheckbox = () => {
-    setRequiresOtp(prev => {
-      const newValue = !prev;
-      if (newValue) {
-        // When enabling OTP, show contact options but DON'T auto-select
-        setContactSelected(false); // ❌ Change this to false
-      } else {
-        // When disabling OTP, reset everything
-        setContactSelected(false);
-        setIsOtpStepConfirmed(false); // ✅ Add this line
-        setOtpVerificationState(prev => ({
-          ...prev,
-          contactEntered: false,
-          waitingForOtp: false,
-          enteredContact: '',
-          sessionTime: null,
-          otpReceiver: '' // ✅ Add this line
-        }));
-      }
-      return newValue;
-    });
-  };
+  // const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
+  // const toggleOtpCheckbox = () => {
+  //   setRequiresOtp(prev => {
+  //     const newValue = !prev;
+  //     if (newValue) {
+  //       // When enabling OTP, show contact options but DON'T auto-select
+  //       setContactSelected(false); // ❌ Change this to false
+  //     } else {
+  //       // When disabling OTP, reset everything
+  //       setContactSelected(false);
+  //       setIsOtpStepConfirmed(false); // ✅ Add this line
+  //       setOtpVerificationState(prev => ({
+  //         ...prev,
+  //         contactEntered: false,
+  //         waitingForOtp: false,
+  //         enteredContact: '',
+  //         sessionTime: null,
+  //         otpReceiver: '' // ✅ Add this line
+  //       }));
+  //     }
+  //     return newValue;
+  //   });
+  // };
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
@@ -200,7 +200,7 @@ const DesktopPrompt = () => {
   };
 
   const [showDeviceModal, setShowDeviceModal] = useState(false);
-
+  
   const [stepsProcessed, setStepsProcessed] = useState(false);
   const [generatedSteps, setGeneratedSteps] = useState([]);
   const [currentGeneratedStepIndex, setCurrentGeneratedStepIndex] = useState(0);
@@ -235,7 +235,7 @@ const DesktopPrompt = () => {
     
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
-  const inputRef = useRef(null);
+  // const inputRef = useRef(null);
 
   const user_id = localStorage.getItem("user_id");
 
@@ -328,98 +328,98 @@ useEffect(() => {
   }
 }, [location.state, stepsProcessed]);
 
-  useEffect(() => {
+//   useEffect(() => {
 
-    if (stepsProcessed) {
-      console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
-      return;
-    }
+//     if (stepsProcessed) {
+//       console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
+//       return;
+//     }
 
-    if (!newStep) {
-        setShowSuggestions(false);
-        return;
-    }
+//     if (!newStep) {
+//         setShowSuggestions(false);
+//         return;
+//     }
 
-    if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
-      return;
-    }
+//     if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
+//       return;
+//     }
 
-    const inputText = newStep.trim().toLowerCase();
-    const words = inputText.split(' ');
-    const firstWord = words[0];
+//     const inputText = newStep.trim().toLowerCase();
+//     const words = inputText.split(' ');
+//     const firstWord = words[0];
     
-    // Check if the command is a click or type command
-    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
-        setCommandType(firstWord);
+//     // Check if the command is a click or type command
+//     if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
+//         setCommandType(firstWord);
 
-        if (firstWord === 'wait') {
-            setShowSuggestions(false);
-            return;
-        }
+//         if (firstWord === 'wait') {
+//             setShowSuggestions(false);
+//             return;
+//         }
         
-        if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-            setSuggestions([]);
-            setShowSuggestions(false);
-            return;
-        }
+//         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
+//             setSuggestions([]);
+//             setShowSuggestions(false);
+//             return;
+//         }
         
-        let searchTerm = '';
+//         let searchTerm = '';
         
-        // Extract search term based on command type
-        if (firstWord === 'click' && words.length > 1) {
-            // For click commands, everything after "click" is the search term
-            searchTerm = words.slice(1).join(' ').toLowerCase();
-        } else if (firstWord === 'type') {
-            // For type commands, extract what comes after "in "
-            const inIndex = inputText.indexOf(' in ');
-            if (inIndex !== -1) {
-                searchTerm = inputText.substring(inIndex + 4).trim();
-            }
-        }else if (firstWord === 'verify' && words.length > 1) {
-          // For verify commands, everything after "verify" is the search term
-          searchTerm = words.slice(1).join(' ').toLowerCase();
-        }else if (firstWord === 'get' && words.length > 1) {
-          searchTerm = words.slice(1).join(' ').toLowerCase();
-        }
+//         // Extract search term based on command type
+//         if (firstWord === 'click' && words.length > 1) {
+//             // For click commands, everything after "click" is the search term
+//             searchTerm = words.slice(1).join(' ').toLowerCase();
+//         } else if (firstWord === 'type') {
+//             // For type commands, extract what comes after "in "
+//             const inIndex = inputText.indexOf(' in ');
+//             if (inIndex !== -1) {
+//                 searchTerm = inputText.substring(inIndex + 4).trim();
+//             }
+//         }else if (firstWord === 'verify' && words.length > 1) {
+//           // For verify commands, everything after "verify" is the search term
+//           searchTerm = words.slice(1).join(' ').toLowerCase();
+//         }else if (firstWord === 'get' && words.length > 1) {
+//           searchTerm = words.slice(1).join(' ').toLowerCase();
+//         }
         
-        // Get last click coordinates from executed steps
-        const lastClickCoordinates = testSteps.length > 0 ? 
-            getLastClickCoordinates(testSteps) : null;
+//         // Get last click coordinates from executed steps
+//         const lastClickCoordinates = testSteps.length > 0 ? 
+//             getLastClickCoordinates(testSteps) : null;
         
-        // Use our enhanced algorithm to get suggestions with proper state
-        const suggestedElements = getSuggestedElements(
-            elementData.elements,
-            searchTerm,
-            firstWord,
-            { 
-                previouslySelectedElements, 
-                lastClickCoordinates 
-            }
-        );      
+//         // Use our enhanced algorithm to get suggestions with proper state
+//         const suggestedElements = getSuggestedElements(
+//             elementData.elements,
+//             searchTerm,
+//             firstWord,
+//             { 
+//                 previouslySelectedElements, 
+//                 lastClickCoordinates 
+//             }
+//         );      
         
-        setSuggestions(suggestedElements);
-        setShowSuggestions(suggestedElements.length > 0);
+//         setSuggestions(suggestedElements);
+//         setShowSuggestions(suggestedElements.length > 0);
         
-    } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
-      setCommandType('scroll');
-      setShowSuggestions(false);
-    } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
-        setCommandType('open');
-        setShowSuggestions(false);
-    } else {
-        setCommandType('');
-        setShowSuggestions(false);
-    }
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, stepsProcessed]);
+//     } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
+//       setCommandType('scroll');
+//       setShowSuggestions(false);
+//     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
+//         setCommandType('open');
+//         setShowSuggestions(false);
+//     } else {
+//         setCommandType('');
+//         setShowSuggestions(false);
+//     }
+// }, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, stepsProcessed]);
 
-useEffect(() => {
-  if (showSuggestions && suggestions.length > 0) {
-    const dropdownElement = document.querySelector('.suggestions-dropdown');
-    if (dropdownElement) {
-      dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-}, [showSuggestions, suggestions.length]);
+// useEffect(() => {
+//   if (showSuggestions && suggestions.length > 0) {
+//     const dropdownElement = document.querySelector('.suggestions-dropdown');
+//     if (dropdownElement) {
+//       dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+//     }
+//   }
+// }, [showSuggestions, suggestions.length]);
 
 const getLastClickCoordinates = (steps) => {
   // Loop backwards through steps to find the last successful click action
@@ -435,90 +435,102 @@ const getLastClickCoordinates = (steps) => {
   return null;
 };
 
-const handlePhoneNumberClick = async (contact) => {
-  setContactSelected(true);
+// const handlePhoneNumberClick = async (contact) => {
+//   setContactSelected(true);
   
-  setNewStep(prev => {
-    const trimmed = prev.trim();
+//   setNewStep(prev => {
+//     const trimmed = prev.trim();
     
-    // If there's already a contact in the step, replace it completely
-    if (otpVerificationState.enteredContact) {
-      // Remove the old contact completely and add new one
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+//     // If there's already a contact in the step, replace it completely
+//     if (otpVerificationState.enteredContact) {
+//       // Remove the old contact completely and add new one
+//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
       
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + contact;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + contact;
-      }
-      return withoutOldContact + ' ' + contact;
-    }
+//       if (withoutOldContact.endsWith('type')) {
+//         return withoutOldContact + ' ' + contact;
+//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+//         return withoutOldContact + ' in ' + contact;
+//       }
+//       return withoutOldContact + ' ' + contact;
+//     }
     
-    // First time selecting contact
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + contact;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + contact;
-    }
-    return prev + ' ' + contact;
-  });
+//     // First time selecting contact
+//     if (trimmed.endsWith('type')) {
+//       return prev + ' ' + contact;
+//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+//       return prev + ' in ' + contact;
+//     }
+//     return prev + ' ' + contact;
+//   });
   
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+//   try {
+//     const response = await fetch('http://localhost:8000/api/get_time/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: contact,
-        timestamp: Date.now()
-      };
+//     if (response.ok) {
+//       const data = await response.json();
+//       const timeData = {
+//         ...data,
+//         phoneNumber: contact,
+//         timestamp: Date.now()
+//       };
       
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
       
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: contact,
-        enteredContactInboxId: contact,
-        sessionTime: timeData,
-        otpReceiver: 'phone'
-      }));
+//       setOtpVerificationState(prev => ({
+//         ...prev,
+//         contactEntered: true,
+//         waitingForOtp: true,
+//         enteredContact: contact,
+//         enteredContactInboxId: contact,
+//         sessionTime: timeData,
+//         otpReceiver: 'phone'
+//       }));
             
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
+//       console.log('OTP Session Time stored:', timeData);
+//     }
+//   } catch (error) {
+//     console.error('Error calling get_time API:', error);
+//   }
 
-  // setContactSelected(false);
-};
+//   // setContactSelected(false);
+// };
 
-const handleEmailClick = async () => {
-  // Check if OTP verification is enabled and validate email match
-  if (requiresOtp && testData?.email) {
-    const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
+// const handleEmailClick = async () => {
+//   // Check if OTP verification is enabled and validate email match
+//   if (requiresOtp && testData?.email) {
+//     const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
     
-    if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
-      alert(`For OTP verification, please use your configured email: ${testData.email}`);
-      return;
-    }
-  }
+//     if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
+//       alert(`For OTP verification, please use your configured email: ${testData.email}`);
+//       return;
+//     }
+//   }
   
-  // Show email confirmation modal
-  setEmailConfirmationModal({
-    isOpen: true,
-    userEmail: testData?.email || '',
-    email_app_password: testData?.email_app_password || '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false,
-  });
-};
+//   // Show email confirmation modal
+//   setEmailConfirmationModal({
+//     isOpen: true,
+//     userEmail: testData?.email || '',
+//     email_app_password: testData?.email_app_password || '',
+//     otpReceiver: '',
+//     isEditing: false,
+//     showPassword: false,
+//   });
+// };
+
+// const checkTextInElementData = (textToVerify) => {
+//   if (!elementData || !elementData.elements) return null;
+  
+//   const searchText = textToVerify.toLowerCase();
+//   const matchingElements = elementData.elements.filter(element => {
+//     // Check if element has text content that includes the search text
+//     return element.text && element.text.toLowerCase().includes(searchText);
+//   });
+  
+//   return matchingElements.length > 0 ? matchingElements : null;
+// };
 
 const handleEmailConfirmation = async () => {
   const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
@@ -567,7 +579,7 @@ const handleEmailConfirmation = async () => {
   });
   
   // Original email click logic
-  setContactSelected(true);
+  // setContactSelected(true);
   
   setNewStep(prev => {
     const trimmed = prev.trim();
@@ -625,7 +637,7 @@ const handleEmailConfirmation = async () => {
     console.error('Error calling get_time API:', error);
   }
 
-  setContactSelected(false);
+  // setContactSelected(false);
 };
 
 const updateOtpSessionTime = async (overrides = {}) => {
@@ -668,25 +680,6 @@ const copyToClipboard = (text) => {
   }).catch(err => {
     console.error('Failed to copy: ', err);
   });
-};
-
-const checkAndroidConnection = async () => {
-  try {
-    const response = await fetch('http://localhost:8000/android/connection/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log("check Android Connection:", data)
-      return data.status === "success";
-    }
-    return false;
-  } catch (error) {
-    console.error('Error checking Android connection:', error);
-    return false;
-  }
 };
 
 const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, currentOtpStep) => {
@@ -816,257 +809,265 @@ const extractKeyTerms = (searchTerm) => {
     .map(word => word.trim());
 };
 
-  const addTestStep = async () => {
-    if (!newStep.trim() || isProcessing) return;
+//   const addTestStep = async () => {
+//     if (!newStep.trim() || isProcessing) return;
     
-    setShowSuggestions(false);
+//     setShowSuggestions(false);
     
-    const words = newStep.trim().split(' ');
-    let actionType = words[0].toLowerCase();
-    const fullInput = newStep.trim().toLowerCase();
+//     const words = newStep.trim().split(' ');
+//     let actionType = words[0].toLowerCase();
+//     const fullInput = newStep.trim().toLowerCase();
 
-    if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
-      actionType = 'scrolldown';
-    } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
-      actionType = 'scrollup';
-    } 
+//     if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
+//       actionType = 'scrolldown';
+//     } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
+//       actionType = 'scrollup';
+//     } 
 
-    console.log("🔍 DEBUG - actionType after normalize:", actionType);
+//     console.log("🔍 DEBUG - actionType after normalize:", actionType);
 
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
-    if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
-      return;
-    }
+//     const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
+//     if (!allowedCommands.includes(actionType)) {
+//       alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
+//       return;
+//     }
 
     
-    // If it's a wait command but no configuration has been done yet, show the wait modal
-    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
-      setWaitModalOpen(true);
-      return;
-    }
+//     // If it's a wait command but no configuration has been done yet, show the wait modal
+//     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
+//       setWaitModalOpen(true);
+//       return;
+//     }
     
-    // Existing verification logic
-    if (actionType === 'verify') {
-      const textToVerify = words.slice(1).join(' ');
+//     // Existing verification logic
+//     if (actionType === 'verify') {
+//       const textToVerify = words.slice(1).join(' ');
       
-      // Always try to find matching elements by text, even if an element is selected
-      const matchingElements = checkTextInElementData(textToVerify);
+//       // Always try to find matching elements by text, even if an element is selected
+//       const matchingElements = checkTextInElementData(textToVerify);
       
-      if (matchingElements && matchingElements.length > 0) {
-        // Always open confirmation modal for verify commands
-        setVerificationModal({
-          isOpen: true,
-          textToVerify,
-          matchingElements,
-          selectedElement: selectedElement || matchingElements[0]
-        });
-        return;
-      } else {
-        alert("Text not found on the current page. Please try a different text or command.");
-        return;
-      }
-    }
+//       if (matchingElements && matchingElements.length > 0) {
+//         // Always open confirmation modal for verify commands
+//         setVerificationModal({
+//           isOpen: true,
+//           textToVerify,
+//           matchingElements,
+//           selectedElement: selectedElement || matchingElements[0]
+//         });
+//         return;
+//       } else {
+//         alert("Text not found on the current page. Please try a different text or command.");
+//         return;
+//       }
+//     }
     
-    // For commands that require element selection
-    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
-      alert("Please select an element from the suggestions before adding this step.");
-      return;
-    }
+//     // For commands that require element selection
+//     if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
+//       alert("Please select an element from the suggestions before adding this step.");
+//       return;
+//     }
 
-    let finalStepText = newStep;
+//     let finalStepText = newStep;
 
-    if (requiresOtp && actionType === 'type') {
-      const emailInStep = newStep.match(/\S+@\S+\.\S+/);
+//     if (requiresOtp && actionType === 'type') {
+//       const emailInStep = newStep.match(/\S+@\S+\.\S+/);
       
-      if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
-        alert(`For OTP verification, please use your configured email: ${testData.email}`);
-        return;
-      }
-    }
+//       if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
+//         alert(`For OTP verification, please use your configured email: ${testData.email}`);
+//         return;
+//       }
+//     }
   
-    // Call get_time before executing any step if phone number is entered
-    if (otpVerificationState.contactEntered) {
-      await updateOtpSessionTime();
-    }
+//     // Call get_time before executing any step if phone number is entered
+//     if (otpVerificationState.contactEntered) {
+//       await updateOtpSessionTime();
+//     }
     
-    let isOtpStep = false;
-    let isPhoneNumberStep = false;
-    let isEmailStep = false;
+//     let isOtpStep = false;
+//     let isPhoneNumberStep = false;
+//     let isEmailStep = false;
 
-    if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-      // Check if user selected OTP receiver in email modal (only available in email flow)
-      if (otpVerificationState.otpReceiver) {
-        // Email flow - use user's selection from modal
-        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
-        isEmailStep = otpVerificationState.otpReceiver === 'email';
-      } else {
-        // Phone number flow - use contact type detection
-        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-        isPhoneNumberStep = !isEmail;
-        isEmailStep = isEmail;
-      }
-    }
+//     if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
+//       // Check if user selected OTP receiver in email modal (only available in email flow)
+//       if (otpVerificationState.otpReceiver) {
+//         // Email flow - use user's selection from modal
+//         isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
+//         isEmailStep = otpVerificationState.otpReceiver === 'email';
+//       } else {
+//         // Phone number flow - use contact type detection
+//         const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
+//         isPhoneNumberStep = !isEmail;
+//         isEmailStep = isEmail;
+//       }
+//     }
 
-    // Check Android connection if OTP verification is enabled for phone numbers
-    if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
-      console.log('🔍 Checking Android device connection before executing step...');
-      const isConnected = await checkAndroidConnection();
+//     // Check Android connection if OTP verification is enabled for phone numbers
+//     if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
+//       console.log('🔍 Checking Android device connection before executing step...');
+//       const isConnected = await checkAndroidConnection();
       
-      if (!isConnected) {
-        console.log('❌ Android device not connected');
-        showDeviceConnectionModal();
-        return; 
-      }
+//       if (!isConnected) {
+//         console.log('❌ Android device not connected');
+//         showDeviceConnectionModal();
+//         return; 
+//       }
       
-      console.log('✅ Android device connected, proceeding with step execution');
-    }
+//       console.log('✅ Android device connected, proceeding with step execution');
+//     }
 
-    console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
-    console.log("📞 Is phone number step?", isPhoneNumberStep);
+//     console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
+//     console.log("📞 Is phone number step?", isPhoneNumberStep);
 
-    // if (otpVerificationState.waitingForOtp && actionType === 'type') {
-    //   // Check if user is entering OTP (4-8 digits)
-    //   const match = newStep.match(/\b\d{4,8}\b/);
-    //   if (match) {
-    //     isOtpStep = true;
-    //     finalStepText = newStep;
-    //     console.log('Detected OTP input:', match[0]);
-    //   }
-    // }
+//     // if (otpVerificationState.waitingForOtp && actionType === 'type') {
+//     //   // Check if user is entering OTP (4-8 digits)
+//     //   const match = newStep.match(/\b\d{4,8}\b/);
+//     //   if (match) {
+//     //     isOtpStep = true;
+//     //     finalStepText = newStep;
+//     //     console.log('Detected OTP input:', match[0]);
+//     //   }
+//     // }
 
-    if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      const match = newStep.match(/\b\d{4,8}\b/);
-      if (match) {
-        isOtpStep = true;
+//     if (otpVerificationState.waitingForOtp && actionType === 'type') {
+//       const match = newStep.match(/\b\d{4,8}\b/);
+//       if (match) {
+//         isOtpStep = true;
 
-        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
-        isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
-        finalStepText = newStep;
-      }
-    }
+//         isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
+//         isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
+//         finalStepText = newStep;
+//       }
+//     }
 
-    const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
-    const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
+//     const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
+//     const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
 
-    const newStepObj = {
-      id: Date.now(),
-      description: finalStepText,
-      status: 'pending',
-      duration: '00:00',
-      screenshot: null,
-      selectedElement: selectedElement,
-      verificationType: selectedElement?.verificationType || 'text',
-      waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp, 
-      otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
-      isActualOtpStep: isActualOtpStep,
-      isOtpRelatedStep: isOtpRelatedStep,
-      otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
-      isPhoneNumberStep: isPhoneNumberStep,
-      isEmailStep: isEmailStep 
-    };
-    console.log("New step object:", newStepObj)
+//     const newStepObj = {
+//       id: Date.now(),
+//       description: finalStepText,
+//       status: 'pending',
+//       duration: '00:00',
+//       screenshot: null,
+//       selectedElement: selectedElement,
+//       verificationType: selectedElement?.verificationType || 'text',
+//       waitRequestData: stepWaitData || null,
+//       requiresOtp: requiresOtp, 
+//       otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
+//       isActualOtpStep: isActualOtpStep,
+//       isOtpRelatedStep: isOtpRelatedStep,
+//       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
+//       isPhoneNumberStep: isPhoneNumberStep,
+//       isEmailStep: isEmailStep 
+//     };
+//     console.log("New step object:", newStepObj)
 
-    setSelectedElement(null);
-    setStepWaitData(null);
+//     setSelectedElement(null);
+//     setStepWaitData(null);
     
-    setTestSteps(prev => [...prev, newStepObj]);
-    setNewStep('');
+//     setTestSteps(prev => [...prev, newStepObj]);
+//     setNewStep('');
 
-    const executionResult = await executeStep(newStepObj);
+//     const executionResult = await executeStep(newStepObj);
 
-    if (executionResult === undefined) {
-      setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
-      return;
-    }
+//     if (executionResult === undefined) {
+//       setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
+//       return;
+//     }
 
-    setTestSteps(prev => prev.map(step => 
-      step.id === newStepObj.id ? {
-        ...step,
-        ...executionResult,
-        elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
-        elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-        waitCondition: executionResult.waitCondition,
-        waitText: executionResult.waitText,
-        waitTimeout: executionResult.waitTimeout
-      } : step
-    ));
+//     setTestSteps(prev => prev.map(step => 
+//       step.id === newStepObj.id ? {
+//         ...step,
+//         ...executionResult,
+//         elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
+//         elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
+//         waitCondition: executionResult.waitCondition,
+//         waitText: executionResult.waitText,
+//         waitTimeout: executionResult.waitTimeout
+//       } : step
+//     ));
     
-    // After successful execution, update the previouslySelectedElements
-    if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
-      setLastClickCoordinates(newStepObj.selectedElement.click_point);
-      const element = newStepObj.selectedElement;
+//     // After successful execution, update the previouslySelectedElements
+//     if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
+//       setLastClickCoordinates(newStepObj.selectedElement.click_point);
+//       const element = newStepObj.selectedElement;
 
-      if (element.click_point) {
-        const x = Math.round(element.click_point[0]);
-        const y = Math.round(element.click_point[1]);
-        const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+//       if (element.click_point) {
+//         const x = Math.round(element.click_point[0]);
+//         const y = Math.round(element.click_point[1]);
+//         const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
 
-        console.log('Generated key for element:', exactCoordinateKey);
+//         console.log('Generated key for element:', exactCoordinateKey);
         
-        setPreviouslySelectedElements(prev => {
-          const updatedPrev = {};
-          Object.keys(prev).forEach(key => {
-            updatedPrev[key] = {
-              ...prev[key],
-              lastExecutedElement: false 
-            };
-          });
+//         setPreviouslySelectedElements(prev => {
+//           const updatedPrev = {};
+//           Object.keys(prev).forEach(key => {
+//             updatedPrev[key] = {
+//               ...prev[key],
+//               lastExecutedElement: false 
+//             };
+//           });
           
-          return {
-            ...updatedPrev,
-            [exactCoordinateKey]: {
-              lastSelected: Date.now(),
-              count: (prev[exactCoordinateKey]?.count || 0) + 1,
-              element: element,
-              lastExecutedElement: true,
-              coordinates: [x, y]
-            }
-          };
-        });
-      }
-    }
+//           return {
+//             ...updatedPrev,
+//             [exactCoordinateKey]: {
+//               lastSelected: Date.now(),
+//               count: (prev[exactCoordinateKey]?.count || 0) + 1,
+//               element: element,
+//               lastExecutedElement: true,
+//               coordinates: [x, y]
+//             }
+//           };
+//         });
+//       }
+//     }
     
-    // IMPORTANT: Call get_otp after successful execution when waiting for OTP
-    if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
-      await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
-    }
+//     // IMPORTANT: Call get_otp after successful execution when waiting for OTP
+//     if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
+//       await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
+//     }
     
-    setNewStep('');
-    // if (newStepObj.otpSessionData) {
-    //   setRequiresOtp(false);
-    // }
-    // ✅ Clear OTP state after actual OTP entry
-    if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
-      console.log('🔄 Clearing OTP verification state after successful OTP entry');
-      setRequiresOtp(false);
-      setIsOtpStepConfirmed(false);
+//     setNewStep('');
+//     // if (newStepObj.otpSessionData) {
+//     //   setRequiresOtp(false);
+//     // }
+//     // ✅ Clear OTP state after actual OTP entry
+//     if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
+//       console.log('🔄 Clearing OTP verification state after successful OTP entry');
+//       setRequiresOtp(false);
+//       setIsOtpStepConfirmed(false);
 
-      setOtpVerificationState(prev => ({
-        ...prev,
-        waitingForOtp: false,
-        contactEntered: false,
-        enteredContact: '',
-        otpReceiver: ''
-      }));
-    }
+//       setOtpVerificationState(prev => ({
+//         ...prev,
+//         waitingForOtp: false,
+//         contactEntered: false,
+//         enteredContact: '',
+//         otpReceiver: ''
+//       }));
+//     }
           
-    setTimeout(() => {
-      if (previewRef.current) {
-        previewRef.current.scrollTo({
-          top: previewRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-      if (stepsRef.current) {
-        stepsRef.current.scrollTo({
-          top: stepsRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    }, 100);
-  };
+//     setTimeout(() => {
+//       if (previewRef.current) {
+//         previewRef.current.scrollTo({
+//           top: previewRef.current.scrollHeight,
+//           behavior: 'smooth'
+//         });
+//       }
+//       if (stepsRef.current) {
+//         stepsRef.current.scrollTo({
+//           top: stepsRef.current.scrollHeight,
+//           behavior: 'smooth'
+//         });
+//       }
+//     }, 100);
+//   };
+
+// useEffect(() => {
+//   if (pendingWaitStep && newStep.includes('wait')) {
+//     addTestStep();
+//     setPendingWaitStep(false); 
+//   }
+//   // eslint-disable-next-line react-hooks/exhaustive-deps
+// }, [newStep, pendingWaitStep]);
 
 useEffect(() => {
   console.log("📊 currentGeneratedStepIndex changed to:", currentGeneratedStepIndex);
@@ -1188,10 +1189,10 @@ useEffect(() => {
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
               sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-              setSuggestions(data.omniparser_data.elements);
+              // setSuggestions(data.omniparser_data.elements);
               
             } else {
-                setSuggestions([]); // ✅ Clear suggestions if no element data
+              // setSuggestions([]); 
             }
   
             const screenshotUrl = data.screenshot
@@ -1799,7 +1800,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   stepWithElement,
                   nextExecutionResult?.error || 'Step execution failed',
                   data.omniparser_data || data.coordinates,
-                  nextIndex
+                  nextIndex,
+                  nextExecutionResult?.screenshot 
                 );
               }
             } else {
@@ -1906,7 +1908,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               stepWithElement,
               nextExecutionResult?.error || 'Step execution failed',
               data.omniparser_data || data.coordinates,
-              nextIndex
+              nextIndex,
+              nextExecutionResult?.screenshot 
             );
           }
         }
@@ -1918,7 +1921,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
           nextStep,
           `No matching elements found for "${validationResult.searchTerm}"`,
           data.omniparser_data || data.coordinates,
-          nextIndex
+          nextIndex,
+          data.screenshot 
         );
       }
     } else {
@@ -1970,14 +1974,6 @@ useEffect(() => {
   }
 }, [generatedSteps]);
 
-useEffect(() => {
-  if (pendingWaitStep && newStep.includes('wait')) {
-    addTestStep();
-    setPendingWaitStep(false); 
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [newStep, pendingWaitStep]);
-
 const handleWaitConfirm = (waitCommand, waitRequestData) => {
   if (waitStepData && waitStepIndex !== null) {
 
@@ -2013,115 +2009,6 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
   
   setWaitModalOpen(false);
 };
-
-  const handleSuggestionClick = (suggestion) => {
-    // Flag to indicate a suggestion was just selected
-    // This will help prevent the useEffect from reopening the dropdown
-    const handleSelection = () => {
-      // Store the selected element ID in previouslySelectedElements
-      setPreviouslySelectedElements(prev => ({
-        ...prev,
-        [suggestion.id]: {
-          timestamp: Date.now(),
-          element: suggestion
-        }
-      }));
-    };
-    
-    let updatedStep = '';
-    
-    if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-    } else if (commandType === 'type') {
-      // Get the text the user has already typed (if any)
-      let userText = '';
-      
-      if (newStep.toLowerCase().startsWith('type ')) {
-        const inIndex = newStep.toLowerCase().indexOf(' in ');
-        if (inIndex !== -1) {
-          // If " in " exists, extract text between "type " and " in "
-          userText = newStep.substring(5, inIndex).trim();
-        } else {
-          // If " in " doesn't exist, extract all text after "type "
-          userText = newStep.substring(5).trim();
-        }
-      }
-      
-      // Use the user's text if available, otherwise use placeholder
-      if (userText) {
-        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
-      } else {
-        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-      }
-    } else if (commandType === 'verify') {
-      updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Set verification modal data
-      const textToVerify = suggestion.displayName || suggestion.name;
-      const matchingElements = [suggestion]; 
-      
-      // Need to update these states together with minimal delay to avoid re-renders
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
-      // Show verification modal
-      setVerificationModal({
-        isOpen: true,
-        textToVerify,
-        matchingElements,
-        selectedElement: suggestion
-      });
-      
-      return;  
-    } else if (commandType === 'get') {
-      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
-      
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Update step in one batch to minimize effect triggers
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
-      return;
-    }
-    
-    // Immediately close suggestions dropdown and disable its reopening
-    setShowSuggestions(false);
-    handleSelection();
-    
-    // Batching state updates to minimize effect re-runs
-    setNewStep(updatedStep);
-    setSelectedElement(suggestion);
-    
-    // Focus input after state updates
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        if (commandType === 'type' && updatedStep.includes(' in ')) {
-          // Position cursor after "type " but before " in " for user to enter text
-          const typeIndex = updatedStep.indexOf('type ') + 5;
-          
-          // If there's no text between "type " and " in ", set cursor right after "type "
-          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
-            inputRef.current.setSelectionRange(typeIndex, typeIndex);
-          } else {
-            // If there's already text, position cursor at the end of the command
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
-          }
-        } else {
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
-        }
-      }
-    }, 0);
-  };
 
 const handleVerificationConfirm = () => {
   const { textToVerify, selectedElement } = verificationModal;
@@ -2332,7 +2219,7 @@ const createTestCase = async () => {
     });
     setTestData(null);
     setRequiresOtp(false);
-    setContactSelected(false);
+    // setContactSelected(false);
     setEmailConfirmationModal({
       isOpen: false,
       userEmail: '',
@@ -2378,18 +2265,6 @@ const ImageModal = () => {
       </div>
     </div>
   );
-};
-
-const checkTextInElementData = (textToVerify) => {
-  if (!elementData || !elementData.elements) return null;
-  
-  const searchText = textToVerify.toLowerCase();
-  const matchingElements = elementData.elements.filter(element => {
-    // Check if element has text content that includes the search text
-    return element.text && element.text.toLowerCase().includes(searchText);
-  });
-  
-  return matchingElements.length > 0 ? matchingElements : null;
 };
 
 const SecondaryVerificationConfirmation = ({ isOpen, onClose, onConfirm, stepObj }) => {
@@ -2470,523 +2345,632 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
   );
 };
 
-const SuggestionsDropdown = () => {
-  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-  const [adjustedPosition, setAdjustedPosition] = useState(null);
-  const [showPositionControls, setShowPositionControls] = useState(false);
+//   const handleSuggestionClick = (suggestion) => {
+//     // Flag to indicate a suggestion was just selected
+//     // This will help prevent the useEffect from reopening the dropdown
+//     const handleSelection = () => {
+//       // Store the selected element ID in previouslySelectedElements
+//       setPreviouslySelectedElements(prev => ({
+//         ...prev,
+//         [suggestion.id]: {
+//           timestamp: Date.now(),
+//           element: suggestion
+//         }
+//       }));
+//     };
+    
+//     let updatedStep = '';
+    
+//     if (commandType === 'click') {
+//       updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+//     } else if (commandType === 'type') {
+//       // Get the text the user has already typed (if any)
+//       let userText = '';
+      
+//       if (newStep.toLowerCase().startsWith('type ')) {
+//         const inIndex = newStep.toLowerCase().indexOf(' in ');
+//         if (inIndex !== -1) {
+//           // If " in " exists, extract text between "type " and " in "
+//           userText = newStep.substring(5, inIndex).trim();
+//         } else {
+//           // If " in " doesn't exist, extract all text after "type "
+//           userText = newStep.substring(5).trim();
+//         }
+//       }
+      
+//       // Use the user's text if available, otherwise use placeholder
+//       if (userText) {
+//         updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
+//       } else {
+//         updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+//       }
+//     } else if (commandType === 'verify') {
+//       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
   
-  // Position adjustment increments (in pixels)
-  const POSITION_STEP = 10;
-  const FINE_STEP = 5;
-
-  if (!showSuggestions) return null;
-
-  const shouldShowNoDataMessage =
-    suggestions.length === 0 &&
-    newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
-  
-  if (shouldShowNoDataMessage) {
-    return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-        <div className="p-4 text-center">
-          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            No element data available
-          </div>
-          <p className="text-sm text-gray-700 mb-3">
-            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-          </p>
-          <p className="text-xs text-gray-600 mb-3">
-            💡 Tip: If elements aren't detected properly, you can use the position adjustment controls to fine-tune the click location.
-          </p>
-          <button 
-            onClick={() => setShowSuggestions(false)}
-            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
-    if (!selectedSuggestion) return;
+//       // Close suggestions dropdown
+//       setShowSuggestions(false);
+//       handleSelection();
+      
+//       // Set verification modal data
+//       const textToVerify = suggestion.displayName || suggestion.name;
+//       const matchingElements = [suggestion]; 
+      
+//       // Need to update these states together with minimal delay to avoid re-renders
+//       setNewStep(updatedStep);
+//       setSelectedElement(suggestion);
+      
+//       // Show verification modal
+//       setVerificationModal({
+//         isOpen: true,
+//         textToVerify,
+//         matchingElements,
+//         selectedElement: suggestion
+//       });
+      
+//       return;  
+//     } else if (commandType === 'get') {
+//       updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+      
+//       // Close suggestions dropdown
+//       setShowSuggestions(false);
+//       handleSelection();
+      
+//       // Update step in one batch to minimize effect triggers
+//       setNewStep(updatedStep);
+//       setSelectedElement(suggestion);
+      
+//       return;
+//     }
     
-    const currentPos = adjustedPosition || selectedSuggestion.click_point;
-    let newPos = [...currentPos];
+//     // Immediately close suggestions dropdown and disable its reopening
+//     setShowSuggestions(false);
+//     handleSelection();
     
-    switch (direction) {
-      case 'up':
-        newPos[1] -= step;
-        break;
-      case 'down':
-        newPos[1] += step;
-        break;
-      case 'left':
-        newPos[0] -= step;
-        break;
-      case 'right':
-        newPos[0] += step;
-        break;
-      default:
-        return;
-    }
+//     // Batching state updates to minimize effect re-runs
+//     setNewStep(updatedStep);
+//     setSelectedElement(suggestion);
     
-    // Ensure position doesn't go negative
-    newPos[0] = Math.max(0, newPos[0]);
-    newPos[1] = Math.max(0, newPos[1]);
-    
-    setAdjustedPosition(newPos);
-  };
-
-  const handleSuggestionSelect = (suggestion) => {
-    setSelectedSuggestion(suggestion);
-    setAdjustedPosition(null);
-    setShowPositionControls(true);
-  };
-
-  const handleConfirmSelection = () => {
-    if (selectedSuggestion) {
-      const finalPosition = adjustedPosition || selectedSuggestion.click_point;
-      const updatedSuggestion = {
-        ...selectedSuggestion,
-        click_point: finalPosition
-      };
-      handleSuggestionClick(updatedSuggestion);
-      setShowPositionControls(false);
-      setSelectedSuggestion(null);
-      setAdjustedPosition(null);
-    }
-  };
-
-  const handleCancelSelection = () => {
-    setShowPositionControls(false);
-    setSelectedSuggestion(null);
-    setAdjustedPosition(null);
-  };
-
-  const resetPosition = () => {
-    setAdjustedPosition(null);
-  };
-
-  const PositionControls = () => {
-    if (!selectedSuggestion) return null;
-    
-    const currentPos = adjustedPosition || selectedSuggestion.click_point;
-    const originalPos = selectedSuggestion.click_point;
-    const hasAdjustment = adjustedPosition && 
-      (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
-
-    return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <h5 className="font-medium text-blue-800 flex items-center">
-            🎯 Fine-tune Position
-          </h5>
-          <div className="flex gap-2">
-            {hasAdjustment && (
-              <button
-                onClick={resetPosition}
-                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-              >
-                Reset
-              </button>
-            )}
-            <button
-              onClick={handleCancelSelection}
-              className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-        
-        <div className="text-sm text-gray-700 mb-3">
-          <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
-          <div className="text-xs text-gray-600">
-            Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
-            {hasAdjustment && (
-              <span className="ml-2 text-blue-600">
-                (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Directional Controls */}
-        <div className="flex flex-col items-center gap-2 mb-4">
-          {/* Up Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('up', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move up (fine)"
-            >
-              ⬆
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('up')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move up"
-            >
-              ⬆
-            </button>
-          </div>
+//     // Focus input after state updates
+//     setTimeout(() => {
+//       if (inputRef.current) {
+//         inputRef.current.focus();
+//         if (commandType === 'type' && updatedStep.includes(' in ')) {
+//           // Position cursor after "type " but before " in " for user to enter text
+//           const typeIndex = updatedStep.indexOf('type ') + 5;
           
-          {/* Left and Right Arrows */}
-          <div className="flex gap-2 items-center">
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('left', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move left (fine)"
-              >
-                ⬅
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('left')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move left"
-              >
-                ⬅
-              </button>
-            </div>
-            
-            <div className="mx-2 text-center">
-              <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
-                🎯
-              </div>
-              <div className="text-xs text-gray-600 mt-1">Target</div>
-            </div>
-            
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('right')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move right"
-              >
-                ➡
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('right', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move right (fine)"
-              >
-                ➡
-              </button>
-            </div>
-          </div>
-          
-          {/* Down Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('down')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move down"
-            >
-              ⬇
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('down', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move down (fine)"
-            >
-              ⬇
-            </button>
-          </div>
-        </div>
+//           // If there's no text between "type " and " in ", set cursor right after "type "
+//           if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+//             inputRef.current.setSelectionRange(typeIndex, typeIndex);
+//           } else {
+//             // If there's already text, position cursor at the end of the command
+//             const length = updatedStep.length;
+//             inputRef.current.setSelectionRange(length, length);
+//           }
+//         } else {
+//           const length = updatedStep.length;
+//           inputRef.current.setSelectionRange(length, length);
+//         }
+//       }
+//     }, 0);
+//   };
 
-        {/* Legend */}
-        <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-          <div className="font-medium mb-1">Controls:</div>
-          <div>• Bold arrows: Move {POSITION_STEP}px</div>
-          <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
-        </div>
-
-        {/* Confirm Button */}
-        <button
-          onClick={handleConfirmSelection}
-          className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
-        >
-          ✓ Use This Position
-        </button>
-      </div>
-    );
-  };
+// const SuggestionsDropdown = () => {
+//   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+//   const [adjustedPosition, setAdjustedPosition] = useState(null);
+//   const [showPositionControls, setShowPositionControls] = useState(false);
   
-  return (
-    <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-96 overflow-y-auto animate-fadeIn suggestions-dropdown">
-      <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-        <h4 className="font-medium text-purple-800 flex items-center">
-          {commandType === 'click' ? (
-            <>
-              <span className="mr-2">🖱️</span> Click on an element:
-            </>
-          ) : commandType === 'type' ? (
-            <>
-              <span className="mr-2">⌨️</span> Select where to type:
-            </>
-          ) : commandType === 'verify' ? (
-            <>
-              <span className="mr-2">✓</span> Verify text on page:
-            </>
-          ) : commandType === 'get' ? (
-            <>
-              <span className="mr-2">📄</span> Get text from page:
-            </>
-          ) : null}
-        </h4>
+//   // Position adjustment increments (in pixels)
+//   const POSITION_STEP = 10;
+//   const FINE_STEP = 5;
 
-        {commandType === 'type' && requiresOtp && (
-          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isOtpStepConfirmed}
-                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
-                className="accent-orange-500"
-              />
-              ✅ Confirm this is OTP input step
-            </label>
-            <div className="text-xs text-gray-600 mt-1">
-              Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
-            </div>
-          </div>
-        )}
+//   if (!showSuggestions) return null;
+
+//   const shouldShowNoDataMessage =
+//     suggestions.length === 0 &&
+//     newStep?.trim() !== '' &&
+//     ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+  
+//   if (shouldShowNoDataMessage) {
+//     return (
+//       <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+//         <div className="p-4 text-center">
+//           <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+//             <AlertCircle className="w-5 h-5 mr-2" />
+//             No element data available
+//           </div>
+//           <p className="text-sm text-gray-700 mb-3">
+//             Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+//           </p>
+//           <p className="text-xs text-gray-600 mb-3">
+//             💡 Tip: If elements aren't detected properly, you can use the position adjustment controls to fine-tune the click location.
+//           </p>
+//           <button 
+//             onClick={() => setShowSuggestions(false)}
+//             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+//           >
+//             Dismiss
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+//     if (!selectedSuggestion) return;
+    
+//     const currentPos = adjustedPosition || selectedSuggestion.click_point;
+//     let newPos = [...currentPos];
+    
+//     switch (direction) {
+//       case 'up':
+//         newPos[1] -= step;
+//         break;
+//       case 'down':
+//         newPos[1] += step;
+//         break;
+//       case 'left':
+//         newPos[0] -= step;
+//         break;
+//       case 'right':
+//         newPos[0] += step;
+//         break;
+//       default:
+//         return;
+//     }
+    
+//     // Ensure position doesn't go negative
+//     newPos[0] = Math.max(0, newPos[0]);
+//     newPos[1] = Math.max(0, newPos[1]);
+    
+//     setAdjustedPosition(newPos);
+//   };
+
+//   const handleSuggestionSelect = (suggestion) => {
+//     setSelectedSuggestion(suggestion);
+//     setAdjustedPosition(null);
+//     setShowPositionControls(true);
+//   };
+
+//   const handleConfirmSelection = () => {
+//     if (selectedSuggestion) {
+//       const finalPosition = adjustedPosition || selectedSuggestion.click_point;
+//       const updatedSuggestion = {
+//         ...selectedSuggestion,
+//         click_point: finalPosition
+//       };
+//       handleSuggestionClick(updatedSuggestion);
+//       setShowPositionControls(false);
+//       setSelectedSuggestion(null);
+//       setAdjustedPosition(null);
+//     }
+//   };
+
+//   const handleCancelSelection = () => {
+//     setShowPositionControls(false);
+//     setSelectedSuggestion(null);
+//     setAdjustedPosition(null);
+//   };
+
+//   const resetPosition = () => {
+//     setAdjustedPosition(null);
+//   };
+
+//   const PositionControls = () => {
+//     if (!selectedSuggestion) return null;
+    
+//     const currentPos = adjustedPosition || selectedSuggestion.click_point;
+//     const originalPos = selectedSuggestion.click_point;
+//     const hasAdjustment = adjustedPosition && 
+//       (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+//     return (
+//       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+//         <div className="flex items-center justify-between mb-3">
+//           <h5 className="font-medium text-blue-800 flex items-center">
+//             🎯 Fine-tune Position
+//           </h5>
+//           <div className="flex gap-2">
+//             {hasAdjustment && (
+//               <button
+//                 onClick={resetPosition}
+//                 className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
+//               >
+//                 Reset
+//               </button>
+//             )}
+//             <button
+//               onClick={handleCancelSelection}
+//               className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
+//             >
+//               Cancel
+//             </button>
+//           </div>
+//         </div>
         
-        {commandType === 'type' && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requiresOtp}
-                onChange={toggleOtpCheckbox}
-                className="accent-blue-500"
-              />
-              OTP Verification
-            </label>
+//         <div className="text-sm text-gray-700 mb-3">
+//           <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
+//           <div className="text-xs text-gray-600">
+//             Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
+//             {hasAdjustment && (
+//               <span className="ml-2 text-blue-600">
+//                 (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
+//               </span>
+//             )}
+//           </div>
+//         </div>
+
+//         {/* Directional Controls */}
+//         <div className="flex flex-col items-center gap-2 mb-4">
+//           {/* Up Arrow */}
+//           <div className="flex gap-1">
+//             <button
+//               onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+//               className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+//               title="Move up (fine)"
+//             >
+//               ⬆
+//             </button>
+//             <button
+//               onClick={() => handlePositionAdjustment('up')}
+//               className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+//               title="Move up"
+//             >
+//               ⬆
+//             </button>
+//           </div>
+          
+//           {/* Left and Right Arrows */}
+//           <div className="flex gap-2 items-center">
+//             <div className="flex gap-1">
+//               <button
+//                 onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+//                 className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+//                 title="Move left (fine)"
+//               >
+//                 ⬅
+//               </button>
+//               <button
+//                 onClick={() => handlePositionAdjustment('left')}
+//                 className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+//                 title="Move left"
+//               >
+//                 ⬅
+//               </button>
+//             </div>
             
-            {/* Show contact selection only when OTP is checked and no contact selected */}
-            {requiresOtp && !otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
-                <span className="text-sm font-medium text-gray-700 block mb-2">
-                  Select Contact Method:
-                </span>
+//             <div className="mx-2 text-center">
+//               <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+//                 🎯
+//               </div>
+//               <div className="text-xs text-gray-600 mt-1">Target</div>
+//             </div>
+            
+//             <div className="flex gap-1">
+//               <button
+//                 onClick={() => handlePositionAdjustment('right')}
+//                 className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+//                 title="Move right"
+//               >
+//                 ➡
+//               </button>
+//               <button
+//                 onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+//                 className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+//                 title="Move right (fine)"
+//               >
+//                 ➡
+//               </button>
+//             </div>
+//           </div>
+          
+//           {/* Down Arrow */}
+//           <div className="flex gap-1">
+//             <button
+//               onClick={() => handlePositionAdjustment('down')}
+//               className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+//               title="Move down"
+//             >
+//               ⬇
+//             </button>
+//             <button
+//               onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+//               className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+//               title="Move down (fine)"
+//             >
+//               ⬇
+//             </button>
+//           </div>
+//         </div>
 
-                {/* ✅ Loading state */}
-                {isTestDataLoading ? (
-                  <div className="text-blue-500 text-sm flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                              stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    Loading test data...
-                  </div>
-                ) : testData?.phone || testData?.email ? (
-                  <div className="flex gap-2 flex-wrap">
-                    {testData.phone_number && (
-                      <button
-                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
-                      >
-                        📱 Phone: {testData.phone_number}
-                      </button>
-                    )}
-                    {testData.email && (
-                      <button
-                        onClick={() => handleEmailClick()}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-                      >
-                        📧 Email: {testData.email || 'Click to add email'}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 items-start">
-                    <div className="text-sm text-red-600">
-                      ⚠ No contact method found.
-                    </div>
-                    <button
-                      onClick={() => setAddTestDataModalOpen(true)}
-                      className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
-                    >
-                      Add Test Data
-                    </button>
-                  </div>
-                )}
+//         {/* Legend */}
+//         <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
+//           <div className="font-medium mb-1">Controls:</div>
+//           <div>• Bold arrows: Move {POSITION_STEP}px</div>
+//           <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
+//         </div>
 
-                <div className="mt-2 text-xs text-gray-600">
-                  Click on a contact method to proceed
-                </div>
-              </div>
-            )}       
+//         {/* Confirm Button */}
+//         <button
+//           onClick={handleConfirmSelection}
+//           className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+//         >
+//           ✓ Use This Position
+//         </button>
+//       </div>
+//     );
+//   };
+  
+//   return (
+//     <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-96 overflow-y-auto animate-fadeIn suggestions-dropdown">
+//       <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+//         <h4 className="font-medium text-purple-800 flex items-center">
+//           {commandType === 'click' ? (
+//             <>
+//               <span className="mr-2">🖱️</span> Click on an element:
+//             </>
+//           ) : commandType === 'type' ? (
+//             <>
+//               <span className="mr-2">⌨️</span> Select where to type:
+//             </>
+//           ) : commandType === 'verify' ? (
+//             <>
+//               <span className="mr-2">✓</span> Verify text on page:
+//             </>
+//           ) : commandType === 'get' ? (
+//             <>
+//               <span className="mr-2">📄</span> Get text from page:
+//             </>
+//           ) : null}
+//         </h4>
 
-            {/* Show selected contact and allow changing */}
-            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-green-700">
-                    ✅ Selected: {otpVerificationState.enteredContact}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setContactSelected(false);
-                      setOtpVerificationState(prev => ({
-                        ...prev,
-                        contactEntered: false,
-                        enteredContact: ''
-                      }));
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Change Contact
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+//         {commandType === 'type' && requiresOtp && (
+//           <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+//             <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+//               <input
+//                 type="checkbox"
+//                 checked={isOtpStepConfirmed}
+//                 onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+//                 className="accent-orange-500"
+//               />
+//               ✅ Confirm this is OTP input step
+//             </label>
+//             <div className="text-xs text-gray-600 mt-1">
+//               Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+//             </div>
+//           </div>
+//         )}
+        
+//         {commandType === 'type' && (
+//           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+//             <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+//               <input
+//                 type="checkbox"
+//                 checked={requiresOtp}
+//                 onChange={toggleOtpCheckbox}
+//                 className="accent-blue-500"
+//               />
+//               OTP Verification
+//             </label>
+            
+//             {/* Show contact selection only when OTP is checked and no contact selected */}
+//             {requiresOtp && !otpVerificationState.contactEntered && (
+//               <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+//                 <span className="text-sm font-medium text-gray-700 block mb-2">
+//                   Select Contact Method:
+//                 </span>
 
-        {!showPositionControls && (
-          <p className="text-xs text-gray-600 mt-2">
-            Found {suggestions.length} matching elements
-            {suggestions.some(s => s.isDuplicate) && 
-              " (highlighted items have duplicate names)"}
-            {lastClickCoordinates && " (ordered by proximity to last click)"}
-            <br />
-            💡 Click on an element to fine-tune its position if needed
-          </p>
-        )}
-      </div>
+//                 {/* ✅ Loading state */}
+//                 {isTestDataLoading ? (
+//                   <div className="text-blue-500 text-sm flex items-center gap-2">
+//                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+//                       <circle className="opacity-25" cx="12" cy="12" r="10"
+//                               stroke="currentColor" strokeWidth="4"></circle>
+//                       <path className="opacity-75" fill="currentColor"
+//                             d="M4 12a8 8 0 018-8v8H4z"></path>
+//                     </svg>
+//                     Loading test data...
+//                   </div>
+//                 ) : testData?.phone || testData?.email ? (
+//                   <div className="flex gap-2 flex-wrap">
+//                     {testData.phone_number && (
+//                       <button
+//                         onClick={() => handlePhoneNumberClick(testData.phone_number)}
+//                         className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+//                       >
+//                         📱 Phone: {testData.phone_number}
+//                       </button>
+//                     )}
+//                     {testData.email && (
+//                       <button
+//                         onClick={() => handleEmailClick()}
+//                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
+//                       >
+//                         📧 Email: {testData.email || 'Click to add email'}
+//                       </button>
+//                     )}
+//                   </div>
+//                 ) : (
+//                   <div className="flex flex-col gap-2 items-start">
+//                     <div className="text-sm text-red-600">
+//                       ⚠ No contact method found.
+//                     </div>
+//                     <button
+//                       onClick={() => setAddTestDataModalOpen(true)}
+//                       className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
+//                     >
+//                       Add Test Data
+//                     </button>
+//                   </div>
+//                 )}
 
-      {/* Position Controls */}
-      {showPositionControls && <PositionControls />}
+//                 <div className="mt-2 text-xs text-gray-600">
+//                   Click on a contact method to proceed
+//                 </div>
+//               </div>
+//             )}       
 
-      {shouldShowNoDataMessage && (
-        <div className="p-4 text-center border-t border-gray-200">
-          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            No element data available
-          </div>
-          <p className="text-sm text-gray-700">
-            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-          </p>
-          <button 
-            onClick={() => setShowSuggestions(false)}
-            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+//             {/* Show selected contact and allow changing */}
+//             {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+//               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+//                 <div className="flex items-center justify-between">
+//                   <div className="text-sm text-green-700">
+//                     ✅ Selected: {otpVerificationState.enteredContact}
+//                   </div>
+//                   <button
+//                     onClick={() => {
+//                       setContactSelected(false);
+//                       setOtpVerificationState(prev => ({
+//                         ...prev,
+//                         contactEntered: false,
+//                         enteredContact: ''
+//                       }));
+//                     }}
+//                     className="text-xs text-blue-600 hover:text-blue-800 underline"
+//                   >
+//                     Change Contact
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         )}
 
-      {/* Suggestions List */}
-      {!showPositionControls && (
-        <ul className="divide-y divide-gray-100">
-          {(!requiresOtp || (requiresOtp && otpVerificationState.contactEntered)) &&
-            suggestions.map((suggestion, index) => (
-              <li 
-                key={`${suggestion.id}-${index}`}
-                className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-                  suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-                  suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-                  suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-                  suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-                  suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-                  suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-                  suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-                }`}
-                tabIndex={0}
-                onClick={() => handleSuggestionClick(suggestion)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSuggestionSelect(suggestion);
-                  } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                    e.preventDefault();
-                    document.querySelectorAll('.suggestion-item')[index + 1].focus();
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (index > 0) {
-                      document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                    } else {
-                      inputRef.current.focus();
-                    }
-                  } else if (e.key === 'Escape') {
-                    setShowSuggestions(false);
-                    inputRef.current.focus();
-                  }
-                }}
-              >
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">
-                    {suggestion.displayName || suggestion.name}
-                    {suggestion.usageInfo && (
-                      <span className={`ml-2 text-xs font-semibold ${
-                        suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                        suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                        suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                        'text-green-600'
-                      }`}>
-                        ({suggestion.usageInfo})
-                      </span>
-                    )}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSuggestionSelect(suggestion);
-                    }}
-                    >
-                      🎯 Adjust
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      suggestion.type === 'button' || suggestion.tag === 'button' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : suggestion.type === 'input' || suggestion.tag === 'input'
-                          ? 'bg-green-100 text-green-700'
-                          : suggestion.type === 'link' || suggestion.tag === 'a'
-                          ? 'bg-purple-100 text-purple-700'
-                          : suggestion.type === 'text'
-                          ? 'bg-gray-100 text-gray-700'
-                          : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {suggestion.type || suggestion.tag || "Element"}
-                    </span>
-                  </div>
-                </div>
+//         {!showPositionControls && (
+//           <p className="text-xs text-gray-600 mt-2">
+//             Found {suggestions.length} matching elements
+//             {suggestions.some(s => s.isDuplicate) && 
+//               " (highlighted items have duplicate names)"}
+//             {lastClickCoordinates && " (ordered by proximity to last click)"}
+//             <br />
+//             💡 Click on an element to fine-tune its position if needed
+//           </p>
+//         )}
+//       </div>
+
+//       {/* Position Controls */}
+//       {showPositionControls && <PositionControls />}
+
+//       {shouldShowNoDataMessage && (
+//         <div className="p-4 text-center border-t border-gray-200">
+//           <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+//             <AlertCircle className="w-5 h-5 mr-2" />
+//             No element data available
+//           </div>
+//           <p className="text-sm text-gray-700">
+//             Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+//           </p>
+//           <button 
+//             onClick={() => setShowSuggestions(false)}
+//             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+//           >
+//             Dismiss
+//           </button>
+//         </div>
+//       )}
+
+//       {/* Suggestions List */}
+//       {!showPositionControls && (
+//         <ul className="divide-y divide-gray-100">
+//           {(!requiresOtp || (requiresOtp && otpVerificationState.contactEntered)) &&
+//             suggestions.map((suggestion, index) => (
+//               <li 
+//                 key={`${suggestion.id}-${index}`}
+//                 className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+//                   suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+//                   suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+//                   suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+//                   suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+//                   suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+//                   suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+//                   suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+//                 }`}
+//                 tabIndex={0}
+//                 onClick={() => handleSuggestionClick(suggestion)}
+//                 onKeyDown={(e) => {
+//                   if (e.key === 'Enter') {
+//                     handleSuggestionSelect(suggestion);
+//                   } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+//                     e.preventDefault();
+//                     document.querySelectorAll('.suggestion-item')[index + 1].focus();
+//                   } else if (e.key === 'ArrowUp') {
+//                     e.preventDefault();
+//                     if (index > 0) {
+//                       document.querySelectorAll('.suggestion-item')[index - 1].focus();
+//                     } else {
+//                       inputRef.current.focus();
+//                     }
+//                   } else if (e.key === 'Escape') {
+//                     setShowSuggestions(false);
+//                     inputRef.current.focus();
+//                   }
+//                 }}
+//               >
+//                 <div className="flex justify-between items-center">
+//                   <span className="font-medium">
+//                     {suggestion.displayName || suggestion.name}
+//                     {suggestion.usageInfo && (
+//                       <span className={`ml-2 text-xs font-semibold ${
+//                         suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+//                         suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+//                         suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+//                         'text-green-600'
+//                       }`}>
+//                         ({suggestion.usageInfo})
+//                       </span>
+//                     )}
+//                   </span>
+//                   <div className="flex items-center gap-2">
+//                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+//                     onClick={(e) => {
+//                       e.stopPropagation();
+//                       handleSuggestionSelect(suggestion);
+//                     }}
+//                     >
+//                       🎯 Adjust
+//                     </span>
+//                     <span className={`text-xs px-2 py-1 rounded-full ${
+//                       suggestion.type === 'button' || suggestion.tag === 'button' 
+//                           ? 'bg-blue-100 text-blue-700' 
+//                           : suggestion.type === 'input' || suggestion.tag === 'input'
+//                           ? 'bg-green-100 text-green-700'
+//                           : suggestion.type === 'link' || suggestion.tag === 'a'
+//                           ? 'bg-purple-100 text-purple-700'
+//                           : suggestion.type === 'text'
+//                           ? 'bg-gray-100 text-gray-700'
+//                           : 'bg-gray-100 text-gray-700'
+//                     }`}>
+//                       {suggestion.type || suggestion.tag || "Element"}
+//                     </span>
+//                   </div>
+//                 </div>
                 
-                <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-                  <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-                  {suggestion.isDuplicate && !suggestion.usageInfo && (
-                    <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                      Multiple matches
-                    </span>
-                  )}
-                  {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                    <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                      Near last click
-                    </span>
-                  )}
-                </div>
+//                 <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+//                   <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+//                   {suggestion.isDuplicate && !suggestion.usageInfo && (
+//                     <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+//                       Multiple matches
+//                     </span>
+//                   )}
+//                   {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+//                     <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+//                       Near last click
+//                     </span>
+//                   )}
+//                 </div>
                 
-                {/* Extra details to help distinguish elements */}
-                {suggestion.text && (
-                  <div className="text-xs text-gray-500 mt-1 truncate">
-                    Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-                  </div>
-                )}
-              </li>
-            ))}
-        </ul>
-      )}
-    </div>
-  );
-};
+//                 {/* Extra details to help distinguish elements */}
+//                 {suggestion.text && (
+//                   <div className="text-xs text-gray-500 mt-1 truncate">
+//                     Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+//                   </div>
+//                 )}
+//               </li>
+//             ))}
+//         </ul>
+//       )}
+//     </div>
+//   );
+// };
 
 const InstructionModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -3703,13 +3687,14 @@ const isStepWaitingForOtp = (step) => {
     (step.otpReceived || step.otpPending || step.otpWaiting || otpCheckLoadingStepId === step.id || otpVerificationState.stepId === step.id);
 };
 
-const openEditModal = (step, errorMessage, pageData, stepIndex) => {
+const openEditModal = (step, errorMessage, pageData, stepIndex, screenshot) => {
   setEditStepModal({
     isOpen: true,
     step: step,
     errorMessage: errorMessage,
     currentPageData: pageData,
     stepIndex: stepIndex,
+    currentScreenshot: screenshot, 
   });
 };
 
@@ -3806,7 +3791,8 @@ const EditStepModal = ({
   onEditTextChange,
   elementData,
   testSteps,
-  previouslySelectedElements
+  previouslySelectedElements,
+  currentScreenshot 
 }) => {
   const [editableStep, setEditableStep] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -3823,6 +3809,7 @@ const EditStepModal = ({
   const FINE_STEP = 5;
   
   const inputRef = useRef(null);
+  const screenshotContainerRef = useRef(null);
 
   // Initialize modal state
   useEffect(() => {
@@ -3837,6 +3824,26 @@ const EditStepModal = ({
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen, step]);
+
+  useEffect(() => {
+    if (showPositionControls && selectedSuggestion && screenshotContainerRef.current) {
+      const container = screenshotContainerRef.current;
+      const currentPos = adjustedPosition || selectedSuggestion.click_point;
+      
+      // Center the view on the current position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [showPositionControls, selectedSuggestion,adjustedPosition ]);
 
   useEffect(() => {
     if (!editableStep) {
@@ -4039,12 +4046,6 @@ const calculateDirectionalOffset = (coordinates, direction) => {
   }
 };
 
-  // const handleScrollOptionClick = (option) => {
-  //   setEditableStep(option);
-  //   setShowScrollSuggestions(false);
-  //   onEditTextChange?.(option);
-  // };
-
   const handleSave = () => {
     if (editableStep.trim()) {
       onEditTextChange?.(editableStep.trim());
@@ -4053,28 +4054,6 @@ const calculateDirectionalOffset = (coordinates, direction) => {
   };
 
   if (!isOpen) return null;
-
-  // const scrollOptions = [
-  //   'scroll down',
-  //   'scroll up',
-  //   'scroll to bottom',
-  //   'scroll to top'
-  // ];
-
-  // const swipeOptions = [
-  //   'swipe left',
-  //   'swipe right',
-  //   'swipe up', 
-  //   'swipe down'
-  // ];
-
-  // const filteredScrollOptions = scrollOptions
-  //   .filter(option => option.toLowerCase().includes(editableStep.toLowerCase()))
-  //   .concat(scrollOptions.filter(option => !option.toLowerCase().includes(editableStep.toLowerCase())));
-
-  // const filteredSwipeOptions = swipeOptions
-  //   .filter(option => option.toLowerCase().includes(editableStep.toLowerCase()))
-  //   .concat(swipeOptions.filter(option => !option.toLowerCase().includes(editableStep.toLowerCase())));
 
   const shouldShowNoDataMessage =
     suggestions.length === 0 &&
@@ -4134,6 +4113,24 @@ const calculateDirectionalOffset = (coordinates, direction) => {
     newPos[1] = Math.max(0, newPos[1]);
     
     setAdjustedPosition(newPos);
+    
+    // Scroll the container to keep the crosshair visible
+    setTimeout(() => {
+      if (screenshotContainerRef.current) {
+        const container = screenshotContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate if we need to scroll to keep the crosshair visible
+        const targetX = newPos[0] - containerRect.width / 2;
+        const targetY = newPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }
+    }, 0);
   };
 
   const handleSuggestionSelect = (suggestion) => {
@@ -4175,447 +4172,555 @@ const calculateDirectionalOffset = (coordinates, direction) => {
       (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
 
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <h5 className="font-medium text-blue-800 flex items-center">
-            🎯 Fine-tune Position
-          </h5>
-          <div className="flex gap-2">
-            {hasAdjustment && (
-              <button
-                onClick={resetPosition}
-                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-              >
-                Reset
-              </button>
-            )}
-            <button
-              onClick={handleCancelSelection}
-              className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-        
-        <div className="text-sm text-gray-700 mb-3">
-          <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
-          <div className="text-xs text-gray-600">
-            Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
-            {hasAdjustment && (
-              <span className="ml-2 text-blue-600">
-                (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Directional Controls */}
-        <div className="flex flex-col items-center gap-2 mb-4">
-          {/* Up Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('up', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move up (fine)"
-            >
-              ⬆
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('up')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move up"
-            >
-              ⬆
-            </button>
-          </div>
-          
-          {/* Left and Right Arrows */}
-          <div className="flex gap-2 items-center">
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('left', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move left (fine)"
-              >
-                ⬅
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('left')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move left"
-              >
-                ⬅
-              </button>
-            </div>
-            
-            <div className="mx-2 text-center">
-              <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
-                🎯
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                  <p className="text-sm text-blue-600">
+                    Element: {selectedSuggestion.displayName || selectedSuggestion.name}
+                  </p>
+                </div>
               </div>
-              <div className="text-xs text-gray-600 mt-1">Target</div>
+              <button 
+                onClick={handleCancelSelection}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
             </div>
+          </div>
+
+          <div className="flex h-[calc(600px-140px)]">
+            {/* Screenshot Panel */}
             
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('right')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move right"
-              >
-                ➡
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('right', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move right (fine)"
-              >
-                ➡
-              </button>
+            <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+              <div className="relative inline-block min-w-full min-h-full">
+                {currentScreenshot ? (
+                  <img 
+                    src={currentScreenshot} 
+                    alt="Page Screenshot" 
+                    className="max-w-none"
+                    style={{ cursor: 'crosshair' }}
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const scaleX = e.target.naturalWidth / rect.width;
+                      const scaleY = e.target.naturalHeight / rect.height;
+                      const x = (e.clientX - rect.left) * scaleX;
+                      const y = (e.clientY - rect.top) * scaleY;
+                      setAdjustedPosition([Math.round(x), Math.round(y)]);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📸</div>
+                      <p>Screenshot not available</p>
+                      <p className="text-sm">Use the controls to adjust position</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Original Position Indicator */}
+                <div 
+                  className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${originalPos[0]}px`, 
+                    top: `${originalPos[1]}px` 
+                  }}
+                >
+                  <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Original Position
+                  </div>
+                </div>
+                
+                {/* Current/Adjusted Position Indicator */}
+                <div 
+                  className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ 
+                    left: `${currentPos[0]}px`, 
+                    top: `${currentPos[1]}px` 
+                  }}
+                >
+                  {/* Crosshair */}
+                  <div className="absolute inset-0">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                    <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                  </div>
+                  
+                  {/* Center dot */}
+                  <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                  
+                  {/* Label */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                  </div>
+                  
+                  {/* Connection line to original if adjusted */}
+                  {/* {hasAdjustment && (
+                    <svg className="absolute pointer-events-none" style={{
+                      left: `${originalPos[0] - currentPos[0]}px`,
+                      top: `${originalPos[1] - currentPos[1]}px`,
+                      width: `${Math.abs(currentPos[0] - originalPos[0]) + 20}px`,
+                      height: `${Math.abs(currentPos[1] - originalPos[1]) + 20}px`
+                    }}>
+                      <line
+                        x1={currentPos[0] > originalPos[0] ? 10 : Math.abs(currentPos[0] - originalPos[0]) + 10}
+                        y1={currentPos[1] > originalPos[1] ? 10 : Math.abs(currentPos[1] - originalPos[1]) + 10}
+                        x2={currentPos[0] > originalPos[0] ? Math.abs(currentPos[0] - originalPos[0]) + 10 : 10}
+                        y2={currentPos[1] > originalPos[1] ? Math.abs(currentPos[1] - originalPos[1]) + 10 : 10}
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        strokeDasharray="5,5"
+                        markerEnd="url(#arrowhead)"
+                      />
+                      <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                refX="0" refY="3.5" orient="auto">
+                          <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+                        </marker>
+                      </defs>
+                    </svg>
+                  )} */}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Panel */}
+            <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                {/* Position Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current:</span>
+                      <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original:</span>
+                      <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                    </div>
+                    {hasAdjustment && (
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600">Offset:</span>
+                        <span className="font-mono text-green-600">
+                          x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Directional Controls */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Up Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move up (fine)"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('up')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move up"
+                      >
+                        ⬆
+                      </button>
+                    </div>
+                    
+                    {/* Left and Right Arrows */}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move left (fine)"
+                        >
+                          ⬅
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('left')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move left"
+                        >
+                          ⬅
+                        </button>
+                      </div>
+                      
+                      <div className="mx-2 text-center">
+                        <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                          🎯
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">Target</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('right')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move right"
+                        >
+                          ➡
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move right (fine)"
+                        >
+                          ➡
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Down Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('down')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move down"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move down (fine)"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {hasAdjustment && (
+                    <button
+                      onClick={resetPosition}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                    >
+                      🔄 Reset to Original
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleConfirmSelection}
+                    className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    ✓ Use This Position
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelSelection}
+                    className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Quick Instructions */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Click directly on the screenshot</li>
+                    <li>• Use arrow buttons for precise control</li>
+                    <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                    <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                  </ul>
+                </div>
+
+              </div>
             </div>
           </div>
-          
-          {/* Down Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('down')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move down"
-            >
-              ⬇
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('down', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move down (fine)"
-            >
-              ⬇
-            </button>
-          </div>
         </div>
-
-        {/* Legend */}
-        <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-          <div className="font-medium mb-1">Controls:</div>
-          <div>• Bold arrows: Move {POSITION_STEP}px</div>
-          <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
-        </div>
-
-        {/* Confirm Button */}
-        <button
-          onClick={handleConfirmSelection}
-          className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
-        >
-          ✓ Use This Position
-        </button>
       </div>
     );
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="bg-red-50 border-b border-red-200 px-6 py-4 rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="bg-red-50 border-b border-red-200 px-6 py-4 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"></path>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-red-800">Step Failed</h3>
               </div>
-              <h3 className="text-lg font-semibold text-red-800">Step Failed</h3>
-            </div>
-            <button 
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="px-6 py-4 flex-1 overflow-y-auto">
-          {/* Error Details */}
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">Error Details:</p>
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-red-700 text-sm font-medium">{errorMessage}</p>
+              <button 
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
             </div>
           </div>
 
-          {/* Original Step */}
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">Original Step:</p>
-            <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-              <p className="text-gray-700 text-sm font-mono">{step?.description}</p>
+          <div className="px-6 py-4 flex-1 overflow-y-auto">
+            {/* Error Details */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Error Details:</p>
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-red-700 text-sm font-medium">{errorMessage}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Edit Step */}
-          <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">Edit Step:</p>
-            <div className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                value={editableStep}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !showSuggestions) {
-                    e.preventDefault();
-                    handleSave();
-                  } else if (e.key === 'Escape') {
-                    setShowSuggestions(false);
-                  } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
-                    e.preventDefault();
-                    document.querySelector('.modal-suggestion-item')?.focus();
-                  }
-                }}
-                className="w-full p-3 border border-gray-200 rounded-md text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Enter step description..."
-              />
-              
-              {/* Modal-specific SuggestionsDropdown */}
-              {/* {commandType === 'scroll' && showScrollSuggestions && (
-                <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 animate-fadeIn">
-                  <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-                    <h4 className="font-medium text-purple-800 flex items-center">
-                      🖱️ Scroll Options:
-                    </h4>
-                  </div>
-                  <ul className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
-                    {filteredScrollOptions.map((option, index) => (
-                      <li 
-                        key={index}
-                        className="modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer transition-colors duration-150"
-                        onClick={() => handleScrollOptionClick(option)}
-                      >
-                        {option}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            {/* Original Step */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Original Step:</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                <p className="text-gray-700 text-sm font-mono">{step?.description}</p>
+              </div>
+            </div>
 
-              {commandType === 'swipe' && showScrollSuggestions && (
-                <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 animate-fadeIn">
-                  <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-                    <h4 className="font-medium text-purple-800 flex items-center">
-                      👆 Swipe Options:
-                    </h4>
-                  </div>
-                  <ul className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
-                    {filteredSwipeOptions.map((option, index) => (
-                      <li 
-                        key={index}
-                        className="modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer transition-colors duration-150"
-                        onClick={() => handleScrollOptionClick(option)}
-                      >
-                        {option}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )} */}
+            {/* Edit Step */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Edit Step:</p>
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editableStep}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !showSuggestions) {
+                      e.preventDefault();
+                      handleSave();
+                    } else if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
+                      e.preventDefault();
+                      document.querySelector('.modal-suggestion-item')?.focus();
+                    }
+                  }}
+                  className="w-full p-3 border border-gray-200 rounded-md text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter step description..."
+                />
 
-              {showSuggestions && ['click', 'type', 'verify', 'get'].includes(commandType) && (
-                <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 max-h-72 overflow-y-auto animate-fadeIn">
-                  <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-                    <h4 className="font-medium text-purple-800 flex items-center">
+                {showSuggestions && ['click', 'type', 'verify', 'get'].includes(commandType) && (
+                  <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 max-h-72 overflow-y-auto animate-fadeIn">
+                    <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+                      <h4 className="font-medium text-purple-800 flex items-center">
+                        
+                        {commandType === 'click' && (
+                          <>
+                            <span className="mr-2">🖱️</span> Click on an element:
                       
-                      {commandType === 'click' && (
-                        <>
-                          <span className="mr-2">🖱️</span> Click on an element:
-                    
-                          {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
-                          {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
-                          {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
-                          {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                            {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                          </>
+                        )}
+                        {commandType === 'type' && (
+                          <>
+                            <span className="mr-2">⌨️</span> Select where to type:
+                            
+                            {editableStep.includes(' in left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' in right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' in above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' in below ') || editableStep.includes(' in bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
                         </>
+                        )}
+                        {commandType === 'verify' && (
+                          <>
+                            <span className="mr-2">✓</span> Verify text on page:
+                          </>
+                        )}
+                        {commandType === 'get' && (
+                          <>
+                            <span className="mr-2">📄</span> Get text from page:
+                          </>
+                        )}
+                      </h4>
+
+                      {!showPositionControls && (
+                        <p className="text-xs text-gray-600 mt-2">
+                          Found {suggestions.length} matching elements
+                          {suggestions.some(s => s.isDuplicate) && 
+                            " (highlighted items have duplicate names)"}
+                          {lastClickCoordinates && " (ordered by proximity to last click)"}
+                          <br />
+                          💡 Click on an element to fine-tune its position if needed
+                        </p>
                       )}
-                      {commandType === 'type' && (
-                        <>
-                          <span className="mr-2">⌨️</span> Select where to type:
-                          
-                          {editableStep.includes(' in left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
-                          {editableStep.includes(' in right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
-                          {editableStep.includes(' in above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
-                          {(editableStep.includes(' in below ') || editableStep.includes(' in bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
-                      </>
-                      )}
-                      {commandType === 'verify' && (
-                        <>
-                          <span className="mr-2">✓</span> Verify text on page:
-                        </>
-                      )}
-                      {commandType === 'get' && (
-                        <>
-                          <span className="mr-2">📄</span> Get text from page:
-                        </>
-                      )}
-                    </h4>
-
-                    {!showPositionControls && (
-                      <p className="text-xs text-gray-600 mt-2">
-                        Found {suggestions.length} matching elements
-                        {suggestions.some(s => s.isDuplicate) && 
-                          " (highlighted items have duplicate names)"}
-                        {lastClickCoordinates && " (ordered by proximity to last click)"}
-                        <br />
-                        💡 Click on an element to fine-tune its position if needed
-                      </p>
-                    )}
 
 
-                    {/* Position Controls */}
-                    {showPositionControls && <PositionControls />}
+                      {/* Position Controls */}
+                      {/* {showPositionControls && <PositionControls />} */}
 
-                  </div>
-
-                  {suggestions.length === 0 ? (
-                    <div className="p-4 text-center">
-                      <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        No element data available
-                      </div>
-                      <p className="text-sm text-gray-700">
-                        Please check your network connection and try again.
-                      </p>
                     </div>
-                  ) : (
-                    <ul className="divide-y divide-gray-100">
-                      {suggestions.map((suggestion, index) => (
-                        <li 
-                          key={`modal-${suggestion.id}-${index}`}
-                          className={`modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-                            suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-                            suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-                            suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-                            suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-                            suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-                            suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-                            suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-                          }`}
-                          tabIndex={0}
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleSuggestionSelect(suggestion);
-                            } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                              e.preventDefault();
-                              document.querySelectorAll('.suggestion-item')[index + 1].focus();
-                            } else if (e.key === 'ArrowUp') {
-                              e.preventDefault();
-                              if (index > 0) {
-                                document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                              } else {
+
+                    {suggestions.length === 0 ? (
+                      <div className="p-4 text-center">
+                        <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                          No element data available
+                        </div>
+                        <p className="text-sm text-gray-700">
+                          Please check your network connection and try again.
+                        </p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {suggestions.map((suggestion, index) => (
+                          <li 
+                            key={`modal-${suggestion.id}-${index}`}
+                            className={`modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+                              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+                              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+                              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+                              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+                              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+                              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+                            }`}
+                            tabIndex={0}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSuggestionSelect(suggestion);
+                              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                                e.preventDefault();
+                                document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                if (index > 0) {
+                                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                                } else {
+                                  inputRef.current.focus();
+                                }
+                              } else if (e.key === 'Escape') {
+                                setShowSuggestions(false);
                                 inputRef.current.focus();
                               }
-                            } else if (e.key === 'Escape') {
-                              setShowSuggestions(false);
-                              inputRef.current.focus();
-                            }
-                          }}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">
-                              {suggestion.displayName || suggestion.name}
-                              {suggestion.usageInfo && (
-                                <span className={`ml-2 text-xs font-semibold ${
-                                  suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                                  suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                                  suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                                  'text-green-600'
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">
+                                {suggestion.displayName || suggestion.name}
+                                {suggestion.usageInfo && (
+                                  <span className={`ml-2 text-xs font-semibold ${
+                                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+                                    'text-green-600'
+                                  }`}>
+                                    ({suggestion.usageInfo})
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSuggestionSelect(suggestion);
+                                  }}
+                                  >
+                                  🎯 Adjust
+                                </span>
+
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  suggestion.type === 'button' || suggestion.tag === 'button' 
+                                      ? 'bg-blue-100 text-blue-700' 
+                                      : suggestion.type === 'input' || suggestion.tag === 'input'
+                                      ? 'bg-green-100 text-green-700'
+                                      : suggestion.type === 'link' || suggestion.tag === 'a'
+                                      ? 'bg-purple-100 text-purple-700'
+                                      : suggestion.type === 'text'
+                                      ? 'bg-gray-100 text-gray-700'
+                                      : 'bg-gray-100 text-gray-700'
                                 }`}>
-                                  ({suggestion.usageInfo})
+                                  {suggestion.type || suggestion.tag || "Element"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+                              {suggestion.isDuplicate && !suggestion.usageInfo && (
+                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                  Multiple matches
                                 </span>
                               )}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSuggestionSelect(suggestion);
-                              }}
-                              >
-                                🎯 Adjust
-                              </span>
-
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                suggestion.type === 'button' || suggestion.tag === 'button' 
-                                    ? 'bg-blue-100 text-blue-700' 
-                                    : suggestion.type === 'input' || suggestion.tag === 'input'
-                                    ? 'bg-green-100 text-green-700'
-                                    : suggestion.type === 'link' || suggestion.tag === 'a'
-                                    ? 'bg-purple-100 text-purple-700'
-                                    : suggestion.type === 'text'
-                                    ? 'bg-gray-100 text-gray-700'
-                                    : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                {suggestion.type || suggestion.tag || "Element"}
-                              </span>
+                              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  Near last click
+                                </span>
+                              )}
                             </div>
-                          </div>
-                          
-                          <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-                            <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-                            {suggestion.isDuplicate && !suggestion.usageInfo && (
-                              <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                                Multiple matches
-                              </span>
+                            
+                            {suggestion.text && (
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+                              </div>
                             )}
-                            {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                              <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                                Near last click
-                              </span>
-                            )}
-                          </div>
-                          
-                          {suggestion.text && (
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-between">
-          <button 
-            onClick={onSkip} 
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            Skip Step
-          </button>
-          <div className="flex space-x-3">
-            <button
-              onClick={onClose}
+          {/* Footer */}
+          <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-between">
+            <button 
+              onClick={onSkip} 
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
-              Cancel
+              Skip Step
             </button>
-            <button
-              onClick={handleSave}
-              disabled={!editableStep.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Save Changes
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!editableStep.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {showPositionControls && <PositionControls />}
+    </>
   );
 };
 
@@ -4714,7 +4819,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                 </div>
               </div>
 
-              <div className="p-4 border-t border-gray-200">
+              {/* <div className="p-4 border-t border-gray-200">
                 <div className="flex flex-col gap-2 relative">
                   <div className="flex gap-2">
                     <input
@@ -4750,10 +4855,8 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                     </button>
                   </div>
                   
-                  {/* Suggestions dropdown with animation */}
                   <SuggestionsDropdown omniparserData={elementData} />
                   
-                  {/* Command type indicator */}
                   {commandType && (
                     <div className="text-xs text-gray-500 mt-1">
                       {commandType === 'click' && "Click command - type element name or select from suggestions"}
@@ -4763,7 +4866,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                     </div>
                   )}
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Right Panel - Test Execution Timeline */}
@@ -5406,6 +5509,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
           previouslySelectedElements={previouslySelectedElements}
           testData={testData}
           isTestDataLoading={isTestDataLoading}
+          currentScreenshot={editStepModal.currentScreenshot}
         />
         </div>
       </div>

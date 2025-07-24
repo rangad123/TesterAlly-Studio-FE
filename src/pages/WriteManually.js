@@ -68,6 +68,12 @@ const WriteManually = () => {
   const [hasSessionData, setHasSessionData] = useState(false);
   const [showWaitModal, setShowWaitModal] = useState(false);
   const inputRef = useRef(null);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  const [showPositionControls, setShowPositionControls] = useState(false);
+
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
 
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
@@ -1665,6 +1671,211 @@ const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
   return aX - bX;
 });
 
+const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+  if (!selectedSuggestion) return;
+  
+  const currentPos = adjustedPosition || selectedSuggestion.click_point;
+  let newPos = [...currentPos];
+  
+  switch (direction) {
+    case 'up':
+      newPos[1] -= step;
+      break;
+    case 'down':
+      newPos[1] += step;
+      break;
+    case 'left':
+      newPos[0] -= step;
+      break;
+    case 'right':
+      newPos[0] += step;
+      break;
+    default:
+      return;
+  }
+  
+  // Ensure position doesn't go negative
+  newPos[0] = Math.max(0, newPos[0]);
+  newPos[1] = Math.max(0, newPos[1]);
+  
+  setAdjustedPosition(newPos);
+};
+
+const handleSuggestionSelect = (suggestion) => {
+  setSelectedSuggestion(suggestion);
+  setAdjustedPosition(null);
+  setShowPositionControls(true);
+};
+
+const handleConfirmSelection = (index) => {
+  if (selectedSuggestion) {
+    const finalPosition = adjustedPosition || selectedSuggestion.click_point;
+    const updatedSuggestion = {
+      ...selectedSuggestion,
+      click_point: finalPosition
+    };
+    handleSuggestionClick(updatedSuggestion, index);
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  }
+};
+
+const handleCancelSelection = () => {
+  setShowPositionControls(false);
+  setSelectedSuggestion(null);
+  setAdjustedPosition(null);
+};
+
+const resetPosition = () => {
+  setAdjustedPosition(null);
+};
+
+const PositionControls = ({ index }) => {
+  if (!selectedSuggestion) return null;
+  
+  const currentPos = adjustedPosition || selectedSuggestion.click_point;
+  const originalPos = selectedSuggestion.click_point;
+  const hasAdjustment = adjustedPosition && 
+    (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <h5 className="font-medium text-blue-800 flex items-center">
+          🎯 Fine-tune Position
+        </h5>
+        <div className="flex gap-2">
+          {hasAdjustment && (
+            <button
+              onClick={resetPosition}
+              className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
+            >
+              Reset
+            </button>
+          )}
+          <button
+            onClick={handleCancelSelection}
+            className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      
+      <div className="text-sm text-gray-700 mb-3">
+        <div className="font-medium mb-1">Selected: {selectedSuggestion.name || selectedSuggestion.text || 'Element'}</div>
+        <div className="text-xs text-gray-600">
+          Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
+          {hasAdjustment && (
+            <span className="ml-2 text-blue-600">
+              (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Directional Controls */}
+      <div className="flex flex-col items-center gap-2 mb-4">
+        {/* Up Arrow */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+            className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+            title="Move up (fine)"
+          >
+            ⬆
+          </button>
+          <button
+            onClick={() => handlePositionAdjustment('up')}
+            className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+            title="Move up"
+          >
+            ⬆
+          </button>
+        </div>
+        
+        {/* Left and Right Arrows */}
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1">
+            <button
+              onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+              className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+              title="Move left (fine)"
+            >
+              ⬅
+            </button>
+            <button
+              onClick={() => handlePositionAdjustment('left')}
+              className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+              title="Move left"
+            >
+              ⬅
+            </button>
+          </div>
+          
+          <div className="mx-2 text-center">
+            <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+              🎯
+            </div>
+            <div className="text-xs text-gray-600 mt-1">Target</div>
+          </div>
+          
+          <div className="flex gap-1">
+            <button
+              onClick={() => handlePositionAdjustment('right')}
+              className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+              title="Move right"
+            >
+              ➡
+            </button>
+            <button
+              onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+              className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+              title="Move right (fine)"
+            >
+              ➡
+            </button>
+          </div>
+        </div>
+        
+        {/* Down Arrow */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => handlePositionAdjustment('down')}
+            className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+            title="Move down"
+          >
+            ⬇
+          </button>
+          <button
+            onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+            className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+            title="Move down (fine)"
+          >
+            ⬇
+          </button>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
+        <div className="font-medium mb-1">Controls:</div>
+        <div>• Bold arrows: Move {POSITION_STEP}px</div>
+        <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
+      </div>
+
+      {/* Confirm Button */}
+      <button
+        onClick={() => handleConfirmSelection(index)}
+        className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+      >
+        ✓ Use This Position
+      </button>
+    </div>
+  );
+};
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -1887,73 +2098,92 @@ const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
                             </div>
                           )}
 
-                          {sortedSuggestions.map((element, idx) => {
-                            const sameNameElements = sortedSuggestions.filter((el) => 
-                            (el.name && element.name && el.name === element.name) || 
-                            (el.text && element.text && el.text === element.text)
-                          );
+                          {showPositionControls && <PositionControls index={index} />}
+                          
+                          {!showPositionControls &&
+                            sortedSuggestions.map((element, idx) => { 
+                              const sameNameElements = sortedSuggestions.filter((el) => 
+                                (el.name && element.name && el.name === element.name) || 
+                                (el.text && element.text && el.text === element.text)
+                              );
 
-                          const occurrencesBefore = sortedSuggestions
-                            .slice(0, idx)
-                            .filter((el) => 
-                              (el.name && element.name && el.name === element.name) ||
-                              (el.text && element.text && el.text === element.text)
-                            ).length;
+                              const occurrencesBefore = sortedSuggestions
+                                .slice(0, idx)
+                                .filter((el) => 
+                                  (el.name && element.name && el.name === element.name) ||
+                                  (el.text && element.text && el.text === element.text)
+                                ).length;
 
-                          const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
+                              const positionLabel = sameNameElements.length > 1 ? ` (Position ${occurrencesBefore + 1})` : '';
 
-                            
-                            // Fix for coordinates display
-                            let coordinatesDisplay = "";
-                            if (element.click_point && Array.isArray(element.click_point)) {
-                              coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
-                            } else if (element.coordinates) {
-                              if (Array.isArray(element.coordinates)) {
-                                coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
-                              } else {
-                                const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
-                                const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
-                                coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                              // Fix for coordinates display
+                              let coordinatesDisplay = "";
+                              if (element.click_point && Array.isArray(element.click_point)) {
+                                coordinatesDisplay = `(${Math.round(parseFloat(element.click_point[0]) || 0)}, ${Math.round(parseFloat(element.click_point[1]) || 0)})`;
+                              } else if (element.coordinates) {
+                                if (Array.isArray(element.coordinates)) {
+                                  coordinatesDisplay = `(${Math.round(parseFloat(element.coordinates[0]) || 0)}, ${Math.round(parseFloat(element.coordinates[1]) || 0)})`;
+                                } else {
+                                  const x = parseFloat(element.coordinates.x || element.coordinates.click_x || 0);
+                                  const y = parseFloat(element.coordinates.y || element.coordinates.click_y || 0);
+                                  coordinatesDisplay = `(${Math.round(x)}, ${Math.round(y)})`;
+                                }
                               }
-                            }
-                            
-                            return (
-                              <div 
-                                key={idx}
-                                onClick={() => handleSuggestionClick(element, index)}
-                                className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
-                              >
-                                <div className={`w-4 h-4 rounded-full ${
-                                  commandType === 'click' ? 'bg-blue-100' : 
-                                  commandType === 'type' ? 'bg-green-100' : 
-                                  commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
-                                }`}></div>
+                              
+                              return (
+                                <div 
+                                  key={idx}
+                                  onClick={() => handleSuggestionClick(element, index)}
+                                  className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
+                                >
+                                  <div className={`w-4 h-4 rounded-full ${
+                                    commandType === 'click' ? 'bg-blue-100' : 
+                                    commandType === 'type' ? 'bg-green-100' : 
+                                    commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
+                                  }`}></div>
 
-                                <div className="flex flex-col">
-                                  <span className="font-medium">
-                                    {element.name || element.text || element.id || 'Element ' + (idx + 1)}
-                                    {positionLabel}
-                                  </span>
-                                  
-                                  <div className="flex items-center gap-2 text-xs">
-                                    {coordinatesDisplay && (
-                                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
-                                        {coordinatesDisplay}
-                                      </span>
-                                    )}
+                                  <div className="flex flex-col flex-grow">
+                                    <span className="font-medium">
+                                      {element.name || element.text || element.id || 'Element ' + (idx + 1)}
+                                      {positionLabel}
+                                    </span>
                                     
-                                    {/* {element.text && (
-                                      <span className="text-gray-500 truncate max-w-xs">
-                                        "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
-                                      </span>
-                                    )} */}
+                                    <div className="flex items-center gap-2 text-xs">
+                                      {coordinatesDisplay && (
+                                        <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                                          {coordinatesDisplay}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Add the adjust button and direct click option */}
+                                  <div className="flex items-center gap-2">
+                                    <span 
+                                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSuggestionSelect(element);
+                                      }}
+                                    >
+                                      🎯 Adjust
+                                    </span>
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      element.type === 'button' ? 'bg-blue-100 text-blue-700' : 
+                                      element.type === 'input' ? 'bg-green-100 text-green-700' :
+                                      element.type === 'text' ? 'bg-gray-100 text-gray-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {element.type || 'Element'}
+                                    </span>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })
+                          }
                         </div>
                       )}
+
                       {showSuggestions === index && commandSuggestions.length === 0 && (
                         <div className="absolute z-10 bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
                           <div className="p-4 text-center">
