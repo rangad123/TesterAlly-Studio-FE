@@ -30,6 +30,7 @@ const MobileRecord = () => {
     selectedElement: null
   });
 
+  const [lastScreenshot, setLastScreenshot] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [commandType, setCommandType] = useState('');
@@ -1437,6 +1438,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
       return;
     }
+
+    if (executionResult.screenshot) {
+      setLastScreenshot(executionResult.screenshot);
+    }
     
     // After successful execution, update the previouslySelectedElements
     if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
@@ -2045,11 +2050,37 @@ const handleScrollOptionClick = (option) => {
   setSelectedElement({ type: 'scroll', name: option });
 };
 
-const SuggestionsDropdown = () => {
+const SuggestionsDropdown = ({ omniparserData, lastScreenshot: currentScreenshot }) => {
 
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [adjustedPosition, setAdjustedPosition] = useState(null);
   const [showPositionControls, setShowPositionControls] = useState(false);
+
+  // Position adjustment increments (in pixels)
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+  const screenshotContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (showSuggestions && selectedSuggestion && screenshotContainerRef.current && currentScreenshot) {
+      const container = screenshotContainerRef.current;
+      const currentPos = adjustedPosition || selectedSuggestion.click_point;
+      
+      // Center the view on the selected suggestion's position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [selectedSuggestion, adjustedPosition, currentScreenshot]);
+
 
   const filteredScrollOptions = scrollOptions
     .filter(option => option.toLowerCase().includes(newStep.toLowerCase()))
@@ -2111,16 +2142,17 @@ const SuggestionsDropdown = () => {
     );
   }
 
-  // Position adjustment increments (in pixels)
-  const POSITION_STEP = 10;
-  const FINE_STEP = 5;
-
   if (!showSuggestions) return null;
 
-  const shouldShowNoDataMessage =
-    suggestions.length === 0 &&
+  const shouldShowNoDataMessage = 
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+    ['click', 'type', 'verify', 'get', 'select'].some(cmd => newStep.startsWith(cmd)) &&
+    (
+      !omniparserData || 
+      !omniparserData.elements || 
+      omniparserData.elements.length === 0 || 
+      suggestions.length === 0
+    );
   
   if (shouldShowNoDataMessage) {
     return (
@@ -2172,6 +2204,24 @@ const SuggestionsDropdown = () => {
     newPos[1] = Math.max(0, newPos[1]);
     
     setAdjustedPosition(newPos);
+    
+    // Scroll the container to keep the crosshair visible
+    setTimeout(() => {
+      if (screenshotContainerRef.current) {
+        const container = screenshotContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate if we need to scroll to keep the crosshair visible
+        const targetX = newPos[0] - containerRect.width / 2;
+        const targetY = newPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }
+    }, 0);
   };
 
   const handleSuggestionSelect = (suggestion) => {
@@ -2213,384 +2263,508 @@ const SuggestionsDropdown = () => {
       (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
 
     return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <h5 className="font-medium text-blue-800 flex items-center">
-            🎯 Fine-tune Position
-          </h5>
-          <div className="flex gap-2">
-            {hasAdjustment && (
-              <button
-                onClick={resetPosition}
-                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-              >
-                Reset
-              </button>
-            )}
-            <button
-              onClick={handleCancelSelection}
-              className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-        
-        <div className="text-sm text-gray-700 mb-3">
-          <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
-          <div className="text-xs text-gray-600">
-            Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
-            {hasAdjustment && (
-              <span className="ml-2 text-blue-600">
-                (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Directional Controls */}
-        <div className="flex flex-col items-center gap-2 mb-4">
-          {/* Up Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('up', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move up (fine)"
-            >
-              ⬆
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('up')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move up"
-            >
-              ⬆
-            </button>
-          </div>
-          
-          {/* Left and Right Arrows */}
-          <div className="flex gap-2 items-center">
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('left', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move left (fine)"
-              >
-                ⬅
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('left')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move left"
-              >
-                ⬅
-              </button>
-            </div>
-            
-            <div className="mx-2 text-center">
-              <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
-                🎯
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                  <p className="text-sm text-blue-600">
+                    Element: {selectedSuggestion.displayName || selectedSuggestion.name}
+                  </p>
+                </div>
               </div>
-              <div className="text-xs text-gray-600 mt-1">Target</div>
+              <button 
+                onClick={handleCancelSelection}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
             </div>
+          </div>
+
+          <div className="flex h-[calc(600px-140px)]">
+            {/* Screenshot Panel */}
             
-            <div className="flex gap-1">
-              <button
-                onClick={() => handlePositionAdjustment('right')}
-                className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-                title="Move right"
-              >
-                ➡
-              </button>
-              <button
-                onClick={() => handlePositionAdjustment('right', FINE_STEP)}
-                className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-                title="Move right (fine)"
-              >
-                ➡
-              </button>
+            <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+              <div className="relative inline-block min-w-full min-h-full">
+                {currentScreenshot ? (
+                  <img 
+                    src={currentScreenshot} 
+                    alt="Page Screenshot" 
+                    className="max-w-none"
+                    style={{ cursor: 'crosshair' }}
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const scaleX = e.target.naturalWidth / rect.width;
+                      const scaleY = e.target.naturalHeight / rect.height;
+                      const x = (e.clientX - rect.left) * scaleX;
+                      const y = (e.clientY - rect.top) * scaleY;
+                      setAdjustedPosition([Math.round(x), Math.round(y)]);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📸</div>
+                      <p>Screenshot not available</p>
+                      <p className="text-sm">Use the controls to adjust position</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Original Position Indicator */}
+                <div 
+                  className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${originalPos[0]}px`, 
+                    top: `${originalPos[1]}px` 
+                  }}
+                >
+                  <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Original Position
+                  </div>
+                </div>
+                
+                {/* Current/Adjusted Position Indicator */}
+                <div 
+                  className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ 
+                    left: `${currentPos[0]}px`, 
+                    top: `${currentPos[1]}px` 
+                  }}
+                >
+                  {/* Crosshair */}
+                  <div className="absolute inset-0">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                    <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                  </div>
+                  
+                  {/* Center dot */}
+                  <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                  
+                  {/* Label */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Panel */}
+            <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                {/* Position Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current:</span>
+                      <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original:</span>
+                      <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                    </div>
+                    {hasAdjustment && (
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600">Offset:</span>
+                        <span className="font-mono text-green-600">
+                          x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Directional Controls */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Up Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move up (fine)"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('up')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move up"
+                      >
+                        ⬆
+                      </button>
+                    </div>
+                    
+                    {/* Left and Right Arrows */}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move left (fine)"
+                        >
+                          ⬅
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('left')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move left"
+                        >
+                          ⬅
+                        </button>
+                      </div>
+                      
+                      <div className="mx-2 text-center">
+                        <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                          🎯
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">Target</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('right')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move right"
+                        >
+                          ➡
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move right (fine)"
+                        >
+                          ➡
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Down Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('down')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move down"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move down (fine)"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {hasAdjustment && (
+                    <button
+                      onClick={resetPosition}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                    >
+                      🔄 Reset to Original
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleConfirmSelection}
+                    className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    ✓ Use This Position
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelSelection}
+                    className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Quick Instructions */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Click directly on the screenshot</li>
+                    <li>• Use arrow buttons for precise control</li>
+                    <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                    <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                  </ul>
+                </div>
+
+              </div>
             </div>
           </div>
-          
-          {/* Down Arrow */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => handlePositionAdjustment('down')}
-              className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-              title="Move down"
-            >
-              ⬇
-            </button>
-            <button
-              onClick={() => handlePositionAdjustment('down', FINE_STEP)}
-              className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-              title="Move down (fine)"
-            >
-              ⬇
-            </button>
-          </div>
         </div>
-
-        {/* Legend */}
-        <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-          <div className="font-medium mb-1">Controls:</div>
-          <div>• Bold arrows: Move {POSITION_STEP}px</div>
-          <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
-        </div>
-
-        {/* Confirm Button */}
-        <button
-          onClick={handleConfirmSelection}
-          className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
-        >
-          ✓ Use This Position
-        </button>
       </div>
     );
   };
   
   return (
-    <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
-      <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-        <h4 className="font-medium text-purple-800 flex items-center">
-          {commandType === 'click' ? (
-            <>
-              <span className="mr-2">🖱️</span> Click on an element:
-            </>
-          ) : commandType === 'type' ? (
-            <>
-              <span className="mr-2">⌨️</span> Select where to type:
-            </>
-          ) : commandType === 'verify' ? (
-            <>
-              <span className="mr-2">✓</span> Verify text on page:
-            </>
-          ) : commandType === 'get' ? (
-            <>
-              <span className="mr-2">📄</span> Get text from page:
-            </>
-          ) : null}
-        </h4>
+    <>
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
+        <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+          <h4 className="font-medium text-purple-800 flex items-center">
+            {commandType === 'click' ? (
+              <>
+                <span className="mr-2">🖱️</span> Click on an element:
+              </>
+            ) : commandType === 'type' ? (
+              <>
+                <span className="mr-2">⌨️</span> Select where to type:
+              </>
+            ) : commandType === 'verify' ? (
+              <>
+                <span className="mr-2">✓</span> Verify text on page:
+              </>
+            ) : commandType === 'get' ? (
+              <>
+                <span className="mr-2">📄</span> Get text from page:
+              </>
+            ) : null}
+          </h4>
 
-        {commandType === 'type' && requiresOtp && (
-          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isOtpStepConfirmed}
-                onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
-                className="accent-orange-500"
-              />
-              ✅ Confirm this is OTP input step
-            </label>
-            <div className="text-xs text-gray-600 mt-1">
-              Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+          {commandType === 'type' && requiresOtp && (
+            <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
+              <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isOtpStepConfirmed}
+                  onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
+                  className="accent-orange-500"
+                />
+                ✅ Confirm this is OTP input step
+              </label>
+              <div className="text-xs text-gray-600 mt-1">
+                Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {commandType === 'type' && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requiresOtp}
-                onChange={toggleOtpCheckbox}
-                className="accent-blue-500"
-              />
-              OTP Verification
-            </label>
-            
-            {/* Show contact selection only when OTP is checked and no contact selected */}
-            {requiresOtp && !otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
-                <span className="text-sm font-medium text-gray-700 block mb-2">
-                  Select Contact Method:
-                </span>
+          {commandType === 'type' && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requiresOtp}
+                  onChange={toggleOtpCheckbox}
+                  className="accent-blue-500"
+                />
+                OTP Verification
+              </label>
+              
+              {/* Show contact selection only when OTP is checked and no contact selected */}
+              {requiresOtp && !otpVerificationState.contactEntered && (
+                <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+                  <span className="text-sm font-medium text-gray-700 block mb-2">
+                    Select Contact Method:
+                  </span>
 
-                {/* ✅ Loading state */}
-                {isTestDataLoading ? (
-                  <div className="text-blue-500 text-sm flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                              stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    Loading test data...
-                  </div>
-                ) : testData?.phone_number || testData?.email ? (
-                  <div className="flex gap-2 flex-wrap">
-                    {testData.phone_number && (
+                  {/* ✅ Loading state */}
+                  {isTestDataLoading ? (
+                    <div className="text-blue-500 text-sm flex items-center gap-2">
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10"
+                                stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                      Loading test data...
+                    </div>
+                  ) : testData?.phone_number || testData?.email ? (
+                    <div className="flex gap-2 flex-wrap">
+                      {testData.phone_number && (
+                        <button
+                          onClick={() => handlePhoneNumberClick(testData.phone_number)}
+                          className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+                        >
+                          📱 Phone: {testData.phone_number}
+                        </button>
+                      )}
+                      {testData.email && (
+                        <button
+                          onClick={() => handleEmailClick()}
+                          className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
+                        >
+                          📧 Email: {testData.email}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 items-start">
+                      <div className="text-sm text-red-600">
+                        ⚠ No contact method found.
+                      </div>
                       <button
-                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+                        onClick={() => setAddTestDataModalOpen(true)}
+                        className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
                       >
-                        📱 Phone: {testData.phone_number}
+                        Add Test Data
                       </button>
-                    )}
-                    {testData.email && (
-                      <button
-                        onClick={() => handleEmailClick()}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-                      >
-                        📧 Email: {testData.email}
-                      </button>
-                    )}
+                    </div>
+                  )}
+
+                  <div className="mt-2 text-xs text-gray-600">
+                    Click on a contact method to proceed
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-2 items-start">
-                    <div className="text-sm text-red-600">
-                      ⚠ No contact method found.
+                </div>
+              )}       
+
+              {/* Show selected contact and allow changing */}
+              {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-green-700">
+                      ✅ Selected: {otpVerificationState.enteredContact}
                     </div>
                     <button
-                      onClick={() => setAddTestDataModalOpen(true)}
-                      className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
+                      onClick={() => {
+                        setContactSelected(false);
+                        setOtpVerificationState(prev => ({
+                          ...prev,
+                          contactEntered: false,
+                          enteredContact: ''
+                        }));
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
                     >
-                      Add Test Data
+                      Change Contact
                     </button>
                   </div>
-                )}
-
-                <div className="mt-2 text-xs text-gray-600">
-                  Click on a contact method to proceed
                 </div>
-              </div>
-            )}       
+              )}
+            </div>
+          )}
 
-            {/* Show selected contact and allow changing */}
-            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-green-700">
-                    ✅ Selected: {otpVerificationState.enteredContact}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setContactSelected(false);
-                      setOtpVerificationState(prev => ({
-                        ...prev,
-                        contactEntered: false,
-                        enteredContact: ''
-                      }));
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Change Contact
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+          <p className="text-xs text-gray-600">
+            Found {suggestions.length} matching elements
+            {suggestions.some(s => s.isDuplicate) && 
+              " (highlighted items have duplicate names)"}
+            {lastClickCoordinates && " (ordered by proximity to last click)"}
+          </p>
+        </div>
 
-        <p className="text-xs text-gray-600">
-          Found {suggestions.length} matching elements
-          {suggestions.some(s => s.isDuplicate) && 
-            " (highlighted items have duplicate names)"}
-          {lastClickCoordinates && " (ordered by proximity to last click)"}
-        </p>
-      </div>
-      {/* Position Controls */}
-      {showPositionControls && <PositionControls />}
-
-      <ul className="divide-y divide-gray-100">
-        {suggestions.map((suggestion, index) => (
-          <li 
-            key={`${suggestion.id}-${index}`}
-            className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-            }`}
-            tabIndex={0}
-            onClick={() => handleSuggestionClick(suggestion)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSuggestionSelect(suggestion);
-              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                e.preventDefault();
-                document.querySelectorAll('.suggestion-item')[index + 1].focus();
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (index > 0) {
-                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                } else {
+        <ul className="divide-y divide-gray-100">
+          {suggestions.map((suggestion, index) => (
+            <li 
+              key={`${suggestion.id}-${index}`}
+              className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+                suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+                suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+                suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+                suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+                suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+                suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+              }`}
+              tabIndex={0}
+              onClick={() => handleSuggestionClick(suggestion)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSuggestionSelect(suggestion);
+                } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                  e.preventDefault();
+                  document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  if (index > 0) {
+                    document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                  } else {
+                    inputRef.current.focus();
+                  }
+                } else if (e.key === 'Escape') {
+                  setShowSuggestions(false);
                   inputRef.current.focus();
                 }
-              } else if (e.key === 'Escape') {
-                setShowSuggestions(false);
-                inputRef.current.focus();
-              }
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-medium">
-                {suggestion.displayName || suggestion.name}
-                {suggestion.usageInfo && (
-                  <span className={`ml-2 text-xs font-semibold ${
-                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                    'text-green-600'
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-medium">
+                  {suggestion.displayName || suggestion.name}
+                  {suggestion.usageInfo && (
+                    <span className={`ml-2 text-xs font-semibold ${
+                      suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                      suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                      suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+                      'text-green-600'
+                    }`}>
+                      ({suggestion.usageInfo})
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSuggestionSelect(suggestion);
+                    }}
+                    >
+                      🎯 Adjust
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    suggestion.type === 'button' || suggestion.tag === 'button' 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : suggestion.type === 'input' || suggestion.tag === 'input'
+                        ? 'bg-green-100 text-green-700'
+                        : suggestion.type === 'link' || suggestion.tag === 'a'
+                        ? 'bg-purple-100 text-purple-700'
+                        : suggestion.type === 'text'
+                        ? 'bg-gray-100 text-gray-700'
+                        : 'bg-gray-100 text-gray-700'
                   }`}>
-                    ({suggestion.usageInfo})
+                    {suggestion.type || suggestion.tag || "Element"}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+                {suggestion.isDuplicate && !suggestion.usageInfo && (
+                  <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                    Multiple matches
                   </span>
                 )}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSuggestionSelect(suggestion);
-                  }}
-                  >
-                    🎯 Adjust
-                </span>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  suggestion.type === 'button' || suggestion.tag === 'button' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : suggestion.type === 'input' || suggestion.tag === 'input'
-                      ? 'bg-green-100 text-green-700'
-                      : suggestion.type === 'link' || suggestion.tag === 'a'
-                      ? 'bg-purple-100 text-purple-700'
-                      : suggestion.type === 'text'
-                      ? 'bg-gray-100 text-gray-700'
-                      : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {suggestion.type || suggestion.tag || "Element"}
-                </span>
+                {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+                  <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                    Near last click
+                  </span>
+                )}
               </div>
-            </div>
-            
-            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-              {suggestion.isDuplicate && !suggestion.usageInfo && (
-                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                  Multiple matches
-                </span>
+              
+              {/* Extra details to help distinguish elements */}
+              {suggestion.text && (
+                <div className="text-xs text-gray-500 mt-1 truncate">
+                  Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+                </div>
               )}
-              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  Near last click
-                </span>
-              )}
-            </div>
-            
-            {/* Extra details to help distinguish elements */}
-            {suggestion.text && (
-              <div className="text-xs text-gray-500 mt-1 truncate">
-                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    
+      {showPositionControls && <PositionControls />}
+
+    </>
   );
 };
 
@@ -3066,7 +3240,10 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   </div>
                   
                   {/* Suggestions dropdown with animation */}
-                  <SuggestionsDropdown />
+                  <SuggestionsDropdown 
+                    omniparserData={elementData} 
+                    lastScreenshot={lastScreenshot}
+                  />
                   
                   {/* Command type indicator */}
                   {commandType && (

@@ -47,6 +47,16 @@ const MobileAddStep = ({
   const [testData, setTestData] = useState({});
   const [otpPlaceholderUsed, setOtpPlaceholderUsed] = useState(false);
 
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  const [showPositionControls, setShowPositionControls] = useState(false);
+  // Position adjustment increments (in pixels)
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+  const screenshotContainerRef = useRef(null);
+  const [currentScreenshot, setCurrentScreenshot] = useState(null);
+  const [currentSetEditValue, setCurrentSetEditValue] = useState(null);
+
   const toggleOtpCheckbox = () => {
     setRequiresOtp(prev => {
       const newValue = !prev;
@@ -165,13 +175,16 @@ const handleCaptureElement = async (stepNumber) => {
     const data = await response.json();
     console.log("Mobile screen capture response:", data);
 
+    const screenshotUrl = data.screenshot_result ? `http://localhost:8000${data.screenshot_result}` : null;
+    setCurrentScreenshot(screenshotUrl);
+
     const coordinates = { click_x: 0, click_y: 0 };
     const convertedElements = convertOmniaParserElements(data.omniparser_response?.elements || []);
     
     // Process the Android response
     const capturedStepData = {
       coordinates: coordinates,
-      screenshot: data.screenshot_result ? `http://localhost:8000${data.screenshot_result}` : null,
+      screenshot: screenshotUrl,
       timestamp: new Date().toISOString(),
       elements: convertedElements,
       current_app: data.current_app
@@ -826,6 +839,61 @@ const handleInsertStep = async (afterStepNumber, waitCommandOverride = null, wai
     }
   };
 
+  const handleEditSuggestionClick = (element, stepNumber, setEditValue) => {
+    if (!element || !setEditValue) return;
+
+    const currentStep = steps.find(s => s.step_number === stepNumber);
+    if (!currentStep) return;
+
+    let updatedStep = '';
+    if (commandType === 'click') {
+      updatedStep = `click ${element.name || element.text || 'element'}`;
+    } else if (commandType === 'type') {
+      const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
+      const inIndex = currentText.toLowerCase().indexOf(' in ');
+      const typedText = currentText.substring(5, inIndex).trim();
+      updatedStep = `type ${typedText || ''} in ${element.name || element.text || 'element'}`;
+    } else if (commandType === 'verify') {
+      updatedStep = `verify ${element.text || element.name || 'element'}`;
+    } else if (commandType === 'get') {
+      updatedStep = `get ${element.text || element.name || 'element'}`;
+    }
+
+    setEditValue(updatedStep);
+    setSelectedElement(element);
+
+    // Set coordinates if available
+    let coordinates = null;
+    if (element.click_point && Array.isArray(element.click_point)) {
+      coordinates = {
+        click_x: parseFloat(element.click_point[0]) || 0,
+        click_y: parseFloat(element.click_point[1]) || 0
+      };
+    } else if (element.coordinates) {
+      const coords = element.coordinates;
+      coordinates = {
+        click_x: parseFloat(coords[0] || coords.x || coords.click_x || 0),
+        click_y: parseFloat(coords[1] || coords.y || coords.click_y || 0)
+      };
+    }
+
+    if (coordinates) {
+      const stepId = stepNumber;
+      const relevantCaptureId = originalCaptureIds[stepId] || stepId;
+      if (capturedSteps[relevantCaptureId]) {
+        setCapturedSteps(prev => ({
+          ...prev,
+          [stepId]: {
+            ...capturedSteps[relevantCaptureId],
+            coordinates
+          }
+        }));
+      }
+    }
+
+    setShowSuggestions(false);
+  };
+
   const handleExpandScreenshot = (screenshot) => {
     setExpandedScreenshot(screenshot);
   };
@@ -965,6 +1033,383 @@ const sortedSuggestions = [...commandSuggestions].sort((a, b) => {
   const bX = b.click_point ? b.click_point[0] : Infinity;
   return aX - bX;
 });
+
+const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+  if (!selectedSuggestion) return;
+  
+  const currentPos = adjustedPosition || selectedSuggestion.click_point;
+  let newPos = [...currentPos];
+  
+  switch (direction) {
+    case 'up':
+      newPos[1] -= step;
+      break;
+    case 'down':
+      newPos[1] += step;
+      break;
+    case 'left':
+      newPos[0] -= step;
+      break;
+    case 'right':
+      newPos[0] += step;
+      break;
+    default:
+      return;
+  }
+  
+  // Ensure position doesn't go negative
+  newPos[0] = Math.max(0, newPos[0]);
+  newPos[1] = Math.max(0, newPos[1]);
+  
+  setAdjustedPosition(newPos);
+  
+  // Scroll the container to keep the crosshair visible
+  setTimeout(() => {
+    if (screenshotContainerRef.current) {
+      const container = screenshotContainerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      
+      // Calculate if we need to scroll to keep the crosshair visible
+      const targetX = newPos[0] - containerRect.width / 2;
+      const targetY = newPos[1] - containerRect.height / 2;
+      
+      container.scrollTo({
+        left: Math.max(0, targetX),
+        top: Math.max(0, targetY),
+        behavior: 'smooth'
+      });
+    }
+  }, 0);
+};
+
+const handleSuggestionSelect = (suggestion) => {
+  setSelectedSuggestion(suggestion);
+  setAdjustedPosition(null);
+  setShowPositionControls(true);
+};
+
+const handleConfirmSelection = (index) => {
+  if (selectedSuggestion) {
+    const finalPosition = adjustedPosition || selectedSuggestion.click_point;
+    const updatedSuggestion = {
+      ...selectedSuggestion,
+      click_point: finalPosition
+    };
+    
+    if (editingStepId !== null && currentSetEditValue) {
+      handleEditSuggestionClick(updatedSuggestion, editingStepId, currentSetEditValue);
+      setCurrentSetEditValue(null); 
+    } else {
+      handleSuggestionClick(updatedSuggestion, index);
+    }
+    
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  }
+};
+
+const handleCancelSelection = () => {
+  setShowPositionControls(false);
+  setSelectedSuggestion(null);
+  setAdjustedPosition(null);
+};
+
+const resetPosition = () => {
+  setAdjustedPosition(null);
+};
+
+const PositionControls = ({ 
+  index, 
+  currentScreenshot, 
+  selectedSuggestion, 
+  adjustedPosition,
+}) => {
+
+  useEffect(() => {
+    if (selectedSuggestion && screenshotContainerRef.current && currentScreenshot) {
+      const container = screenshotContainerRef.current;
+      const currentPos = adjustedPosition || selectedSuggestion.click_point;
+      
+      // Center the view on the selected suggestion's position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [selectedSuggestion, adjustedPosition, currentScreenshot]);
+
+  if (!selectedSuggestion) return null;
+  
+  const currentPos = adjustedPosition || selectedSuggestion.click_point;
+  const originalPos = selectedSuggestion.click_point;
+  const hasAdjustment = adjustedPosition && 
+    (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+      <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+        {/* Header */}
+        <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                🎯
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                <p className="text-sm text-blue-600">
+                  Element: {selectedSuggestion.displayName || selectedSuggestion.name}
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={handleCancelSelection}
+              className="text-gray-400 hover:text-gray-600 p-1"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex h-[calc(600px-140px)]">
+          {/* Screenshot Panel */}
+          
+          <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+            <div className="relative inline-block min-w-full min-h-full">
+              {currentScreenshot ? (
+                <img 
+                  src={currentScreenshot} 
+                  alt="Page Screenshot" 
+                  className="max-w-none"
+                  style={{ cursor: 'crosshair' }}
+                  onClick={(e) => {
+                    const rect = e.target.getBoundingClientRect();
+                    const scaleX = e.target.naturalWidth / rect.width;
+                    const scaleY = e.target.naturalHeight / rect.height;
+                    const x = (e.clientX - rect.left) * scaleX;
+                    const y = (e.clientY - rect.top) * scaleY;
+                    setAdjustedPosition([Math.round(x), Math.round(y)]);
+                  }}
+                />
+              ) : (
+                <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <div className="text-4xl mb-2">📸</div>
+                    <p>Screenshot not available</p>
+                    <p className="text-sm">Use the controls to adjust position</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Original Position Indicator */}
+              <div 
+                className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                style={{ 
+                  left: `${originalPos[0]}px`, 
+                  top: `${originalPos[1]}px` 
+                }}
+              >
+                <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+                <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Original Position
+                </div>
+              </div>
+              
+              {/* Current/Adjusted Position Indicator */}
+              <div 
+                className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                style={{ 
+                  left: `${currentPos[0]}px`, 
+                  top: `${currentPos[1]}px` 
+                }}
+              >
+                {/* Crosshair */}
+                <div className="absolute inset-0">
+                  <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                  <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                </div>
+                
+                {/* Center dot */}
+                <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                
+                {/* Label */}
+                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                </div>
+                
+              </div>
+            </div>
+          </div>
+
+          {/* Controls Panel */}
+          <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+            <div className="space-y-6">
+              {/* Position Info */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Current:</span>
+                    <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Original:</span>
+                    <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                  </div>
+                  {hasAdjustment && (
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="text-gray-600">Offset:</span>
+                      <span className="font-mono text-green-600">
+                        x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Directional Controls */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                
+                <div className="flex flex-col items-center gap-2">
+                  {/* Up Arrow */}
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                      className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                      title="Move up (fine)"
+                    >
+                      ⬆
+                    </button>
+                    <button
+                      onClick={() => handlePositionAdjustment('up')}
+                      className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                      title="Move up"
+                    >
+                      ⬆
+                    </button>
+                  </div>
+                  
+                  {/* Left and Right Arrows */}
+                  <div className="flex gap-2 items-center">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                        className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move left (fine)"
+                      >
+                        ⬅
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('left')}
+                        className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move left"
+                      >
+                        ⬅
+                      </button>
+                    </div>
+                    
+                    <div className="mx-2 text-center">
+                      <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                        🎯
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">Target</div>
+                    </div>
+                    
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('right')}
+                        className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move right"
+                      >
+                        ➡
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                        className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move right (fine)"
+                      >
+                        ➡
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Down Arrow */}
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handlePositionAdjustment('down')}
+                      className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                      title="Move down"
+                    >
+                      ⬇
+                    </button>
+                    <button
+                      onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                      className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                      title="Move down (fine)"
+                    >
+                      ⬇
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {hasAdjustment && (
+                  <button
+                    onClick={resetPosition}
+                    className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    🔄 Reset to Original
+                  </button>
+                )}
+                
+                <button
+                  onClick={() => handleConfirmSelection(index)}
+                  className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                >
+                  ✓ Use This Position
+                </button>
+                
+                <button
+                  onClick={handleCancelSelection}
+                  className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {/* Quick Instructions */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Click directly on the screenshot</li>
+                  <li>• Use arrow buttons for precise control</li>
+                  <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                  <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const renderEditSuggestions = (stepNumber, setEditValue) => {
   const currentStep = steps.find(s => s.step_number === stepNumber);
@@ -1157,57 +1602,7 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
           return (
             <div 
               key={index}
-              onClick={() => {
-                  if (!currentStep) return;
-
-                  let updatedStep = '';
-                  if (commandType === 'click') {
-                    updatedStep = `click ${element.name || element.text || 'element'}`;
-                  } else if (commandType === 'type') {
-                    const currentText = document.querySelector(`[data-step-id="${stepNumber}"]`)?.value || '';
-                    const inIndex = currentText.toLowerCase().indexOf(' in ');
-                    const typedText = currentText.substring(5, inIndex).trim();
-                    updatedStep = `type ${typedText || ''} in ${element.name || element.text || 'element'}`;
-                  } else if (commandType === 'verify') {
-                    updatedStep = `verify ${element.text || element.name || 'element'}`;
-                  } else if (commandType === 'get') {
-                    updatedStep = `get ${element.text || element.name || 'element'}`;
-                  }
-
-                  setEditValue(updatedStep);
-                  setSelectedElement(element);
-
-                  let coordinates = null;
-                  if (element.click_point && Array.isArray(element.click_point)) {
-                    coordinates = {
-                      click_x: parseFloat(element.click_point[0]) || 0,
-                      click_y: parseFloat(element.click_point[1]) || 0
-                    };
-                  } else if (element.coordinates) {
-                    const coords = element.coordinates;
-                    coordinates = {
-                      click_x: parseFloat(coords[0] || coords.x || coords.click_x || 0),
-                      click_y: parseFloat(coords[1] || coords.y || coords.click_y || 0)
-                    };
-                  }
-
-                  if (coordinates) {
-                    const stepId = stepNumber;
-                    const relevantCaptureId = originalCaptureIds[stepId] || stepId;
-                    if (capturedSteps[relevantCaptureId]) {
-                      setCapturedSteps(prev => ({
-                        ...prev,
-                        [stepId]: {
-                          ...capturedSteps[relevantCaptureId],
-                          coordinates
-                        }
-                      }));
-                    }
-                  }
-
-                  setShowSuggestions(false);
-                }}
-
+              onClick={() => handleEditSuggestionClick(element, stepNumber, setEditValue)}
               className="p-2 hover:bg-purple-50 cursor-pointer flex items-center gap-2"
             >
               <div className={`w-4 h-4 rounded-full ${
@@ -1215,29 +1610,63 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                 commandType === 'type' ? 'bg-green-100' : 
                 commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
               }`}></div>
-              <span>
-                {element.name || element.text || element.id || 'Element ' + (index + 1)}
-                {positionLabel}
-              </span>
 
-              <div className="flex items-center gap-2 text-xs">
-                {coordinatesDisplay && (
-                  <span className="text-blue-600 bg-blue-50 px-1 rounded">
-                    {coordinatesDisplay}
+              <div className="flex flex-col flex-grow">
+                  <span className="font-medium">
+                    {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                    {positionLabel}
                   </span>
-                )}
-                
-                {/* {element.text && (
-                  <span className="text-gray-500 truncate max-w-xs">
-                    "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+
+                  <div className="flex items-center gap-2 text-xs">
+                    {coordinatesDisplay && (
+                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                        {coordinatesDisplay}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* {element.text && (
+                    <span className="text-gray-500 truncate max-w-xs">
+                      "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                    </span>
+                  )} */}
+                </div>
+
+                {/* Add the adjust button and direct click option */}
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentSetEditValue(() => setEditValue); 
+                      handleSuggestionSelect(element);
+                    }}
+                  >
+                    🎯 Adjust
                   </span>
-                )} */}
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    element.type === 'button' ? 'bg-blue-100 text-blue-700' : 
+                    element.type === 'input' ? 'bg-green-100 text-green-700' :
+                    element.type === 'text' ? 'bg-gray-100 text-gray-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {element.type || 'Element'}
+                  </span>
+                </div>
+
               </div>
+            );
+          })
+        )}
 
-            </div>
-          );
-        })
-      )}
+        {showPositionControls && (
+          <PositionControls 
+            // index={index}
+            currentScreenshot={currentScreenshot} 
+            selectedSuggestion={selectedSuggestion}
+            adjustedPosition={adjustedPosition}
+          />
+        )}
 
     </div>
   );
@@ -1922,17 +2351,19 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                           commandType === 'type' ? 'bg-green-100' : 
                           commandType === 'verify' ? 'bg-yellow-100' : 'bg-purple-100'
                         }`}></div>
-                        <span>
-                          {element.name || element.text || element.id || 'Element ' + (index + 1)}
-                          {positionLabel}
-                        </span>
-
-                        <div className="flex items-center gap-2 text-xs">
-                          {coordinatesDisplay && (
-                            <span className="text-blue-600 bg-blue-50 px-1 rounded">
-                              {coordinatesDisplay}
-                            </span>
-                          )}
+                        
+                        <div className="flex flex-col flex-grow">
+                          <span className="font-medium">
+                            {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                            {positionLabel}
+                          </span>
+                          <div className="flex items-center gap-2 text-xs">
+                            {coordinatesDisplay && (
+                              <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                                {coordinatesDisplay}
+                              </span>
+                            )}
+                          </div>
                           
                           {/* {element.text && (
                             <span className="text-gray-500 truncate max-w-xs">
@@ -1940,11 +2371,41 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
                             </span>
                           )} */}
                         </div>
+                        {/* Add the adjust button and direct click option */}
+                        <div className="flex items-center gap-2">
+                          <span 
+                            className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSuggestionSelect(element);
+                            }}
+                          >
+                            🎯 Adjust
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            element.type === 'button' ? 'bg-blue-100 text-blue-700' : 
+                            element.type === 'input' ? 'bg-green-100 text-green-700' :
+                            element.type === 'text' ? 'bg-gray-100 text-gray-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {element.type || 'Element'}
+                          </span>
+                        </div>
 
                       </div>
                     );
                   })
                 )}
+
+                {showPositionControls && (
+                  <PositionControls 
+                    // index={index}
+                    currentScreenshot={currentScreenshot} 
+                    selectedSuggestion={selectedSuggestion}
+                    adjustedPosition={adjustedPosition}
+                  />
+                )}
+
 
               </div>
             )}

@@ -28,6 +28,7 @@ const WriteRecord = () => {
     selectedElement: null
   });
 
+  const [lastScreenshot, setLastScreenshot] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [commandType, setCommandType] = useState('');
@@ -943,6 +944,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     if (executionResult === undefined) {
       setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
       return;
+    }
+
+    if (executionResult.screenshot) {
+      setLastScreenshot(executionResult.screenshot);
     }
 
     setTestSteps(prev => prev.map(step => 
@@ -1911,7 +1916,8 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
   );
 };
 
-const SuggestionsDropdown = (currentScreenshot) => {
+const SuggestionsDropdown = ({ omniparserData, lastScreenshot: currentScreenshot }) => {
+  
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const [adjustedPosition, setAdjustedPosition] = useState(null);
   const [showPositionControls, setShowPositionControls] = useState(false);
@@ -1921,12 +1927,37 @@ const SuggestionsDropdown = (currentScreenshot) => {
   const FINE_STEP = 5;
   const screenshotContainerRef = useRef(null);
 
+  useEffect(() => {
+    if (showSuggestions && selectedSuggestion && screenshotContainerRef.current && currentScreenshot) {
+      const container = screenshotContainerRef.current;
+      const currentPos = adjustedPosition || selectedSuggestion.click_point;
+      
+      // Center the view on the selected suggestion's position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [selectedSuggestion, adjustedPosition, currentScreenshot]);
+
   if (!showSuggestions) return null;
 
-  const shouldShowNoDataMessage =
-    suggestions.length === 0 &&
+  const shouldShowNoDataMessage = 
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+    ['click', 'type', 'verify', 'get', 'select'].some(cmd => newStep.startsWith(cmd)) &&
+    (
+      !omniparserData || 
+      !omniparserData.elements || 
+      omniparserData.elements.length === 0 || 
+      suggestions.length === 0
+    );
 
   if (shouldShowNoDataMessage) {
     return (
@@ -2938,7 +2969,10 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
                   </div>
                   
                   {/* Suggestions dropdown with animation */}
-                  <SuggestionsDropdown omniparserData={elementData} />
+                  <SuggestionsDropdown 
+                    omniparserData={elementData} 
+                    lastScreenshot={lastScreenshot}
+                  />
                   
                   {/* Command type indicator */}
                   {commandType && (

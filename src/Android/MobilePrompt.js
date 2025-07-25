@@ -78,6 +78,8 @@ const MobilePrompt = () => {
   const [waitStepIndex, setWaitStepIndex] = useState(null);
   const [waitStepData, setWaitStepData] = useState(null);
 
+  const [isOtpRefreshing, setIsOtpRefreshing] = useState(false);
+  
   const [otpReplacementModal, setOtpReplacementModal] = useState({
     isOpen: false,
     step: null,
@@ -1120,6 +1122,9 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         // Step 2: If no existing OTP, try to fetch immediately
         if (!fetchedOtp && nextStep.otpType) {
           console.log(`🔄 No existing OTP found, trying to fetch fresh OTP for ${nextStep.otpType}...`);
+
+          // ✅ Show temporary modal BEFORE fetch
+          setIsOtpRefreshing(true);
           
           try {
             const isPhoneNumberStep = nextStep.otpType === 'phone';
@@ -1134,6 +1139,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
             );
             
             console.log("🔄 Fresh OTP fetch result:", otpFetchResult);
+            // ✅ Hide temporary refresh modal after response
+            setIsOtpRefreshing(false);
             
             if (otpFetchResult?.status === 'success') {
               fetchedOtp = otpFetchResult.otp || otpFetchResult.otpValue;
@@ -4238,10 +4245,20 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                                   </span>
                                 </div>
                               </div>
+                            ) : step.otpWaiting ? (
+                              <div className="bg-orange-50 border border-orange-200 rounded p-2">
+                                <div className="flex items-center text-orange-700">
+                                  <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                  </svg>
+                                  <span className="text-sm">Waiting for OTP response...</span>
+                                </div>
+                              </div>
                             ) : (
                               <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                                 <div className="flex items-center text-yellow-700">
-                                  <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <svg className="w-4 h-4 mr-2 animate-pulse" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                                   </svg>
@@ -4249,6 +4266,42 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                                 </div>
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {isOtpRefreshing && (
+                          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+                            <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 text-center transition-all duration-300 ease-out scale-100 opacity-100">
+                              <h2 className="text-lg font-semibold text-purple-600 mb-2">
+                                Still waiting for OTP
+                              </h2>
+                              <p className="text-gray-700 mb-4">
+                                You haven’t received the OTP yet. Rechecking automatically before executing the step...
+                              </p>
+
+                              <div className="flex justify-center">
+                                <svg
+                                  className="animate-spin h-6 w-6 text-purple-600"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                  />
+                                </svg>
+                              </div>
+                            </div>
                           </div>
                         )}
 
