@@ -48,7 +48,7 @@ const DesktopPrompt = () => {
   // const [stepWaitData, setStepWaitData] = useState(null);
   // const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
-  const [requiresOtp, setRequiresOtp] = useState(false);
+  // const [requiresOtp, setRequiresOtp] = useState(false);
   // const [contactSelected, setContactSelected] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
     isEnabled: false,
@@ -81,123 +81,94 @@ const DesktopPrompt = () => {
   //   });
   // };
   const [testData, setTestData] = useState(null);
-  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  // const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
-  const [emailModalError, setEmailModalError] = useState('');
-  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  // const [emailModalError, setEmailModalError] = useState('');
+  // const [showSenderEmailField, setShowSenderEmailField] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
-  const [emailConfirmationModal, setEmailConfirmationModal] = useState({
-    isOpen: false,
-    userEmail: '',
-    email_app_password: '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false, 
-  });
+  // const [emailConfirmationModal, setEmailConfirmationModal] = useState({
+  //   isOpen: false,
+  //   userEmail: '',
+  //   email_app_password: '',
+  //   otpReceiver: '',
+  //   isEditing: false,
+  //   showPassword: false, 
+  // });
 
-  const [addTestDataModalOpen, setAddTestDataModalOpen] = useState(false);
-  const [testDataPhone, setTestDataPhone] = useState('');
-  const [testDataEmail, setTestDataEmail] = useState('');
-  const [testDataPassword, setTestDataPassword] = useState('');
+  // const [addTestDataModalOpen, setAddTestDataModalOpen] = useState(false);
+  // const [testDataPhone, setTestDataPhone] = useState('');
+  // const [testDataEmail, setTestDataEmail] = useState('');
+  // const [testDataPassword, setTestDataPassword] = useState('');
   // const [isConfirming, setIsConfirming] = useState(false);
 
-  useEffect(() => {
-    console.log("🔍 DEBUG - useEffect for testData:", {
-      requiresOtp,
-      needsOtpVerification: location.state?.needsOtpVerification,
-      shouldLoad: location.state?.needsOtpVerification || requiresOtp
-    });
+  // const saveTestDataEmail = async (email, password) => {
+  //   const userId = localStorage.getItem("userId");
+  //   const projectKey = `selectedProject_${userId}`;
+  //   const selectedProject = JSON.parse(localStorage.getItem(projectKey));
     
-    if (location.state?.needsOtpVerification || requiresOtp) {
-      const userId = localStorage.getItem("userId");
-      const projectKey = `selectedProject_${userId}`;
-      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+  //   if (!selectedProject?.id) {
+  //     alert('No project selected');
+  //     return false;
+  //   }
+
+  //   const payload = {
+  //     url: testData?.url || null,
+  //     email: email.trim(),
+  //     email_app_password: password.trim(),
+  //     phone_number: testData?.phone_number || null,
+  //     region: testData?.region || null
+  //   };
+
+  //   console.log("Saving email payload:", payload);
+
+  //   try {
+  //     const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify(payload),
+  //     });
       
-      if (selectedProject?.id) {
-        setIsTestDataLoading(true);
-        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("✅ Test data loaded:", data);
-            setTestData(data);
-          })
-          .catch((err) => {
-            console.warn("⚠️ Error fetching test data:", err.message);
-            setTestData(null);
-          })
-          .finally(() => setIsTestDataLoading(false));
-      }
-    }
-  }, [requiresOtp, location.state?.needsOtpVerification]);
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       console.log("Email saved successfully:", data);
 
-  const saveTestDataEmail = async (email, password) => {
-    const userId = localStorage.getItem("userId");
-    const projectKey = `selectedProject_${userId}`;
-    const selectedProject = JSON.parse(localStorage.getItem(projectKey));
-    
-    if (!selectedProject?.id) {
-      alert('No project selected');
-      return false;
-    }
+  //       setTestData(prev => ({ ...prev, email: email }));
+  //       return true;
+  //     }
+  //     return false;
+  //   } catch (error) {
+  //     console.error('Error saving test data email:', error);
+  //     return false;
+  //   }
+  // };
 
-    const payload = {
-      url: testData?.url || null,
-      email: email.trim(),
-      email_app_password: password.trim(),
-      phone_number: testData?.phone_number || null,
-      region: testData?.region || null
-    };
+  // const handleSaveTestData = async () => {
+  //   if (testDataEmail && !testDataPassword) {
+  //     alert('App password is required for email');
+  //     return;
+  //   }
 
-    console.log("Saving email payload:", payload);
+  //   if (testDataEmail) {
+  //     const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
+  //     if (!emailSaved) {
+  //       alert('Failed to save email');
+  //       return;
+  //     }
+  //   }
 
-    try {
-      const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Email saved successfully:", data);
+  //   if (testDataPhone) {
+  //     console.log('Saving phone number:', testDataPhone);
+  //     setTestData(prev => ({
+  //       ...prev,
+  //       phone_number: testDataPhone
+  //     }));
+  //   }
 
-        setTestData(prev => ({ ...prev, email: email }));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error saving test data email:', error);
-      return false;
-    }
-  };
-
-  const handleSaveTestData = async () => {
-    if (testDataEmail && !testDataPassword) {
-      alert('App password is required for email');
-      return;
-    }
-
-    if (testDataEmail) {
-      const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
-      if (!emailSaved) {
-        alert('Failed to save email');
-        return;
-      }
-    }
-
-    if (testDataPhone) {
-      console.log('Saving phone number:', testDataPhone);
-      setTestData(prev => ({
-        ...prev,
-        phone_number: testDataPhone
-      }));
-    }
-
-    setAddTestDataModalOpen(false);
-    // setTestDataPhone('');
-    // setTestDataEmail('');
-    // setTestDataPassword('');
-  };
+  //   setAddTestDataModalOpen(false);
+  //   // setTestDataPhone('');
+  //   // setTestDataEmail('');
+  //   // setTestDataPassword('');
+  // };
 
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   
@@ -304,6 +275,12 @@ const DesktopPrompt = () => {
 useEffect(() => {
   if (location.state?.generatedSteps && !stepsProcessed) {
     const steps = location.state.generatedSteps;
+
+    if (location.state?.senderEmail) {
+      console.log("🔍 Setting senderEmail:", location.state.senderEmail);
+      setSenderEmail(location.state.senderEmail);
+    }
+
     const stepObjects = steps.map((step, index) => ({
       id: `${Date.now()}-${index}-${Math.random()}`, 
       description: step.command,  
@@ -326,7 +303,7 @@ useEffect(() => {
       
     console.log("Steps after processing:", stepObjects);
   }
-}, [location.state, stepsProcessed]);
+}, [location.state, stepsProcessed, senderEmail]);
 
 //   useEffect(() => {
 
@@ -532,113 +509,113 @@ const getLastClickCoordinates = (steps) => {
 //   return matchingElements.length > 0 ? matchingElements : null;
 // };
 
-const handleEmailConfirmation = async () => {
-  const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
+// const handleEmailConfirmation = async () => {
+//   const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
   
-  setEmailModalError('');
+//   setEmailModalError('');
 
-  // Validate email
-  if (!userEmail.trim()) {
-    setEmailModalError('Please enter your email address');
-    return;
-  }
+//   // Validate email
+//   if (!userEmail.trim()) {
+//     setEmailModalError('Please enter your email address');
+//     return;
+//   }
   
-  // Validate password
-  if (!email_app_password?.trim()) {
-    setEmailModalError('Please enter your password');
-    return;
-  }
+//   // Validate password
+//   if (!email_app_password?.trim()) {
+//     setEmailModalError('Please enter your password');
+//     return;
+//   }
   
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(userEmail)) {
-    setEmailModalError('Please enter a valid email address');
-    return;
-  }
+//   // Validate email format
+//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//   if (!emailRegex.test(userEmail)) {
+//     setEmailModalError('Please enter a valid email address');
+//     return;
+//   }
 
-  if (!otpReceiver) {
-    setEmailModalError('Please select where you will receive the OTP');
-    return;
-  }
+//   if (!otpReceiver) {
+//     setEmailModalError('Please select where you will receive the OTP');
+//     return;
+//   }
   
-  // Save email to test data if it's new or changed
-  if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
-    const saved = await saveTestDataEmail(userEmail, email_app_password);
-    if (!saved) {
-      alert('Failed to save email. Please try again.');
-      return;
-    }
-  }
+//   // Save email to test data if it's new or changed
+//   if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
+//     const saved = await saveTestDataEmail(userEmail, email_app_password);
+//     if (!saved) {
+//       alert('Failed to save email. Please try again.');
+//       return;
+//     }
+//   }
   
-  setEmailConfirmationModal({ 
-    isOpen: false, 
-    userEmail: '', 
-    email_app_password: '',  
-    otpReceiver: '',
-    isEditing: false 
-  });
+//   setEmailConfirmationModal({ 
+//     isOpen: false, 
+//     userEmail: '', 
+//     email_app_password: '',  
+//     otpReceiver: '',
+//     isEditing: false 
+//   });
   
-  // Original email click logic
-  // setContactSelected(true);
+//   // Original email click logic
+//   // setContactSelected(true);
   
-  setNewStep(prev => {
-    const trimmed = prev.trim();
+//   setNewStep(prev => {
+//     const trimmed = prev.trim();
     
-    if (otpVerificationState.enteredContact) {
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+//     if (otpVerificationState.enteredContact) {
+//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
       
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + userEmail;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + userEmail;
-      }
-      return withoutOldContact + ' ' + userEmail;
-    }
+//       if (withoutOldContact.endsWith('type')) {
+//         return withoutOldContact + ' ' + userEmail;
+//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+//         return withoutOldContact + ' in ' + userEmail;
+//       }
+//       return withoutOldContact + ' ' + userEmail;
+//     }
     
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + userEmail;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + userEmail;
-    }
-    return prev + ' ' + userEmail;
-  });
+//     if (trimmed.endsWith('type')) {
+//       return prev + ' ' + userEmail;
+//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+//       return prev + ' in ' + userEmail;
+//     }
+//     return prev + ' ' + userEmail;
+//   });
   
 
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+//   try {
+//     const response = await fetch('http://localhost:8000/api/get_time/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: userEmail, 
-        actualUserEmail: userEmail, 
-        timestamp: Date.now()
-      };
+//     if (response.ok) {
+//       const data = await response.json();
+//       const timeData = {
+//         ...data,
+//         phoneNumber: userEmail, 
+//         actualUserEmail: userEmail, 
+//         timestamp: Date.now()
+//       };
       
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
       
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: userEmail, 
-        enteredContactInboxId: userEmail, 
-        sessionTime: timeData,
-        otpReceiver: emailConfirmationModal.otpReceiver
-      }));
+//       setOtpVerificationState(prev => ({
+//         ...prev,
+//         contactEntered: true,
+//         waitingForOtp: true,
+//         enteredContact: userEmail, 
+//         enteredContactInboxId: userEmail, 
+//         sessionTime: timeData,
+//         otpReceiver: emailConfirmationModal.otpReceiver
+//       }));
             
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
+//       console.log('OTP Session Time stored:', timeData);
+//     }
+//   } catch (error) {
+//     console.error('Error calling get_time API:', error);
+//   }
 
-  // setContactSelected(false);
-};
+//   // setContactSelected(false);
+// };
 
 const updateOtpSessionTime = async (overrides = {}) => {
   const contactEntered = overrides.contactEntered ?? otpVerificationState.contactEntered;
@@ -682,7 +659,7 @@ const copyToClipboard = (text) => {
   });
 };
 
-const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, currentOtpStep) => {
+const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, passedEmail = null) => {
   if ((!otpVerificationState.waitingForOtp && !forceCall) || (!isPhoneNumberStep && !isEmailStep)) {
     console.log('Skipping get_otp call - not an OTP step');
     return;
@@ -723,8 +700,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, 
       // Email OTP
       const emailOtpPayload = { request_time, project_id };
 
-      if (senderEmail.trim()) {
-        emailOtpPayload.expected_sender = senderEmail.trim();
+      const emailToUse = passedEmail || senderEmail.trim();
+      if (emailToUse) {
+        emailOtpPayload.expected_sender = emailToUse;
       }
 
       console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
@@ -1211,7 +1189,7 @@ useEffect(() => {
             };
   
         } 
-        else if (actionType === 'click' || actionType === 'type') {
+        else if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
             
             const selectedElement = stepObj.selectedElement;
             
@@ -1444,12 +1422,12 @@ const validateStepAgainstResponse = (step, omniparserData) => {
   const words = stepDesc.split(' ');
   const actionType = words[0];
 
-  if (actionType === 'click' || actionType === 'type') {
+  if (actionType === 'click' || actionType === 'type' || actionType === 'select' ) {
     let searchTerm = '';
     let direction = null;
     const OFFSET_PX = 40; 
 
-    if (actionType === 'click') {
+    if (actionType === 'click' || actionType === 'select') {
       // Check for directional commands
       const directions = ['left', 'right', 'above', 'below', 'bottom'];
       const directionIndex = words.findIndex(word => directions.includes(word));
@@ -1482,7 +1460,13 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     if (!searchTerm) return { isValid: false, matches: [] };
 
     const keyTerms = extractKeyTerms(searchTerm);
-    const searchTermWords = searchTerm.split(' ');
+    const searchTermWords = searchTerm.split(' ').filter(word => word.length > 0);
+
+    // console.log(`🔍 Validation Debug:`);
+    // console.log(`   Search term: "${searchTerm}"`);
+    // console.log(`   Key terms:`, keyTerms);
+    // console.log(`   Search words:`, searchTermWords);
+    // console.log(`   Direction:`, direction);
 
     const checkElementForMatch = (element) => {
       const elementFields = [
@@ -1491,29 +1475,58 @@ const validateStepAgainstResponse = (step, omniparserData) => {
         (element.text || '').toLowerCase()
       ];
 
-      // 1. Exact Match
-      if (keyTerms.some(term => elementFields.includes(term))) return 'exact';
+      // console.log(`   Checking element ${element.id}:`, {
+      //   name: element.name,
+      //   displayName: element.displayName,
+      //   text: element.text,
+      //   fields: elementFields
+      // });
 
-      // 2. Partial Match (any field contains any keyTerm)
-      if (keyTerms.some(term => elementFields.some(field => field.includes(term)))) return 'partial';
+      // 1. Exact Match - any field exactly matches any keyTerm
+      const exactMatch = keyTerms.some(term => elementFields.some(field => field === term));
+      if (exactMatch) {
+        console.log(`     ✅ EXACT match found`);
+        return { type: 'exact', score: 100 };
+      }
 
-      // 3. Loose Match: any word in searchTerm exists anywhere in the fields
-      if (searchTermWords.some(word => elementFields.some(field => field.includes(word)))) return 'loose';
+      // 2. Partial Match - any field contains any keyTerm as substring
+      const partialMatch = keyTerms.some(term => elementFields.some(field => field.includes(term)));
+      if (partialMatch) {
+        console.log(`     🔍 PARTIAL match found`);
+        return { type: 'partial', score: 80 };
+      }
 
+      // 3. Word Match - any word in searchTerm exists in any field
+      const wordMatch = searchTermWords.some(word => elementFields.some(field => field.includes(word)));
+      if (wordMatch) {
+        console.log(`     🔎 WORD match found`);
+        return { type: 'word', score: 60 };
+      }
+
+      // console.log(`     ❌ No match`);
       return null;
     };
 
-    let exactMatches = [];
-    let partialMatches = [];
-    let looseMatches = [];
+    // Collect ALL matches with their scores
+    let allMatches = [];
 
     omniparserData.elements.forEach(element => {
-      const matchType = checkElementForMatch(element);
-
-      if (matchType === 'exact') exactMatches.push(element);
-      else if (matchType === 'partial') partialMatches.push(element);
-      else if (matchType === 'loose') looseMatches.push(element);
+      const matchResult = checkElementForMatch(element);
+      if (matchResult) {
+        allMatches.push({
+          ...element,
+          matchType: matchResult.type,
+          matchScore: matchResult.score
+        });
+      }
     });
+
+    console.log(`🎯 All matches found (${allMatches.length}):`, allMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
 
     // Apply directional offset to coordinates if direction is specified
     const applyDirectionalOffset = (matches) => {
@@ -1547,42 +1560,69 @@ const validateStepAgainstResponse = (step, omniparserData) => {
           ...element,
           coordinates: newCoords,
           click_point: newCoords,
-          originalCoordinates: originalCoords, // Keep original for reference
+          originalCoordinates: originalCoords,
           appliedDirection: direction,
           offsetApplied: OFFSET_PX
         };
       });
     };
 
-    if (exactMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(exactMatches);
-      console.log("✅ Exact matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
-      }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+    if (allMatches.length === 0) {
+      console.log("🚫 No matches found for step:", stepDesc);
+      return { isValid: false, matches: [], searchTerm, keyTerms, direction };
     }
 
-    if (partialMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(partialMatches);
-      console.log("🔍 Partial matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
+    // Sort matches by score (highest first), then by match type priority
+    allMatches.sort((a, b) => {
+      if (a.matchScore !== b.matchScore) {
+        return b.matchScore - a.matchScore; // Higher score first
       }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+      // If same score, prioritize by type
+      const typeOrder = { 'exact': 0, 'partial': 1, 'word': 2 };
+      return typeOrder[a.matchType] - typeOrder[b.matchType];
+    });
+
+    const processedMatches = applyDirectionalOffset(allMatches);
+    
+    console.log(`🎯 Final processed matches (${processedMatches.length}):`, processedMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
+
+    if (direction) {
+      console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
     }
 
-    if (looseMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(looseMatches);
-      console.log("🔎 Loose matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
-      }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+    // CRITICAL LOGIC: Always return ALL matches - let caller decide based on COUNT
+    // - If processedMatches.length > 1 → Show multiple match dialog (even if all are 100% matches)
+    // - If processedMatches.length === 1 → Auto-select single match (even if it's 80% match)
+    
+    console.log(`📊 Match Decision Logic:`);
+    console.log(`   Total matches found: ${processedMatches.length}`);
+    
+    if (processedMatches.length > 1) {
+      console.log(`   🔀 MULTIPLE MATCHES → Will show selection dialog`);
+    } else if (processedMatches.length === 1) {
+      console.log(`   🎯 SINGLE MATCH → Will auto-select (Score: ${processedMatches[0].matchScore}%)`);
     }
 
-    console.log("🚫 No matches found for step:", stepDesc);
-    return { isValid: false, matches: [], searchTerm, keyTerms, direction };
+    return { 
+      isValid: true, 
+      matches: processedMatches, 
+      searchTerm, 
+      keyTerms, 
+      direction,
+      totalMatches: processedMatches.length,
+      shouldShowMultipleDialog: processedMatches.length > 1,
+      shouldAutoSelect: processedMatches.length === 1,
+      matchBreakdown: {
+        exact: processedMatches.filter(m => m.matchType === 'exact').length,
+        partial: processedMatches.filter(m => m.matchType === 'partial').length,
+        word: processedMatches.filter(m => m.matchType === 'word').length
+      }
+    };
   }
 
   return { isValid: true, matches: [] };
@@ -1647,7 +1687,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               isPhoneNumberStep,
               isEmailStep,
               true, 
-              nextStep
+              isEmailStep ? senderEmail : null
             );
             
             console.log("🔄 Fresh OTP fetch result:", otpFetchResult);
@@ -1744,6 +1784,13 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   const isPhoneNumberStep = stepWithElement.otpType === 'phone';
                   const isEmailStep = stepWithElement.otpType === 'email';
 
+                  console.log("📧 Debug stepWithElement:", {
+                    userEmail: senderEmail,
+                    value: stepWithElement.value,
+                    otpType: stepWithElement.otpType,
+                    requiresOtp: stepWithElement.requiresOtp
+                  });
+
                   setOtpVerificationState(prev => ({
                     ...prev,
                     waitingForOtp: true,
@@ -1759,8 +1806,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                     stepWithElement.id,
                     isPhoneNumberStep,
                     isEmailStep,
-                    stepWithElement,
-                    true 
+                    true,
+                    isEmailStep ? senderEmail : null
                   );
 
                   if (otpFetchResult?.status === 'success') {
@@ -1852,6 +1899,13 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                 const isPhoneNumberStep = stepWithElement.otpType === 'phone';
                 const isEmailStep = stepWithElement.otpType === 'email';
 
+                console.log("📧 Debug stepWithElement:", {
+                  userEmail: senderEmail,
+                  value: stepWithElement.value,
+                  otpType: stepWithElement.otpType,
+                  requiresOtp: stepWithElement.requiresOtp
+                });
+
                 setOtpVerificationState(prev => ({
                   ...prev,
                   waitingForOtp: true,
@@ -1867,8 +1921,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   stepWithElement.id,
                   isPhoneNumberStep,
                   isEmailStep,
-                  stepWithElement,
-                  true 
+                  true,
+                  isEmailStep ? senderEmail : null
                 );
 
                 if (otpFetchResult?.status === 'success') {
@@ -1950,7 +2004,7 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   setTestSteps([firstStep]);
   
   // Execute step 1 directly (without using input field)
-  const executionResult = await executeStep(firstStep);
+  const executionResult = await executeStep(firstStep, 0);
   
   if (executionResult && executionResult.status === 'complete') {
     // Update step 1 with execution result
@@ -2218,14 +2272,14 @@ const createTestCase = async () => {
       enteredContactInboxId: ''
     });
     setTestData(null);
-    setRequiresOtp(false);
+    // setRequiresOtp(false);
     // setContactSelected(false);
-    setEmailConfirmationModal({
-      isOpen: false,
-      userEmail: '',
-      defaultEmail: 'suriya.prakash@crowd4test.com',
-      isEditing: false
-    });
+    // setEmailConfirmationModal({
+    //   isOpen: false,
+    //   userEmail: '',
+    //   defaultEmail: 'suriya.prakash@crowd4test.com',
+    //   isEditing: false
+    // });
 
     alert('Session data cleared!');
   };
@@ -3246,6 +3300,106 @@ const handleMultipleMatches = (matches, stepDescription, callback) => {
   setShowElementModal(true);
 };
 
+const getPositionDescription = (element, allElements) => {
+  const clickPoint = element.click_point || element.coordinates || [];
+  if (clickPoint.length < 2) return "Unknown position";
+  
+  const x = clickPoint[0];
+  const y = clickPoint[1];
+  
+  // Screen dimensions (you can adjust these based on your typical screen size)
+  const SCREEN_WIDTH = 1920; // or get from window.innerWidth
+  const SCREEN_HEIGHT = 1080; // or get from window.innerHeight
+  
+  // Determine horizontal position
+  let horizontalPos = "";
+  if (x < SCREEN_WIDTH * 0.25) horizontalPos = "Left side";
+  else if (x < SCREEN_WIDTH * 0.75) horizontalPos = "Center";
+  else horizontalPos = "Right side";
+  
+  // Determine vertical position
+  let verticalPos = "";
+  if (y < SCREEN_HEIGHT * 0.25) verticalPos = "Top";
+  else if (y < SCREEN_HEIGHT * 0.75) verticalPos = "Middle";
+  else verticalPos = "Bottom";
+  
+  // Combine positions
+  let position = `${verticalPos} ${horizontalPos.toLowerCase()}`;
+  
+  // Add relative positioning if there are multiple similar elements
+  if (allElements && allElements.length > 1) {
+    const sameTypeElements = allElements.filter(el => 
+      el.element.type === element.type && 
+      (el.element.name || el.element.displayName || el.element.text) !== 
+      (element.name || element.displayName || element.text)
+    );
+    
+    if (sameTypeElements.length > 0) {
+      // Find if this element is above/below others
+      const elementsAbove = sameTypeElements.filter(el => {
+        const otherY = (el.element.click_point || el.element.coordinates || [])[1];
+        return otherY && otherY > y + 50; // 50px tolerance
+      });
+      
+      const elementsBelow = sameTypeElements.filter(el => {
+        const otherY = (el.element.click_point || el.element.coordinates || [])[1];
+        return otherY && otherY < y - 50; // 50px tolerance
+      });
+      
+      if (elementsAbove.length > 0 && elementsBelow.length === 0) {
+        position += " (topmost)";
+      } else if (elementsBelow.length > 0 && elementsAbove.length === 0) {
+        position += " (bottommost)";
+      } else if (elementsAbove.length > 0 && elementsBelow.length > 0) {
+        position += " (middle)";
+      }
+    }
+  }
+  
+  return position;
+};
+
+const getSizeDescription = (element) => {
+  const coordinates = element.coordinates || [];
+  if (coordinates.length !== 4) return "Standard size";
+  
+  const width = coordinates[2] - coordinates[0];
+  const height = coordinates[3] - coordinates[1];
+  
+  if (width > 200 && height > 50) return "Large element";
+  if (width < 100 || height < 30) return "Small element";
+  return "Medium size";
+};
+
+const getElementContext = (element) => {
+  const text = element.text || element.displayName || element.name || '';
+  
+  // Add context based on surrounding text or attributes
+  if (element.attributes) {
+    if (element.attributes.placeholder) return `(placeholder: "${element.attributes.placeholder}")`;
+    if (element.attributes.value) return `(current value: "${element.attributes.value}")`;
+    if (element.attributes.title) return `(tooltip: "${element.attributes.title}")`;
+  }
+  
+  // Provide context based on element type and text
+  if (element.type === 'input') {
+    if (text.toLowerCase().includes('password')) return "(password field)";
+    if (text.toLowerCase().includes('email')) return "(email field)";
+    if (text.toLowerCase().includes('username')) return "(username field)";
+    if (text.toLowerCase().includes('search')) return "(search box)";
+    return "(input field)";
+  }
+  
+  if (element.type === 'button') {
+    if (text.toLowerCase().includes('submit')) return "(submit action)";
+    if (text.toLowerCase().includes('login')) return "(login action)";
+    if (text.toLowerCase().includes('cancel')) return "(cancel action)";
+    return "(clickable button)";
+  }
+  
+  return "";
+};
+
 const ElementSelectionModal = () => {
   const [selectedElement, setSelectedElement] = useState(null);
   
@@ -3281,7 +3435,7 @@ const ElementSelectionModal = () => {
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
         {/* Modal Header */}
         <div className="bg-blue-600 text-white px-6 py-4">
           <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
@@ -3293,93 +3447,113 @@ const ElementSelectionModal = () => {
         {/* Modal Body */}
         <div className="p-6 max-h-96 overflow-y-auto">
           <div className="space-y-3">
-            {modalData.matches.map((match, index) => (
-              <div
-                key={index}
-                className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                  selectedElement?.index === match.index
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                }`}
-                onClick={() => handleElementSelect(match)}
-              >
-                <div className="flex items-start space-x-3">
-                  {/* Element Icon */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                    match.type === 'button' ? 'bg-green-500' :
-                    match.type === 'input' ? 'bg-blue-500' :
-                    match.type === 'link' ? 'bg-purple-500' :
-                    'bg-gray-500'
-                  }`}>
-                    {match.type === 'button' ? '🔘' :
-                     match.type === 'input' ? '📝' :
-                     match.type === 'link' ? '🔗' :
-                     '🔲'}
-                  </div>
-                  
-                  {/* Element Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {match.display}
-                      </h3>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        match.type === 'button' ? 'bg-green-100 text-green-800' :
-                        match.type === 'input' ? 'bg-blue-100 text-blue-800' :
-                        match.type === 'link' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {match.type}
-                      </span>
+            {modalData.matches.map((match, index) => {
+              const positionDesc = getPositionDescription(match.element, modalData.matches);
+              const sizeDesc = getSizeDescription(match.element);
+              const contextDesc = getElementContext(match.element);
+              
+              return (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                    selectedElement?.index === match.index
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                  onClick={() => handleElementSelect(match)}
+                >
+                  <div className="flex items-start space-x-3">
+                    {/* Element Icon */}
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
+                      match.type === 'button' ? 'bg-green-500' :
+                      match.type === 'input' ? 'bg-blue-500' :
+                      match.type === 'link' ? 'bg-purple-500' :
+                      'bg-gray-500'
+                    }`}>
+                      {match.type === 'button' ? '🔘' :
+                       match.type === 'input' ? '📝' :
+                       match.type === 'link' ? '🔗' :
+                       '🔲'}
                     </div>
                     
-                    {/* Element coordinates info */}
-                    {(() => {
-                      const clickPoint = match.element.click_point || [];
-                      const coordinates = match.element.coordinates || [];
-
-                      const tapX = clickPoint[0] ?? 'N/A';
-                      const tapY = clickPoint[1] ?? 'N/A';
-
-                      let width = 'N/A';
-                      let height = 'N/A';
-                      if (coordinates.length === 4) {
-                        width = coordinates[2] - coordinates[0];
-                        height = coordinates[3] - coordinates[1];
-                      }
-
-                      return (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Tap Point: Left {tapX}px, Top {tapY}px • Element Size: {width}px wide × {height}px high
-                        </p>
-                      );
-                    })()}
+                    {/* Element Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 truncate text-base">
+                          {match.display}
+                        </h3>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          match.type === 'button' ? 'bg-green-100 text-green-800' :
+                          match.type === 'input' ? 'bg-blue-100 text-blue-800' :
+                          match.type === 'link' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {match.type}
+                        </span>
+                      </div>
+                      
+                      {/* User-friendly position description */}
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">📍 Location:</span>
+                          <span className="text-sm text-gray-800">{positionDesc}</span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">📏 Size:</span>
+                          <span className="text-sm text-gray-800">{sizeDesc}</span>
+                        </div>
+                        
+                        {contextDesc && (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-600">💬 Context:</span>
+                            <span className="text-sm text-gray-800">{contextDesc}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Match score indicator if available */}
+                      {match.element.matchScore && (
+                        <div className="mt-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500">Match confidence:</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-green-500 h-2 rounded-full" 
+                                style={{ width: `${match.element.matchScore}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     
-                    {/* Additional element properties */}
-                    {match.element.attributes && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {Object.entries(match.element.attributes).slice(0, 3).map(([key, value]) => (
-                          <span key={key} className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                            {key}: {String(value).substring(0, 20)}
-                          </span>
-                        ))}
+                    {/* Selection indicator */}
+                    {selectedElement?.index === match.index && (
+                      <div className="flex-shrink-0">
+                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
                       </div>
                     )}
                   </div>
-                  
-                  {/* Selection indicator */}
-                  {selectedElement?.index === match.index && (
-                    <div className="flex-shrink-0">
-                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+          
+          {/* Helpful tip */}
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <span className="text-yellow-600">💡</span>
+              <p className="text-sm text-yellow-800">
+                <strong>Tip:</strong> Look at the location and context to identify the correct element. 
+                Elements are described by their position on the screen and their purpose.
+              </p>
+            </div>
           </div>
         </div>
         
@@ -3409,10 +3583,10 @@ const ElementSelectionModal = () => {
 };
 
 const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
-  console.log("🔧 Starting OTP replacement...");
-  console.log("🔧 Original step description:", otpReplacementModal.step.description);
-  console.log("🔧 New OTP value:", newOtp);
-  console.log("🔧 Original step:", otpReplacementModal.step);
+  // console.log("🔧 Starting OTP replacement...");
+  // console.log("🔧 Original step description:", otpReplacementModal.step.description);
+  // console.log("🔧 New OTP value:", newOtp);
+  // console.log("🔧 Original step:", otpReplacementModal.step);
   
   // Step 1: Fix the description replacement
   let updatedDescription = otpReplacementModal.step.description;
@@ -3451,14 +3625,21 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
   console.log("🔧 Final updated step:", updatedStep);
   
   // Step 3: Update the testSteps array
-  setTestSteps(prev => prev.map(step =>
-    step.id === updatedStep.id ? updatedStep : step
-  ));
+  setTestSteps(prev => {
+    const existingIndex = prev.findIndex(step => step.id === updatedStep.id);
+    if (existingIndex >= 0) {
+      // Update existing
+      return prev.map(step => step.id === updatedStep.id ? updatedStep : step);
+    } else {
+      // Add new step
+      return [...prev, updatedStep];
+    }
+  });
   
   // Step 4: Close the modal
   setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null });
   
-  // Step 5: Execute the current step (not next step!)
+  // Step 5: Execute the current step with proper validation
   const currentIndex = otpReplacementModal.stepIndex;
   console.log("🚀 Executing OTP step at index:", currentIndex);
 
@@ -3472,39 +3653,103 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
       updatedStep,
       "OTP input field not found on current page",
       otpReplacementModal.currentPageData,
-      currentIndex
+      currentIndex,
+      otpReplacementModal.currentPageData?.screenshot
     );
     return;
   }
-  
-  executeStep(updatedStep, currentIndex).then(result => {
-    console.log("✅ OTP Step execution result:", result);
+
+  // Handle multiple matches - same logic as handleNextStep
+  if (validationResult.matches.length > 1) {
+    console.log(`⚠️ OTP step has multiple matches. Awaiting user selection.`);
+
+    handleMultipleMatches(validationResult.matches, updatedStep.description, async (selectedElement) => {
+      if (selectedElement) {
+        const stepWithElement = {
+          ...updatedStep,
+          selectedElement: selectedElement,
+          coordinates: selectedElement.coordinates || selectedElement.click_point
+        };
+
+        // Update testSteps with selected element
+        setTestSteps(prev => prev.map(step => 
+          step.id === updatedStep.id ? stepWithElement : step
+        ));
+
+        // Execute with selected element
+        const executionResult = await executeStep(stepWithElement, currentIndex);
+        console.log("✅ OTP Step execution result (Multiple Match):", executionResult);
+        
+        // Update the step with execution result
+        setTestSteps(prev => prev.map(step => 
+          step.id === stepWithElement.id ? { ...step, ...executionResult } : step
+        ));
+        
+        // Only proceed if execution was successful
+        if (executionResult && executionResult.status === 'complete') {
+          console.log("✅ OTP step succeeded, moving to next step");
+          setCurrentGeneratedStepIndex(currentIndex);
+          handleNextStep(executionResult, currentIndex);
+        } else {
+          console.error(`❌ OTP Step failed:`, executionResult);
+          
+          // Open edit modal for OTP execution errors
+          openEditModal(
+            stepWithElement,
+            executionResult?.error || 'OTP step execution failed',
+            otpReplacementModal.currentPageData,
+            currentIndex
+          );
+        }
+      } else {
+        console.error(`❌ No element selected for OTP step with multiple matches.`);
+      }
+    });
+  } else {
+    // Single match - auto-select
+    console.log(`🎯 Auto-selecting single matching element for OTP step:`, validationResult.matches[0]);
     
-    // Update the step with execution result
+    const stepWithElement = {
+      ...updatedStep,
+      selectedElement: validationResult.matches[0],
+      coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
+    };
+
+    // Update testSteps with selected element
     setTestSteps(prev => prev.map(step => 
-      step.id === updatedStep.id ? { ...step, ...result } : step
+      step.id === updatedStep.id ? stepWithElement : step
     ));
-    
-    // Only proceed if execution was successful
-    if (result && result.status === 'complete') {
-      console.log("✅ OTP step succeeded, moving to next step");
-      setCurrentGeneratedStepIndex(currentIndex);
-      handleNextStep(result, currentIndex);
-    } else {
-      console.error(`❌ OTP Step failed:`, result);
+
+    // Execute with selected element
+    executeStep(stepWithElement, currentIndex).then(result => {
+      console.log("✅ OTP Step execution result (Single Match):", result);
       
-      // Open edit modal for OTP execution errors
-      openEditModal(
-        updatedStep,
-        result?.error || 'OTP step execution failed',
-        otpReplacementModal.currentPageData,
-        currentIndex
-      );
-    }
-  }).catch(error => {
-    console.error('❌ OTP step execution error:', error);
-    alert(`OTP execution failed: ${error.message}`);
-  });
+      // Update the step with execution result
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepWithElement.id ? { ...step, ...result } : step
+      ));
+      
+      // Only proceed if execution was successful
+      if (result && result.status === 'complete') {
+        console.log("✅ OTP step succeeded, moving to next step");
+        setCurrentGeneratedStepIndex(currentIndex);
+        handleNextStep(result, currentIndex);
+      } else {
+        console.error(`❌ OTP Step failed:`, result);
+        
+        // Open edit modal for OTP execution errors
+        openEditModal(
+          stepWithElement,
+          result?.error || 'OTP step execution failed',
+          otpReplacementModal.currentPageData,
+          currentIndex
+        );
+      }
+    }).catch(error => {
+      console.error('❌ OTP step execution error:', error);
+      alert(`OTP execution failed: ${error.message}`);
+    });
+  }
 };
 
 const OtpReplacementModal = ({ 
@@ -3700,13 +3945,13 @@ const openEditModal = (step, errorMessage, pageData, stepIndex, screenshot) => {
 
 const handleEditStep = async (updatedStep) => {
   const { currentPageData, stepIndex } = editStepModal;
-  
+    
   // console.log("🔧 handleEditStep called:");
   // console.log("  - Updated step:", updatedStep);
   // console.log("  - Has selectedElement:", !!updatedStep.selectedElement);
   // console.log("  - Has coordinates:", !!updatedStep.coordinates);
   // console.log("  - Step index:", stepIndex);
-  
+
   // Close modal first
   setEditStepModal({
     isOpen: false,
@@ -3721,14 +3966,52 @@ const handleEditStep = async (updatedStep) => {
   const stepExists = testSteps.find(s => s.id === updatedStep.id);
   
   if (stepExists) {
-    // UPDATE existing step
     setTestSteps(prev => prev.map(s => s.id === updatedStep.id ? updatedStep : s));
   } else {
-    // ADD new step (this handles the case where validation failed initially)
     setTestSteps(prev => [...prev, updatedStep]);
   }
   
-  // Execute the updated step directly
+  // 🔔 ADD OTP CHECK BEFORE EXECUTION (same logic as handleNextStep)
+  if (updatedStep.action === "type" && 
+      updatedStep.isActualOtpStep === true && 
+      (updatedStep.description.toLowerCase().includes('otp'))) {
+    
+    console.log(`🔐 Manual OTP Step ${stepIndex + 1} detected! User will enter OTP manually.`);
+    
+    // Look for existing OTP in testSteps
+    let fetchedOtp = '';
+    
+    for (let i = testSteps.length - 1; i >= 0; i--) {
+      const step = testSteps[i];
+      if (step.otpReceived === true && 
+          step.otpValue && 
+          step.otpType === updatedStep.otpType) {
+        fetchedOtp = step.otp || step.otpValue;  
+        console.log(`📱 Found existing OTP from step ${i}:`, fetchedOtp);
+        break;
+      }
+    }
+  }
+  
+  // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+  if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+    console.log(`🔐 OTP Required for edited step ${stepIndex + 1}:`, updatedStep.otpType);
+
+    setOtpVerificationState(prev => ({
+      ...prev,
+      waitingForOtp: true,
+      enteredContact: updatedStep.value,
+      contactEntered: true,
+      stepId: updatedStep.id
+    }));
+
+    await updateOtpSessionTime({
+      contactEntered: true,
+      enteredContact: updatedStep.value
+    });
+  }
+  
+  // Execute the updated step
   try {
     console.log("🚀 About to execute edited step:", updatedStep);
     const executionResult = await executeStep(updatedStep, stepIndex);
@@ -3737,11 +4020,55 @@ const handleEditStep = async (updatedStep) => {
       setTestSteps(prev => prev.map(s => 
         s.id === updatedStep.id ? { ...s, ...executionResult } : s
       ));
+      
+      // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+      if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+        console.log(`🔐 OTP Required after edited Step ${stepIndex + 1}:`, updatedStep.otpType);
+
+        const isPhoneNumberStep = updatedStep.otpType === 'phone';
+        const isEmailStep = updatedStep.otpType === 'email';
+
+        setOtpVerificationState(prev => ({
+          ...prev,
+          waitingForOtp: true,
+          enteredContact: updatedStep.value,
+          contactEntered: true,
+          stepId: updatedStep.id
+        }));
+
+        const otpFetchResult = await callGetOtpAfterExecution(
+          updatedStep.id,
+          isPhoneNumberStep,
+          isEmailStep,
+          true,
+          isEmailStep ? senderEmail : null
+        );
+
+        if (otpFetchResult?.status === 'success') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otp: otpFetchResult.otp,
+              otpValue: otpFetchResult.otp,
+              otpReceived: true
+            } : step
+          ));
+        } else if (otpFetchResult?.status === 'waiting') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otpWaiting: true,
+              otpPending: false,
+              otpReceived: false
+            } : step
+          ));
+        }
+      }
+      
       setCurrentGeneratedStepIndex(stepIndex);
       handleNextStep(executionResult, stepIndex);
     } else {
       console.error("❌ Edited step execution failed:", executionResult);
-      // If execution fails again, reopen the modal
       openEditModal(
         updatedStep,
         executionResult?.error || 'Step execution failed after edit',
@@ -3843,7 +4170,7 @@ const EditStepModal = ({
         });
       }, 100);
     }
-  }, [showPositionControls, selectedSuggestion,adjustedPosition ]);
+  }, [showPositionControls, selectedSuggestion, adjustedPosition ]);
 
   useEffect(() => {
     if (!editableStep) {
@@ -3860,7 +4187,7 @@ const EditStepModal = ({
     const firstWord = words[0];
     
     // Check if the command is a click or type command
-    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
+    if (['click', 'type', 'verify', 'get', 'select'].includes(firstWord)) {
       setCommandType(firstWord);
 
       if (firstWord === 'wait') {
@@ -3878,7 +4205,7 @@ const EditStepModal = ({
       let direction = null;
       
       // Extract search term based on command type with directional support
-      if (firstWord === 'click' && words.length > 1) {
+      if ((firstWord === 'click' || firstWord === 'select') && words.length > 1) {
         const directions = ['left', 'right', 'above', 'below', 'bottom'];
         const directionIndex = words.findIndex(word => directions.includes(word));
         
@@ -3956,7 +4283,7 @@ const handleSuggestionClick = (suggestion) => {
   let newStepText = '';
   let modifiedSuggestion = { ...suggestion }; 
   
-  if (firstWord === 'click') {
+  if (firstWord === 'click' || firstWord === 'select') {
     // Check if there's a direction word
     const directions = ['left', 'right', 'above', 'below', 'bottom'];
     const directionIndex = words.findIndex(word => directions.includes(word));
@@ -4058,7 +4385,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
   const shouldShowNoDataMessage =
     suggestions.length === 0 &&
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+    ['click', 'type', 'verify', 'get', 'select'].some(cmd => newStep.startsWith(cmd));
 
   if (shouldShowNoDataMessage) {
     return (
@@ -4522,7 +4849,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                   placeholder="Enter step description..."
                 />
 
-                {showSuggestions && ['click', 'type', 'verify', 'get'].includes(commandType) && (
+                {showSuggestions && ['click', 'type', 'verify', 'get','select'].includes(commandType) && (
                   <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 max-h-72 overflow-y-auto animate-fadeIn">
                     <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
                       <h4 className="font-medium text-purple-800 flex items-center">
@@ -4530,6 +4857,16 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                         {commandType === 'click' && (
                           <>
                             <span className="mr-2">🖱️</span> Click on an element:
+                      
+                            {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                          </>
+                        )}
+                        {commandType === 'select' && (
+                          <>
+                            <span className="mr-2">🖱️</span> select on an element:
                       
                             {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
                             {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
@@ -4903,27 +5240,6 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                         </div>
                         <p className="text-gray-600 mb-3 text-sm">{step.description}</p>
 
-                        {/* {step.description.toLowerCase().startsWith('wait') && (
-                          <div className="text-sm text-gray-600 mt-1">
-                            {step.waitCondition === 'static_wait' ? (
-                              <span>Static wait for {step.waitTimeout / 1000}s</span>
-                            ) : step.waitCondition === 'text_match' ? (
-                              <span>Waiting for text: "{step.waitText}"</span>
-                            ) : step.waitCondition === 'url_match' ? (
-                              <span>Waiting for URL containing: "{step.waitText}"</span>
-                            ) : (
-                              <span>Waiting...</span>
-                            )}
-                          </div>
-                        )}
-                        
-                        {step.message && (
-                          <div className={`text-sm ${
-                            step.status === 'error' ? 'text-red-600' : 'text-gray-500'
-                          }`}>
-                            {step.message}
-                          </div>
-                        )}  */}
 
                         {step.status === 'complete' && step.screenshot && (
                           <div className="relative">
@@ -4938,18 +5254,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                             </div>
                           </div>
                         )}
-{/*
-                        {step.status === 'complete' && (
-                          <div className="mt-3">
-                            {step.omniparser_data?.debug_images && Object.keys(step.omniparser_data.debug_images).length > 0 && (
-                              <DebugImagesViewer debugImages={step.omniparser_data.debug_images} />
-                            )}
-                            {step.coordinates?.debug_images && Object.keys(step.coordinates.debug_images).length > 0 && (
-                              <DebugImagesViewer debugImages={step.coordinates.debug_images} />
-                            )}
-                          </div>
-                        )}
-*/}
+
                         {step.message && (
                           <p className="text-xs text-gray-600 mt-1">
                             <span className="font-medium">Status:</span> {step.message}
@@ -5117,220 +5422,6 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                     ))
                   )}
 
-                {emailConfirmationModal.isOpen && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
-                      <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
-                        Email & Password Configuration
-                      </h3>
-
-                      <div className="space-y-5">
-                        {/* Email Display/Edit */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Email Address: <span className="text-red-500">*</span>
-                          </label>
-                          {emailConfirmationModal.isEditing ? (
-                            <>
-                              {/* Email Input (shown in edit mode) */}
-                              <input
-                                type="email"
-                                value={emailConfirmationModal.userEmail}
-                                onChange={(e) =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    userEmail: e.target.value,
-                                  }))
-                                }
-                                className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                placeholder="Enter your email address"
-                              />
-
-                              {/* Password Input (shown only in edit mode) */}
-                              <div className="mt-4">
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                  App Password: <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type={emailConfirmationModal.showPassword ? "text" : "password"}
-                                    value={emailConfirmationModal.email_app_password || ''}
-                                    onChange={(e) =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        email_app_password: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full px-4 py-2 pr-10 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                    placeholder="Enter app password"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        showPassword: !prev.showPassword,
-                                      }))
-                                    }
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                                  >
-                                    {/* Eye icon */}
-                                    {emailConfirmationModal.showPassword ? (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M18.364 18.364L16.95 16.95m1.414-1.414L9.878 9.878m8.486 8.486L8.464 8.464" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md border">
-                              <span className="text-gray-800">
-                                {emailConfirmationModal.userEmail || 'No email added'}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    isEditing: true,
-                                  }))
-                                }
-                                className="text-purple-600 text-sm font-medium hover:underline"
-                              >
-                                {emailConfirmationModal.userEmail ? 'Edit' : 'Add'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* OTP Receiver Choice */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Where will you receive OTP? <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex space-x-4">
-                            <button
-                              onClick={() => {
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  otpReceiver: 'email',
-                                }));
-                                setEmailModalError(''); 
-                              }}
-                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                emailConfirmationModal.otpReceiver === 'email'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              Email
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  otpReceiver: 'phone',
-                                }));
-                                setEmailModalError(''); 
-                              }}
-                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                emailConfirmationModal.otpReceiver === 'phone'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              Phone Number
-                            </button>
-                          </div>
-                          
-                          {emailModalError && (
-                            <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
-                          )}
-                        </div>
-
-                        {/* Sender Email Option */}
-                        <div className="mt-4">
-                          <button
-                            onClick={() => setShowSenderEmailField(prev => !prev)}
-                            className="text-purple-600 text-sm hover:text-purple-800"
-                          >
-                            {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
-                          </button>
-
-                          {showSenderEmailField && (
-                            <div className="mt-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Sender Email for OTP (Optional):
-                              </label>
-                              <input
-                                type="email"
-                                value={senderEmail}
-                                onChange={(e) => setSenderEmail(e.target.value)}
-                                placeholder="e.g., no-reply@example.com"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info Note */}
-                        <div className="bg-purple-50 p-4 rounded-md">
-                          <p className="text-sm text-purple-700">
-                            <strong>Note:</strong> App password is required for email OTP verification.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Modal Buttons */}
-                      <div className="flex justify-end space-x-3 mt-8">
-                        <button
-                          onClick={() => {
-                            setEmailConfirmationModal({
-                              isOpen: false,
-                              userEmail: '',
-                              email_app_password: '',
-                              otpReceiver: '',
-                              isEditing: false,
-                              showPassword: false,
-                            });
-                            setEmailModalError(''); 
-                          }}
-                          className="px-5 py-2 text-gray-700 hover:text-gray-900"
-                        >
-                          Cancel
-                        </button>
-                        {emailConfirmationModal.isEditing ? (
-                          <button
-                            onClick={() =>
-                              setEmailConfirmationModal((prev) => ({
-                                ...prev,
-                                isEditing: false,
-                              }))
-                            }
-                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                          >
-                            Save
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleEmailConfirmation}
-                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                            disabled={!emailConfirmationModal.userEmail.trim() || !emailConfirmationModal.email_app_password?.trim()}
-                          >
-                            Confirm & Continue
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 </div>
                 <ImageModal />
                 <VerificationConfirmation
@@ -5376,7 +5467,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
             </div>
           )}
 
-        {addTestDataModalOpen && (
+        {/* {addTestDataModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
@@ -5442,7 +5533,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         <ElementSelectionModal />
         <OtpReplacementModal
@@ -5508,7 +5599,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
           testSteps={testSteps}
           previouslySelectedElements={previouslySelectedElements}
           testData={testData}
-          isTestDataLoading={isTestDataLoading}
+          // isTestDataLoading={isTestDataLoading}
           currentScreenshot={editStepModal.currentScreenshot}
         />
         </div>

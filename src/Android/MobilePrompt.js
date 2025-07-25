@@ -32,11 +32,9 @@ const MobilePrompt = () => {
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
-  const [commandType, setCommandType] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('');
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  const [selectedElement, setSelectedElement] = useState(null);
   const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
   const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
   const [secondaryVerification, setSecondaryVerification] = useState({
@@ -45,15 +43,12 @@ const MobilePrompt = () => {
   });
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   const [waitModalOpen, setWaitModalOpen] = useState(false);
-  const [stepWaitData, setStepWaitData] = useState(null);
-  const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [deviceConnected, setDeviceConnected] = useState(false)
   const [connectionLoading, setConnectionLoading] = useState(false);
 
-  const [requiresOtp, setRequiresOtp] = useState(false);
-  const [contactSelected, setContactSelected] = useState(false);
+  // const [requiresOtp, setRequiresOtp] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
     isEnabled: false,
     phoneNumberEntered: false,
@@ -61,104 +56,11 @@ const MobilePrompt = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
-  const toggleOtpCheckbox = () => {
-    setRequiresOtp(prev => {
-      const newValue = !prev;
-      if (newValue) {
-        // When enabling OTP, show contact options and hide elements
-        setContactSelected(true);
-      } else {
-        // When disabling OTP, reset everything
-        setContactSelected(false);
-        setOtpVerificationState(prev => ({
-          ...prev,
-          contactEntered: false,
-          waitingForOtp: false,
-          enteredContact: '',
-          sessionTime: null
-        }));
-      }
-      return newValue;
-    });
-  };
+
   const [testData, setTestData] = useState(null);
-  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  // const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
-  const [emailModalError, setEmailModalError] = useState('');
-  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
-  const [senderEmail, setSenderEmail] = useState('');
-  const [emailConfirmationModal, setEmailConfirmationModal] = useState({
-    isOpen: false,
-    userEmail: '',
-    email_app_password: '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false, 
-  });
-
-  useEffect(() => {
-    if (requiresOtp) {
-      const userId = localStorage.getItem("userId");
-      const projectKey = `selectedProject_${userId}`;
-      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
-      
-      if (selectedProject?.id) {
-        setIsTestDataLoading(true);
-        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("✅ Test data loaded:", data);
-            setTestData(data);
-          })
-          .catch((err) => {
-            console.warn("⚠️ Error fetching test data:", err.message);
-            setTestData(null);
-          })
-          .finally(() => setIsTestDataLoading(false));
-      }
-    }
-  }, [requiresOtp]);
-
-const saveTestDataEmail = async (email, password) => {
-  const userId = localStorage.getItem("userId");
-  const projectKey = `selectedProject_${userId}`;
-  const selectedProject = JSON.parse(localStorage.getItem(projectKey));
-  
-  if (!selectedProject?.id) {
-    alert('No project selected');
-    return false;
-  }
-
-  const payload = {
-    url: testData?.url || null,
-    email: email.trim(),
-    email_app_password: password.trim(),
-    phone_number: testData?.phone_number || null,
-    region: testData?.region || null
-  };
-
-  console.log("Saving email payload:", payload);
-
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Email saved successfully:", data);
-
-      setTestData(prev => ({ ...prev, email: email }));
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error saving test data email:', error);
-    return false;
-  }
-};
+  const [senderEmail, setSenderEmail ] = useState('');
 
   const [stepsProcessed, setStepsProcessed] = useState(false);
   const [generatedSteps, setGeneratedSteps] = useState([]);
@@ -264,6 +166,12 @@ const saveTestDataEmail = async (email, password) => {
 useEffect(() => {
   if (location.state?.generatedSteps && !stepsProcessed) {
     const steps = location.state.generatedSteps;
+
+    if (location.state?.senderEmail) {
+      console.log("🔍 Setting senderEmail:", location.state.senderEmail);
+      setSenderEmail(location.state.senderEmail);
+    }
+
     const stepObjects = steps.map((step, index) => ({
       id: `${Date.now()}-${index}-${Math.random()}`, 
       description: step.command,  
@@ -287,118 +195,6 @@ useEffect(() => {
     console.log("Steps after processing:", stepObjects);
   }
 }, [location.state, stepsProcessed]);
-
-  useEffect(() => {
-
-    if (stepsProcessed) {
-      console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
-      return;
-    }
-
-    if (!newStep) {
-        setShowSuggestions(false);
-        return;
-    }
-
-    if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
-      return;
-    }
-
-    const inputText = newStep.trim().toLowerCase();
-    const words = inputText.split(' ');
-    const firstWord = words[0];
-    const fullCommand = (firstWord === 'scroll' || firstWord === 'swipe') && words.length > 1 
-      ? words.slice(0, firstWord === 'swipe' && words[1] === 'long' ? 3 : 2)
-      : firstWord;
-
-    console.log("Command detected:", fullCommand);
-    
-    if (['click', 'type', 'verify', 'get', 'open', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
-        setCommandType(fullCommand);
-
-      if (
-          ['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)
-        ) {
-          setShowSuggestions(false);
-          return;
-        }
-
-        if (firstWord === 'wait') {
-            setShowSuggestions(false);
-            return;
-        }
-        
-        if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-            setSuggestions([]);
-            setShowSuggestions(false);
-            return;
-        }
-        
-        let searchTerm = '';
-        
-        // Extract search term based on command type
-        if (firstWord === 'click' && words.length > 1) {
-            // For click commands, everything after "click" is the search term
-            searchTerm = words.slice(1).join(' ').toLowerCase();
-        } else if (firstWord === 'type') {
-            // For type commands, extract what comes after "in "
-            const inIndex = inputText.indexOf(' in ');
-            if (inIndex !== -1) {
-                searchTerm = inputText.substring(inIndex + 4).trim();
-            }
-        }else if (firstWord === 'verify' && words.length > 1) {
-          // For verify commands, everything after "verify" is the search term
-          searchTerm = words.slice(1).join(' ').toLowerCase();
-        }else if (firstWord === 'get' && words.length > 1) {
-          searchTerm = words.slice(1).join(' ').toLowerCase();
-        }
-        
-        // Get last click coordinates from executed steps
-        const lastClickCoordinates = testSteps.length > 0 ? 
-            getLastClickCoordinates(testSteps) : null;
-        
-        // Use our enhanced algorithm to get suggestions with proper state
-        const suggestedElements = getSuggestedElements(
-            elementData.elements,
-            searchTerm,
-            firstWord,
-            { 
-                previouslySelectedElements, 
-                lastClickCoordinates 
-            }
-        );
-
-        
-        
-        setSuggestions(suggestedElements);
-        console.log("Suggestions set:", suggestedElements);
-        console.log("First suggestion click_point:", suggestedElements[0]?.click_point);
-        setShowSuggestions(suggestedElements.length > 0);
-        
-      } else if (firstWord === 'scroll') {
-        setCommandType('scroll');
-        setShowSuggestions(false);
-      } else if (firstWord === 'swipe') {
-        setCommandType('swipe');
-        setShowSuggestions(false);
-      } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
-        setCommandType('open');
-        setShowSuggestions(false);
-    } else {
-        setCommandType('');
-        setShowSuggestions(false);
-    }
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, stepsProcessed]);
-
-  useEffect(() => {
-    if (showSuggestions && suggestions.length > 0) {
-      const dropdownElement = document.querySelector('.suggestions-dropdown');
-      if (dropdownElement) {
-        dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }
-  }, [showSuggestions, suggestions.length]);
-
 
   const getLastClickCoordinates = (steps) => {
     // Loop backwards through steps to find the last successful click action
@@ -497,7 +293,7 @@ useEffect(() => {
   }
 }, [isConnected, generatedSteps, stepsExecuted]);
 
-  const executeStep = async (stepObj) => {
+  const executeStep = async (stepObj, stepIndex) => {
     setIsProcessing(true);
   
     try {
@@ -527,7 +323,7 @@ useEffect(() => {
 
         console.log("Updated Step Description:", updatedStepDescription); 
         
-        const stepIndex = testSteps.length;
+        // const stepIndex = testSteps.length;
         if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
         } else if (actionType === 'search') {
@@ -888,198 +684,6 @@ useEffect(() => {
     }
   };
 
-const handlePhoneNumberClick = async (contact) => {
-  setContactSelected(true);
-  
-  setNewStep(prev => {
-    const trimmed = prev.trim();
-    
-    // If there's already a contact in the step, replace it completely
-    if (otpVerificationState.enteredContact) {
-      // Remove the old contact completely and add new one
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
-      
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + contact;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + contact;
-      }
-      return withoutOldContact + ' ' + contact;
-    }
-    
-    // First time selecting contact
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + contact;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + contact;
-    }
-    return prev + ' ' + contact;
-  });
-  
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: contact,
-        timestamp: Date.now()
-      };
-      
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
-      
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: contact,
-        enteredContactInboxId: contact,
-        sessionTime: timeData
-      }));
-            
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
-
-  setContactSelected(false);
-};
-
-const handleEmailClick = async () => {
-  // Check if OTP verification is enabled and validate email match
-  if (requiresOtp && testData?.email) {
-    const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
-    
-    if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
-      alert(`For OTP verification, please use your configured email: ${testData.email}`);
-      return;
-    }
-  }
-  
-  // Show email confirmation modal
-  setEmailConfirmationModal({
-    isOpen: true,
-    userEmail: testData?.email || '',
-    email_app_password: testData?.email_app_password || '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false,
-  });
-};
-
-const handleEmailConfirmation = async () => {
-  const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
-  
-  setEmailModalError('');
-
-  // Validate email
-  if (!userEmail.trim()) {
-    setEmailModalError('Please enter your email address');
-    return;
-  }
-  
-  // Validate password
-  if (!email_app_password?.trim()) {
-    setEmailModalError('Please enter your password');
-    return;
-  }
-  
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(userEmail)) {
-    setEmailModalError('Please enter a valid email address');
-    return;
-  }
-
-  if (!otpReceiver) {
-    setEmailModalError('Please select where you will receive the OTP');
-    return;
-  }
-  
-  // Save email to test data if it's new or changed
-  if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
-    const saved = await saveTestDataEmail(userEmail, email_app_password);
-    if (!saved) {
-      alert('Failed to save email. Please try again.');
-      return;
-    }
-  }
-  
-  setEmailConfirmationModal({ 
-    isOpen: false, 
-    userEmail: '', 
-    email_app_password: '',  
-    otpReceiver: '',
-    isEditing: false 
-  });
-  
-  // Original email click logic
-  setContactSelected(true);
-  
-  setNewStep(prev => {
-    const trimmed = prev.trim();
-    
-    if (otpVerificationState.enteredContact) {
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
-      
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + userEmail;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + userEmail;
-      }
-      return withoutOldContact + ' ' + userEmail;
-    }
-    
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + userEmail;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + userEmail;
-    }
-    return prev + ' ' + userEmail;
-  });
-  
-
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: userEmail, 
-        actualUserEmail: userEmail, 
-        timestamp: Date.now()
-      };
-      
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
-      
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: userEmail, 
-        enteredContactInboxId: userEmail, 
-        sessionTime: timeData,
-        otpReceiver: emailConfirmationModal.otpReceiver
-      }));
-            
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
-
-  setContactSelected(false);
-};
-
 const updateOtpSessionTime = async (overrides = {}) => {
   const contactEntered = overrides.contactEntered ?? otpVerificationState.contactEntered;
   const enteredContact = overrides.enteredContact ?? otpVerificationState.enteredContact;
@@ -1122,26 +726,7 @@ const copyToClipboard = (text) => {
   });
 };
 
-// const checkAndroidConnection = async () => {
-//   try {
-//     const response = await fetch('http://localhost:8000/android/connection/', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' }
-//     });
-    
-//     if (response.ok) {
-//       const data = await response.json();
-//       console.log("check Android Connection:", data)
-//       return data.status === "success";
-//     }
-//     return false;
-//   } catch (error) {
-//     console.error('Error checking Android connection:', error);
-//     return false;
-//   }
-// };
-
-const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, currentOtpStep) => {
+const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, passedEmail = null) => {
   if ((!otpVerificationState.waitingForOtp && !forceCall) || (!isPhoneNumberStep && !isEmailStep)) {
     console.log('Skipping get_otp call - not an OTP step');
     return;
@@ -1182,8 +767,9 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, 
       // Email OTP
       const emailOtpPayload = { request_time, project_id };
 
-      if (senderEmail.trim()) {
-        emailOtpPayload.expected_sender = senderEmail.trim();
+      const emailToUse = passedEmail || senderEmail.trim();
+      if (emailToUse) {
+        emailOtpPayload.expected_sender = emailToUse;
       }
 
       console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
@@ -1317,7 +903,13 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     if (!searchTerm) return { isValid: false, matches: [] };
 
     const keyTerms = extractKeyTerms(searchTerm);
-    const searchTermWords = searchTerm.split(' ');
+    const searchTermWords = searchTerm.split(' ').filter(word => word.length > 0);
+
+    // console.log(`🔍 Validation Debug:`);
+    // console.log(`   Search term: "${searchTerm}"`);
+    // console.log(`   Key terms:`, keyTerms);
+    // console.log(`   Search words:`, searchTermWords);
+    // console.log(`   Direction:`, direction);
 
     const checkElementForMatch = (element) => {
       const elementFields = [
@@ -1326,29 +918,58 @@ const validateStepAgainstResponse = (step, omniparserData) => {
         (element.text || '').toLowerCase()
       ];
 
-      // 1. Exact Match
-      if (keyTerms.some(term => elementFields.includes(term))) return 'exact';
+      // console.log(`   Checking element ${element.id}:`, {
+      //   name: element.name,
+      //   displayName: element.displayName,
+      //   text: element.text,
+      //   fields: elementFields
+      // });
 
-      // 2. Partial Match (any field contains any keyTerm)
-      if (keyTerms.some(term => elementFields.some(field => field.includes(term)))) return 'partial';
+      // 1. Exact Match - any field exactly matches any keyTerm
+      const exactMatch = keyTerms.some(term => elementFields.some(field => field === term));
+      if (exactMatch) {
+        console.log(`     ✅ EXACT match found`);
+        return { type: 'exact', score: 100 };
+      }
 
-      // 3. Loose Match: any word in searchTerm exists anywhere in the fields
-      if (searchTermWords.some(word => elementFields.some(field => field.includes(word)))) return 'loose';
+      // 2. Partial Match - any field contains any keyTerm as substring
+      const partialMatch = keyTerms.some(term => elementFields.some(field => field.includes(term)));
+      if (partialMatch) {
+        console.log(`     🔍 PARTIAL match found`);
+        return { type: 'partial', score: 80 };
+      }
 
+      // 3. Word Match - any word in searchTerm exists in any field
+      const wordMatch = searchTermWords.some(word => elementFields.some(field => field.includes(word)));
+      if (wordMatch) {
+        console.log(`     🔎 WORD match found`);
+        return { type: 'word', score: 60 };
+      }
+
+      // console.log(`     ❌ No match`);
       return null;
     };
 
-    let exactMatches = [];
-    let partialMatches = [];
-    let looseMatches = [];
+    // Collect ALL matches with their scores
+    let allMatches = [];
 
     omniparserData.elements.forEach(element => {
-      const matchType = checkElementForMatch(element);
-
-      if (matchType === 'exact') exactMatches.push(element);
-      else if (matchType === 'partial') partialMatches.push(element);
-      else if (matchType === 'loose') looseMatches.push(element);
+      const matchResult = checkElementForMatch(element);
+      if (matchResult) {
+        allMatches.push({
+          ...element,
+          matchType: matchResult.type,
+          matchScore: matchResult.score
+        });
+      }
     });
+
+    console.log(`🎯 All matches found (${allMatches.length}):`, allMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
 
     // Apply directional offset to coordinates if direction is specified
     const applyDirectionalOffset = (matches) => {
@@ -1382,42 +1003,69 @@ const validateStepAgainstResponse = (step, omniparserData) => {
           ...element,
           coordinates: newCoords,
           click_point: newCoords,
-          originalCoordinates: originalCoords, // Keep original for reference
+          originalCoordinates: originalCoords,
           appliedDirection: direction,
           offsetApplied: OFFSET_PX
         };
       });
     };
 
-    if (exactMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(exactMatches);
-      console.log("✅ Exact matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
-      }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+    if (allMatches.length === 0) {
+      console.log("🚫 No matches found for step:", stepDesc);
+      return { isValid: false, matches: [], searchTerm, keyTerms, direction };
     }
 
-    if (partialMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(partialMatches);
-      console.log("🔍 Partial matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
+    // Sort matches by score (highest first), then by match type priority
+    allMatches.sort((a, b) => {
+      if (a.matchScore !== b.matchScore) {
+        return b.matchScore - a.matchScore; // Higher score first
       }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+      // If same score, prioritize by type
+      const typeOrder = { 'exact': 0, 'partial': 1, 'word': 2 };
+      return typeOrder[a.matchType] - typeOrder[b.matchType];
+    });
+
+    const processedMatches = applyDirectionalOffset(allMatches);
+    
+    console.log(`🎯 Final processed matches (${processedMatches.length}):`, processedMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
+
+    if (direction) {
+      console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
     }
 
-    if (looseMatches.length > 0) {
-      const processedMatches = applyDirectionalOffset(looseMatches);
-      console.log("🔎 Loose matches found:", processedMatches);
-      if (direction) {
-        console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
-      }
-      return { isValid: true, matches: processedMatches, searchTerm, keyTerms, direction };
+    // CRITICAL LOGIC: Always return ALL matches - let caller decide based on COUNT
+    // - If processedMatches.length > 1 → Show multiple match dialog (even if all are 100% matches)
+    // - If processedMatches.length === 1 → Auto-select single match (even if it's 80% match)
+    
+    console.log(`📊 Match Decision Logic:`);
+    console.log(`   Total matches found: ${processedMatches.length}`);
+    
+    if (processedMatches.length > 1) {
+      console.log(`   🔀 MULTIPLE MATCHES → Will show selection dialog`);
+    } else if (processedMatches.length === 1) {
+      console.log(`   🎯 SINGLE MATCH → Will auto-select (Score: ${processedMatches[0].matchScore}%)`);
     }
 
-    console.log("🚫 No matches found for step:", stepDesc);
-    return { isValid: false, matches: [], searchTerm, keyTerms, direction };
+    return { 
+      isValid: true, 
+      matches: processedMatches, 
+      searchTerm, 
+      keyTerms, 
+      direction,
+      totalMatches: processedMatches.length,
+      shouldShowMultipleDialog: processedMatches.length > 1,
+      shouldAutoSelect: processedMatches.length === 1,
+      matchBreakdown: {
+        exact: processedMatches.filter(m => m.matchType === 'exact').length,
+        partial: processedMatches.filter(m => m.matchType === 'partial').length,
+        word: processedMatches.filter(m => m.matchType === 'word').length
+      }
+    };
   }
 
   return { isValid: true, matches: [] };
@@ -1482,7 +1130,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               isPhoneNumberStep,
               isEmailStep,
               true, 
-              nextStep
+              isEmailStep ? senderEmail : null
             );
             
             console.log("🔄 Fresh OTP fetch result:", otpFetchResult);
@@ -1588,6 +1236,13 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   const isPhoneNumberStep = stepWithElement.otpType === 'phone';
                   const isEmailStep = stepWithElement.otpType === 'email';
 
+                  console.log("📧 Debug stepWithElement:", {
+                    userEmail: senderEmail,
+                    value: stepWithElement.value,
+                    otpType: stepWithElement.otpType,
+                    requiresOtp: stepWithElement.requiresOtp
+                  });
+
                   setOtpVerificationState(prev => ({
                     ...prev,
                     waitingForOtp: true,
@@ -1603,8 +1258,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                     stepWithElement.id,
                     isPhoneNumberStep,
                     isEmailStep,
-                    stepWithElement,
-                    true 
+                    true,
+                    isEmailStep ? senderEmail : null
                   );
 
                   if (otpFetchResult?.status === 'success') {
@@ -1696,6 +1351,13 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                 const isPhoneNumberStep = stepWithElement.otpType === 'phone';
                 const isEmailStep = stepWithElement.otpType === 'email';
 
+                console.log("📧 Debug stepWithElement:", {
+                  userEmail: senderEmail,
+                  value: stepWithElement.value,
+                  otpType: stepWithElement.otpType,
+                  requiresOtp: stepWithElement.requiresOtp
+                });
+                
                 setOtpVerificationState(prev => ({
                   ...prev,
                   waitingForOtp: true,
@@ -1711,8 +1373,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                   stepWithElement.id,
                   isPhoneNumberStep,
                   isEmailStep,
-                  stepWithElement,
-                  true 
+                  true,
+                  isEmailStep ? senderEmail : null
                 );
 
                 if (otpFetchResult?.status === 'success') {
@@ -1794,7 +1456,7 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   setTestSteps([firstStep]);
   
   // Execute step 1 directly (without using input field)
-  const executionResult = await executeStep(firstStep);
+  const executionResult = await executeStep(firstStep, 0);
   
   if (executionResult && executionResult.status === 'complete') {
     // Update step 1 with execution result
@@ -1811,229 +1473,6 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     console.error("❌ First step execution failed");
   }
 }; 
-
-  const addTestStep = async () => {
-    if (!newStep.trim() || isProcessing) return;
-    
-    setShowSuggestions(false);
-    
-    const words = newStep.trim().split(' ');
-    const actionType = words[0].toLowerCase();
-
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search', 'swipe'];
-    if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, open, scroll, search, swipe or type.");
-      return;
-    }
-    
-    // If it's a wait command but no configuration has been done yet, show the wait modal
-    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
-      setWaitModalOpen(true);
-      return;
-    }
-    
-    // Existing verification logic
-    if (actionType === 'verify') {
-      const textToVerify = words.slice(1).join(' ');
-      
-      // Always try to find matching elements by text, even if an element is selected
-      const matchingElements = checkTextInElementData(textToVerify);
-      
-      if (matchingElements && matchingElements.length > 0) {
-        // Always open confirmation modal for verify commands
-        setVerificationModal({
-          isOpen: true,
-          textToVerify,
-          matchingElements,
-          selectedElement: selectedElement || matchingElements[0]
-        });
-        return;
-      } else {
-        alert("Text not found on the current page. Please try a different text or command.");
-        return;
-      }
-    }
-    
-    // For commands that require element selection
-    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
-      alert("Please select an element from the suggestions before adding this step.");
-      return;
-    }
-
-    let finalStepText = newStep;
-
-    if (requiresOtp && actionType === 'type') {
-      const emailInStep = newStep.match(/\S+@\S+\.\S+/);
-      
-      if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
-        alert(`For OTP verification, please use your configured email: ${testData.email}`);
-        return;
-      }
-    }
-
-    // Call get_time before executing any step if phone number is entered
-    if (otpVerificationState.contactEntered) {
-      await updateOtpSessionTime();
-    }
-
-    let isOtpStep = false;
-    let isPhoneNumberStep = false;
-    let isEmailStep = false;
-
-    if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-      // Check if user selected OTP receiver in email modal (only available in email flow)
-      if (otpVerificationState.otpReceiver) {
-        // Email flow - use user's selection from modal
-        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
-        isEmailStep = otpVerificationState.otpReceiver === 'email';
-      } else {
-        // Phone number flow - use contact type detection
-        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-        isPhoneNumberStep = !isEmail;
-        isEmailStep = isEmail;
-      }
-    }
-
-    // Check Android connection if OTP verification is enabled for phone numbers
-    if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
-      console.log('🔍 Checking Android device connection before executing step...');
-    //   const isConnected = await checkAndroidConnection();
-      
-    //   if (!isConnected) {
-    //     console.log('❌ Android device not connected');
-    //     checkAndroidConnection()
-    //     return; 
-    //   }
-      
-      console.log('✅ Android device connected, proceeding with step execution');
-    }
-
-    console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
-    console.log("📞 Is phone number step?", isPhoneNumberStep);
-
-    if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      // Check if user is entering OTP (4-8 digits)
-      const match = newStep.match(/\b\d{4,8}\b/);
-      if (match) {
-        isOtpStep = true;
-        finalStepText = newStep;
-        console.log('Detected OTP input:', match[0]);
-      }
-    }
-
-    const newStepObj = {
-      id: Date.now(),
-      description: finalStepText,
-      status: 'pending',
-      duration: '00:00',
-      screenshot: null,
-      selectedElement: selectedElement,
-      verificationType: selectedElement?.verificationType || 'text',
-      waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp,
-      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
-      otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
-      isPhoneNumberStep: isPhoneNumberStep,
-      isEmailStep: isEmailStep 
-    };
-    
-    console.log("New step object:", newStepObj)
-
-    setSelectedElement(null);
-    setStepWaitData(null);
-    
-    setTestSteps(prev => [...prev, newStepObj]);
-    setNewStep('');
-    
-    const executionResult = await executeStep(newStepObj);
-
-    if (executionResult === undefined) {
-      setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
-      return;
-    }
-    
-    // After successful execution, update the previouslySelectedElements
-    if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
-      setLastClickCoordinates(newStepObj.selectedElement.click_point);
-      const element = newStepObj.selectedElement;
-  
-      if (element.click_point) {
-        const x = Math.round(element.click_point[0]);
-        const y = Math.round(element.click_point[1]);
-        const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
-  
-        console.log('Generated key for element:', exactCoordinateKey);
-        
-        setPreviouslySelectedElements(prev => {
-          const updatedPrev = {};
-          Object.keys(prev).forEach(key => {
-            updatedPrev[key] = {
-              ...prev[key],
-              lastExecutedElement: false 
-            };
-          });
-          
-          return {
-            ...updatedPrev,
-            [exactCoordinateKey]: {
-              lastSelected: Date.now(),
-              count: (prev[exactCoordinateKey]?.count || 0) + 1,
-              element: element,
-              lastExecutedElement: true,
-              coordinates: [x, y]
-            }
-          };
-        });
-      }
-    }
-    
-    // IMPORTANT: Call get_otp after successful execution when waiting for OTP
-    if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
-      await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
-    }
-    
-    setNewStep('');
-    if (newStepObj.otpSessionData) {
-      setRequiresOtp(false);
-    }
-
-    setTestSteps(prev => prev.map(step => 
-      step.id === newStepObj.id ? {
-        ...step,
-        ...executionResult,
-        elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
-        elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-        waitCondition: executionResult.waitCondition,
-        waitText: executionResult.waitText,
-        waitTimeout: executionResult.waitTimeout
-      } : step
-    ));
-    
-    setNewStep('');
-    
-    setTimeout(() => {
-      if (previewRef.current) {
-        previewRef.current.scrollTo({
-          top: previewRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-      if (stepsRef.current) {
-        stepsRef.current.scrollTo({
-          top: stepsRef.current.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
-    }, 100);
-  };
-
-  useEffect(() => {
-    if (pendingWaitStep && newStep.includes('wait')) {
-      addTestStep();
-      setPendingWaitStep(false); 
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newStep, pendingWaitStep]);
 
   const handleWaitConfirm = (waitCommand, waitRequestData) => {
     if (waitStepData && waitStepIndex !== null) {
@@ -2069,115 +1508,6 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     }
     
     setWaitModalOpen(false);
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    // Flag to indicate a suggestion was just selected
-    // This will help prevent the useEffect from reopening the dropdown
-    const handleSelection = () => {
-      // Store the selected element ID in previouslySelectedElements
-      setPreviouslySelectedElements(prev => ({
-        ...prev,
-        [suggestion.id]: {
-          timestamp: Date.now(),
-          element: suggestion
-        }
-      }));
-    };
-    
-    let updatedStep = '';
-    
-    if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-    } else if (commandType === 'type') {
-      // Get the text the user has already typed (if any)
-      let userText = '';
-      
-      if (newStep.toLowerCase().startsWith('type ')) {
-        const inIndex = newStep.toLowerCase().indexOf(' in ');
-        if (inIndex !== -1) {
-          // If " in " exists, extract text between "type " and " in "
-          userText = newStep.substring(5, inIndex).trim();
-        } else {
-          // If " in " doesn't exist, extract all text after "type "
-          userText = newStep.substring(5).trim();
-        }
-      }
-      
-      // Use the user's text if available, otherwise use placeholder
-      if (userText) {
-        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
-      } else {
-        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-      }
-    } else if (commandType === 'verify') {
-      updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Set verification modal data
-      const textToVerify = suggestion.displayName || suggestion.name;
-      const matchingElements = [suggestion]; 
-      
-      // Need to update these states together with minimal delay to avoid re-renders
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
-      // Show verification modal
-      setVerificationModal({
-        isOpen: true,
-        textToVerify,
-        matchingElements,
-        selectedElement: suggestion
-      });
-      
-      return;  
-    } else if (commandType === 'get') {
-      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
-      
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
-      
-      // Update step in one batch to minimize effect triggers
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
-      
-      return;
-    }
-    
-    // Immediately close suggestions dropdown and disable its reopening
-    setShowSuggestions(false);
-    handleSelection();
-    
-    // Batching state updates to minimize effect re-runs
-    setNewStep(updatedStep);
-    setSelectedElement(suggestion);
-    
-    // Focus input after state updates
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        if (commandType === 'type' && updatedStep.includes(' in ')) {
-          // Position cursor after "type " but before " in " for user to enter text
-          const typeIndex = updatedStep.indexOf('type ') + 5;
-          
-          // If there's no text between "type " and " in ", set cursor right after "type "
-          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
-            inputRef.current.setSelectionRange(typeIndex, typeIndex);
-          } else {
-            // If there's already text, position cursor at the end of the command
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
-          }
-        } else {
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
-        }
-      }
-    }, 0);
   };
 
   const handleVerificationConfirm = () => {
@@ -2382,14 +1712,14 @@ const createTestCase = async () => {
       enteredContactInboxId: ''
     });
     setTestData(null);
-    setRequiresOtp(false);
-    setContactSelected(false);
-    setEmailConfirmationModal({
-      isOpen: false,
-      userEmail: '',
-      // defaultEmail: '',
-      isEditing: false
-    });
+    // setRequiresOtp(false);
+    // setContactSelected(false);
+    // setEmailConfirmationModal({
+    //   isOpen: false,
+    //   userEmail: '',
+    //   // defaultEmail: '',
+    //   isEditing: false
+    // });
 
     alert('Session data cleared!');
   };
@@ -2429,18 +1759,6 @@ const ImageModal = () => {
       </div>
     </div>
   );
-};
-
-const checkTextInElementData = (textToVerify) => {
-  if (!elementData || !elementData.elements) return null;
-  
-  const searchText = textToVerify.toLowerCase();
-  const matchingElements = elementData.elements.filter(element => {
-    // Check if element has text content that includes the search text
-    return element.text && element.text.toLowerCase().includes(searchText);
-  });
-  
-  return matchingElements.length > 0 ? matchingElements : null;
 };
 
 const SecondaryVerificationConfirmation = ({ isOpen, onClose, onConfirm, stepObj }) => {
@@ -2517,246 +1835,6 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
           </button>
         </div>
       </div>
-    </div>
-  );
-};
-
-const SuggestionsDropdown = () => {
-  if (!showSuggestions) return null;
-
-  const shouldShowNoDataMessage =
-    suggestions.length === 0 &&
-    newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
-  
-  if (shouldShowNoDataMessage) {
-    return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-        <div className="p-4 text-center">
-          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            No element data available
-          </div>
-          <p className="text-sm text-gray-700">
-            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-          </p>
-          <button 
-            onClick={() => setShowSuggestions(false)}
-            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  
-  return (
-    <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
-      <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-        <h4 className="font-medium text-purple-800 flex items-center">
-          {commandType === 'click' ? (
-            <>
-              <span className="mr-2">🖱️</span> Click on an element:
-            </>
-          ) : commandType === 'type' ? (
-            <>
-              <span className="mr-2">⌨️</span> Select where to type:
-            </>
-          ) : commandType === 'verify' ? (
-            <>
-              <span className="mr-2">✓</span> Verify text on page:
-            </>
-          ) : commandType === 'get' ? (
-            <>
-              <span className="mr-2">📄</span> Get text from page:
-            </>
-          ) : null}
-        </h4>
-
-        {commandType === 'type' && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requiresOtp}
-                onChange={toggleOtpCheckbox}
-                className="accent-blue-500"
-              />
-              OTP Verification
-            </label>
-            
-            {/* Show contact selection only when OTP is checked and no contact selected */}
-            {requiresOtp && !otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
-                <span className="text-sm font-medium text-gray-700 block mb-2">
-                  Select Contact Method:
-                </span>
-
-                {/* ✅ Loading state */}
-                {isTestDataLoading ? (
-                  <div className="text-blue-500 text-sm flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                              stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    Loading test data...
-                  </div>
-                ) : testData?.phone || testData?.email ? (
-                  <div className="flex gap-2 flex-wrap">
-                    {testData.phone_number && (
-                      <button
-                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
-                      >
-                        📱 Phone: {testData.phone_number}
-                      </button>
-                    )}
-                    {testData.email && (
-                      <button
-                        onClick={() => handleEmailClick()}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-                      >
-                        📧 Email: {testData.email}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm text-red-600">
-                    ⚠ No contact method found. Please add test data first.
-                  </div>
-                )}
-
-                <div className="mt-2 text-xs text-gray-600">
-                  Click on a contact method to proceed
-                </div>
-              </div>
-            )}       
-
-            {/* Show selected contact and allow changing */}
-            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-green-700">
-                    ✅ Selected: {otpVerificationState.enteredContact}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setContactSelected(false);
-                      setOtpVerificationState(prev => ({
-                        ...prev,
-                        contactEntered: false,
-                        enteredContact: ''
-                      }));
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Change Contact
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-xs text-gray-600">
-          Found {suggestions.length} matching elements
-          {suggestions.some(s => s.isDuplicate) && 
-            " (highlighted items have duplicate names)"}
-          {lastClickCoordinates && " (ordered by proximity to last click)"}
-        </p>
-      </div>
-      <ul className="divide-y divide-gray-100">
-        {suggestions.map((suggestion, index) => (
-          <li 
-            key={`${suggestion.id}-${index}`}
-            className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-            }`}
-            tabIndex={0}
-            onClick={() => handleSuggestionClick(suggestion)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSuggestionClick(suggestion);
-              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                e.preventDefault();
-                document.querySelectorAll('.suggestion-item')[index + 1].focus();
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (index > 0) {
-                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                } else {
-                  inputRef.current.focus();
-                }
-              } else if (e.key === 'Escape') {
-                setShowSuggestions(false);
-                inputRef.current.focus();
-              }
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-medium">
-                {suggestion.displayName || suggestion.name}
-                {suggestion.usageInfo && (
-                  <span className={`ml-2 text-xs font-semibold ${
-                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                    'text-green-600'
-                  }`}>
-                    ({suggestion.usageInfo})
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  suggestion.type === 'button' || suggestion.tag === 'button' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : suggestion.type === 'input' || suggestion.tag === 'input'
-                      ? 'bg-green-100 text-green-700'
-                      : suggestion.type === 'link' || suggestion.tag === 'a'
-                      ? 'bg-purple-100 text-purple-700'
-                      : suggestion.type === 'text'
-                      ? 'bg-gray-100 text-gray-700'
-                      : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {suggestion.type || suggestion.tag || "Element"}
-                </span>
-              </div>
-            </div>
-            
-            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-              {suggestion.isDuplicate && !suggestion.usageInfo && (
-                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                  Multiple matches
-                </span>
-              )}
-              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  Near last click
-                </span>
-              )}
-            </div>
-            
-            {/* Extra details to help distinguish elements */}
-            {suggestion.text && (
-              <div className="text-xs text-gray-500 mt-1 truncate">
-                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 };
@@ -3074,6 +2152,106 @@ const handleMultipleMatches = (matches, stepDescription, callback) => {
   setShowElementModal(true);
 };
 
+const getPositionDescription = (element, allElements) => {
+  const clickPoint = element.click_point || element.coordinates || [];
+  if (clickPoint.length < 2) return "Unknown position";
+  
+  const x = clickPoint[0];
+  const y = clickPoint[1];
+  
+  // Screen dimensions (you can adjust these based on your typical screen size)
+  const SCREEN_WIDTH = 1920; // or get from window.innerWidth
+  const SCREEN_HEIGHT = 1080; // or get from window.innerHeight
+  
+  // Determine horizontal position
+  let horizontalPos = "";
+  if (x < SCREEN_WIDTH * 0.25) horizontalPos = "Left side";
+  else if (x < SCREEN_WIDTH * 0.75) horizontalPos = "Center";
+  else horizontalPos = "Right side";
+  
+  // Determine vertical position
+  let verticalPos = "";
+  if (y < SCREEN_HEIGHT * 0.25) verticalPos = "Top";
+  else if (y < SCREEN_HEIGHT * 0.75) verticalPos = "Middle";
+  else verticalPos = "Bottom";
+  
+  // Combine positions
+  let position = `${verticalPos} ${horizontalPos.toLowerCase()}`;
+  
+  // Add relative positioning if there are multiple similar elements
+  if (allElements && allElements.length > 1) {
+    const sameTypeElements = allElements.filter(el => 
+      el.element.type === element.type && 
+      (el.element.name || el.element.displayName || el.element.text) !== 
+      (element.name || element.displayName || element.text)
+    );
+    
+    if (sameTypeElements.length > 0) {
+      // Find if this element is above/below others
+      const elementsAbove = sameTypeElements.filter(el => {
+        const otherY = (el.element.click_point || el.element.coordinates || [])[1];
+        return otherY && otherY > y + 50; // 50px tolerance
+      });
+      
+      const elementsBelow = sameTypeElements.filter(el => {
+        const otherY = (el.element.click_point || el.element.coordinates || [])[1];
+        return otherY && otherY < y - 50; // 50px tolerance
+      });
+      
+      if (elementsAbove.length > 0 && elementsBelow.length === 0) {
+        position += " (topmost)";
+      } else if (elementsBelow.length > 0 && elementsAbove.length === 0) {
+        position += " (bottommost)";
+      } else if (elementsAbove.length > 0 && elementsBelow.length > 0) {
+        position += " (middle)";
+      }
+    }
+  }
+  
+  return position;
+};
+
+const getSizeDescription = (element) => {
+  const coordinates = element.coordinates || [];
+  if (coordinates.length !== 4) return "Standard size";
+  
+  const width = coordinates[2] - coordinates[0];
+  const height = coordinates[3] - coordinates[1];
+  
+  if (width > 200 && height > 50) return "Large element";
+  if (width < 100 || height < 30) return "Small element";
+  return "Medium size";
+};
+
+const getElementContext = (element) => {
+  const text = element.text || element.displayName || element.name || '';
+  
+  // Add context based on surrounding text or attributes
+  if (element.attributes) {
+    if (element.attributes.placeholder) return `(placeholder: "${element.attributes.placeholder}")`;
+    if (element.attributes.value) return `(current value: "${element.attributes.value}")`;
+    if (element.attributes.title) return `(tooltip: "${element.attributes.title}")`;
+  }
+  
+  // Provide context based on element type and text
+  if (element.type === 'input') {
+    if (text.toLowerCase().includes('password')) return "(password field)";
+    if (text.toLowerCase().includes('email')) return "(email field)";
+    if (text.toLowerCase().includes('username')) return "(username field)";
+    if (text.toLowerCase().includes('search')) return "(search box)";
+    return "(input field)";
+  }
+  
+  if (element.type === 'button') {
+    if (text.toLowerCase().includes('submit')) return "(submit action)";
+    if (text.toLowerCase().includes('login')) return "(login action)";
+    if (text.toLowerCase().includes('cancel')) return "(cancel action)";
+    return "(clickable button)";
+  }
+  
+  return "";
+};
+
 const ElementSelectionModal = () => {
   const [selectedElement, setSelectedElement] = useState(null);
   
@@ -3109,7 +2287,7 @@ const ElementSelectionModal = () => {
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
         {/* Modal Header */}
         <div className="bg-blue-600 text-white px-6 py-4">
           <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
@@ -3121,93 +2299,113 @@ const ElementSelectionModal = () => {
         {/* Modal Body */}
         <div className="p-6 max-h-96 overflow-y-auto">
           <div className="space-y-3">
-            {modalData.matches.map((match, index) => (
-              <div
-                key={index}
-                className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                  selectedElement?.index === match.index
-                    ? 'border-blue-500 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                }`}
-                onClick={() => handleElementSelect(match)}
-              >
-                <div className="flex items-start space-x-3">
-                  {/* Element Icon */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
-                    match.type === 'button' ? 'bg-green-500' :
-                    match.type === 'input' ? 'bg-blue-500' :
-                    match.type === 'link' ? 'bg-purple-500' :
-                    'bg-gray-500'
-                  }`}>
-                    {match.type === 'button' ? '🔘' :
-                     match.type === 'input' ? '📝' :
-                     match.type === 'link' ? '🔗' :
-                     '🔲'}
-                  </div>
-                  
-                  {/* Element Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {match.display}
-                      </h3>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        match.type === 'button' ? 'bg-green-100 text-green-800' :
-                        match.type === 'input' ? 'bg-blue-100 text-blue-800' :
-                        match.type === 'link' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {match.type}
-                      </span>
+            {modalData.matches.map((match, index) => {
+              const positionDesc = getPositionDescription(match.element, modalData.matches);
+              const sizeDesc = getSizeDescription(match.element);
+              const contextDesc = getElementContext(match.element);
+              
+              return (
+                <div
+                  key={index}
+                  className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                    selectedElement?.index === match.index
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                  onClick={() => handleElementSelect(match)}
+                >
+                  <div className="flex items-start space-x-3">
+                    {/* Element Icon */}
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
+                      match.type === 'button' ? 'bg-green-500' :
+                      match.type === 'input' ? 'bg-blue-500' :
+                      match.type === 'link' ? 'bg-purple-500' :
+                      'bg-gray-500'
+                    }`}>
+                      {match.type === 'button' ? '🔘' :
+                       match.type === 'input' ? '📝' :
+                       match.type === 'link' ? '🔗' :
+                       '🔲'}
                     </div>
                     
-                    {/* Element coordinates info */}
-                    {(() => {
-                      const clickPoint = match.element.click_point || [];
-                      const coordinates = match.element.coordinates || [];
-
-                      const tapX = clickPoint[0] ?? 'N/A';
-                      const tapY = clickPoint[1] ?? 'N/A';
-
-                      let width = 'N/A';
-                      let height = 'N/A';
-                      if (coordinates.length === 4) {
-                        width = coordinates[2] - coordinates[0];
-                        height = coordinates[3] - coordinates[1];
-                      }
-
-                      return (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Tap Point: Left {tapX}px, Top {tapY}px • Element Size: {width}px wide × {height}px high
-                        </p>
-                      );
-                    })()}
-
-                    {/* Additional element properties */}
-                    {match.element.attributes && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {Object.entries(match.element.attributes).slice(0, 3).map(([key, value]) => (
-                          <span key={key} className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                            {key}: {String(value).substring(0, 20)}
-                          </span>
-                        ))}
+                    {/* Element Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 truncate text-base">
+                          {match.display}
+                        </h3>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          match.type === 'button' ? 'bg-green-100 text-green-800' :
+                          match.type === 'input' ? 'bg-blue-100 text-blue-800' :
+                          match.type === 'link' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {match.type}
+                        </span>
+                      </div>
+                      
+                      {/* User-friendly position description */}
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">📍 Location:</span>
+                          <span className="text-sm text-gray-800">{positionDesc}</span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-600">📏 Size:</span>
+                          <span className="text-sm text-gray-800">{sizeDesc}</span>
+                        </div>
+                        
+                        {contextDesc && (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-600">💬 Context:</span>
+                            <span className="text-sm text-gray-800">{contextDesc}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Match score indicator if available */}
+                      {match.element.matchScore && (
+                        <div className="mt-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500">Match confidence:</span>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-green-500 h-2 rounded-full" 
+                                style={{ width: `${match.element.matchScore}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Selection indicator */}
+                    {selectedElement?.index === match.index && (
+                      <div className="flex-shrink-0">
+                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
                       </div>
                     )}
                   </div>
-                  
-                  {/* Selection indicator */}
-                  {selectedElement?.index === match.index && (
-                    <div className="flex-shrink-0">
-                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+          
+          {/* Helpful tip */}
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <span className="text-yellow-600">💡</span>
+              <p className="text-sm text-yellow-800">
+                <strong>Tip:</strong> Look at the location and context to identify the correct element. 
+                Elements are described by their position on the screen and their purpose.
+              </p>
+            </div>
           </div>
         </div>
         
@@ -3237,10 +2435,10 @@ const ElementSelectionModal = () => {
 };
 
 const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
-  console.log("🔧 Starting OTP replacement...");
-  console.log("🔧 Original step description:", otpReplacementModal.step.description);
-  console.log("🔧 New OTP value:", newOtp);
-  console.log("🔧 Original step:", otpReplacementModal.step);
+  // console.log("🔧 Starting OTP replacement...");
+  // console.log("🔧 Original step description:", otpReplacementModal.step.description);
+  // console.log("🔧 New OTP value:", newOtp);
+  // console.log("🔧 Original step:", otpReplacementModal.step);
   
   // Step 1: Fix the description replacement
   let updatedDescription = otpReplacementModal.step.description;
@@ -3286,7 +2484,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
   // Step 4: Close the modal
   setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null });
   
-  // Step 5: Execute the current step (not next step!)
+  // Step 5: Execute the current step with proper validation
   const currentIndex = otpReplacementModal.stepIndex;
   console.log("🚀 Executing OTP step at index:", currentIndex);
 
@@ -3304,35 +2502,98 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
     );
     return;
   }
-  
-  executeStep(updatedStep, currentIndex).then(result => {
-    console.log("✅ OTP Step execution result:", result);
+
+  // Handle multiple matches - same logic as handleNextStep
+  if (validationResult.matches.length > 1) {
+    console.log(`⚠️ OTP step has multiple matches. Awaiting user selection.`);
+
+    handleMultipleMatches(validationResult.matches, updatedStep.description, async (selectedElement) => {
+      if (selectedElement) {
+        const stepWithElement = {
+          ...updatedStep,
+          selectedElement: selectedElement,
+          coordinates: selectedElement.coordinates || selectedElement.click_point
+        };
+
+        // Update testSteps with selected element
+        setTestSteps(prev => prev.map(step => 
+          step.id === updatedStep.id ? stepWithElement : step
+        ));
+
+        // Execute with selected element
+        const executionResult = await executeStep(stepWithElement, currentIndex);
+        console.log("✅ OTP Step execution result (Multiple Match):", executionResult);
+        
+        // Update the step with execution result
+        setTestSteps(prev => prev.map(step => 
+          step.id === stepWithElement.id ? { ...step, ...executionResult } : step
+        ));
+        
+        // Only proceed if execution was successful
+        if (executionResult && executionResult.status === 'complete') {
+          console.log("✅ OTP step succeeded, moving to next step");
+          setCurrentGeneratedStepIndex(currentIndex);
+          handleNextStep(executionResult, currentIndex);
+        } else {
+          console.error(`❌ OTP Step failed:`, executionResult);
+          
+          // Open edit modal for OTP execution errors
+          openEditModal(
+            stepWithElement,
+            executionResult?.error || 'OTP step execution failed',
+            otpReplacementModal.currentPageData,
+            currentIndex
+          );
+        }
+      } else {
+        console.error(`❌ No element selected for OTP step with multiple matches.`);
+      }
+    });
+  } else {
+    // Single match - auto-select
+    console.log(`🎯 Auto-selecting single matching element for OTP step:`, validationResult.matches[0]);
     
-    // Update the step with execution result
+    const stepWithElement = {
+      ...updatedStep,
+      selectedElement: validationResult.matches[0],
+      coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
+    };
+
+    // Update testSteps with selected element
     setTestSteps(prev => prev.map(step => 
-      step.id === updatedStep.id ? { ...step, ...result } : step
+      step.id === updatedStep.id ? stepWithElement : step
     ));
-    
-    // Only proceed if execution was successful
-    if (result && result.status === 'complete') {
-      console.log("✅ OTP step succeeded, moving to next step");
-      setCurrentGeneratedStepIndex(currentIndex);
-      handleNextStep(result, currentIndex);
-    } else {
-      console.error(`❌ OTP Step failed:`, result);
+
+    // Execute with selected element
+    executeStep(stepWithElement, currentIndex).then(result => {
+      console.log("✅ OTP Step execution result (Single Match):", result);
       
-      // Open edit modal for OTP execution errors
-      openEditModal(
-        updatedStep,
-        result?.error || 'OTP step execution failed',
-        otpReplacementModal.currentPageData,
-        currentIndex
-      );
-    }
-  }).catch(error => {
-    console.error('❌ OTP step execution error:', error);
-    alert(`OTP execution failed: ${error.message}`);
-  });
+      // Update the step with execution result
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepWithElement.id ? { ...step, ...result } : step
+      ));
+      
+      // Only proceed if execution was successful
+      if (result && result.status === 'complete') {
+        console.log("✅ OTP step succeeded, moving to next step");
+        setCurrentGeneratedStepIndex(currentIndex);
+        handleNextStep(result, currentIndex);
+      } else {
+        console.error(`❌ OTP Step failed:`, result);
+        
+        // Open edit modal for OTP execution errors
+        openEditModal(
+          stepWithElement,
+          result?.error || 'OTP step execution failed',
+          otpReplacementModal.currentPageData,
+          currentIndex
+        );
+      }
+    }).catch(error => {
+      console.error('❌ OTP step execution error:', error);
+      alert(`OTP execution failed: ${error.message}`);
+    });
+  }
 };
 
 const OtpReplacementModal = ({ 
@@ -3528,13 +2789,13 @@ const openEditModal = (step, errorMessage, pageData, stepIndex, screenshot) => {
 
 const handleEditStep = async (updatedStep) => {
   const { currentPageData, stepIndex } = editStepModal;
-  
+    
   // console.log("🔧 handleEditStep called:");
   // console.log("  - Updated step:", updatedStep);
   // console.log("  - Has selectedElement:", !!updatedStep.selectedElement);
   // console.log("  - Has coordinates:", !!updatedStep.coordinates);
   // console.log("  - Step index:", stepIndex);
-  
+
   // Close modal first
   setEditStepModal({
     isOpen: false,
@@ -3549,14 +2810,39 @@ const handleEditStep = async (updatedStep) => {
   const stepExists = testSteps.find(s => s.id === updatedStep.id);
   
   if (stepExists) {
-    // UPDATE existing step
     setTestSteps(prev => prev.map(s => s.id === updatedStep.id ? updatedStep : s));
   } else {
-    // ADD new step (this handles the case where validation failed initially)
     setTestSteps(prev => [...prev, updatedStep]);
   }
+
+  // 🔔 ADD OTP CHECK BEFORE EXECUTION (same logic as handleNextStep)
+  if (updatedStep.action === "type" && 
+      updatedStep.isActualOtpStep === true && 
+      (updatedStep.description.toLowerCase().includes('otp'))) {
+    
+    console.log(`🔐 Manual OTP Step ${stepIndex + 1} detected! User will enter OTP manually.`);
+
+  }
+
+  // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+  if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+    console.log(`🔐 OTP Required for edited step ${stepIndex + 1}:`, updatedStep.otpType);
+
+    setOtpVerificationState(prev => ({
+      ...prev,
+      waitingForOtp: true,
+      enteredContact: updatedStep.value,
+      contactEntered: true,
+      stepId: updatedStep.id
+    }));
+
+    await updateOtpSessionTime({
+      contactEntered: true,
+      enteredContact: updatedStep.value
+    });
+  }
   
-  // Execute the updated step directly
+  // Execute the updated step
   try {
     console.log("🚀 About to execute edited step:", updatedStep);
     const executionResult = await executeStep(updatedStep, stepIndex);
@@ -3565,11 +2851,55 @@ const handleEditStep = async (updatedStep) => {
       setTestSteps(prev => prev.map(s => 
         s.id === updatedStep.id ? { ...s, ...executionResult } : s
       ));
+      
+      // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+      if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+        console.log(`🔐 OTP Required after edited Step ${stepIndex + 1}:`, updatedStep.otpType);
+
+        const isPhoneNumberStep = updatedStep.otpType === 'phone';
+        const isEmailStep = updatedStep.otpType === 'email';
+
+        setOtpVerificationState(prev => ({
+          ...prev,
+          waitingForOtp: true,
+          enteredContact: updatedStep.value,
+          contactEntered: true,
+          stepId: updatedStep.id
+        }));
+
+        const otpFetchResult = await callGetOtpAfterExecution(
+          updatedStep.id,
+          isPhoneNumberStep,
+          isEmailStep,
+          true,
+          isEmailStep ? senderEmail : null
+        );
+
+        if (otpFetchResult?.status === 'success') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otp: otpFetchResult.otp,
+              otpValue: otpFetchResult.otp,
+              otpReceived: true
+            } : step
+          ));
+        } else if (otpFetchResult?.status === 'waiting') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otpWaiting: true,
+              otpPending: false,
+              otpReceived: false
+            } : step
+          ));
+        }
+      }
+      
       setCurrentGeneratedStepIndex(stepIndex);
       handleNextStep(executionResult, stepIndex);
     } else {
       console.error("❌ Edited step execution failed:", executionResult);
-      // If execution fails again, reopen the modal
       openEditModal(
         updatedStep,
         executionResult?.error || 'Step execution failed after edit',
@@ -4779,7 +4109,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          addTestStep();
+                          // addTestStep();
                         } else if (e.key === 'Escape') {
                           setShowSuggestions(false);
                         } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
@@ -4792,7 +4122,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                       className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm transition-all duration-200"
                     />
                     <button
-                      onClick={addTestStep}
+                      // onClick={addTestStep}
                       disabled={isProcessing || !newStep.trim()}
                       className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors duration-200"
                     >
@@ -4803,20 +4133,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                       )}
                     </button>
                   </div>
-                  
-                  {/* Suggestions dropdown with animation */}
-                  <SuggestionsDropdown />
-                  
-                  {/* Command type indicator */}
-                  {commandType && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {commandType === 'click' && "Click command - type element name or select from suggestions"}
-                      {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
-                      {commandType === 'open' && "Navigation command - enter a URL"}
-                      {commandType === 'scroll' && "Scroll command - choose direction (scroll up / scroll down)"}
-                      {commandType === 'swipe' && "Swipe command - choose direction (swipe left / swipe right / swipe long left / swipe long right)"}
-                    </div>
-                  )}
+
                 </div>
               </div>
             </div>
@@ -5037,220 +4354,6 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                     ))
                   )}
 
-                {emailConfirmationModal.isOpen && (
-                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
-                      <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
-                        Email & Password Configuration
-                      </h3>
-
-                      <div className="space-y-5">
-                        {/* Email Display/Edit */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Email Address: <span className="text-red-500">*</span>
-                          </label>
-                          {emailConfirmationModal.isEditing ? (
-                            <>
-                              {/* Email Input (shown in edit mode) */}
-                              <input
-                                type="email"
-                                value={emailConfirmationModal.userEmail}
-                                onChange={(e) =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    userEmail: e.target.value,
-                                  }))
-                                }
-                                className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                placeholder="Enter your email address"
-                              />
-
-                              {/* Password Input (shown only in edit mode) */}
-                              <div className="mt-4">
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                  App Password: <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type={emailConfirmationModal.showPassword ? "text" : "password"}
-                                    value={emailConfirmationModal.email_app_password || ''}
-                                    onChange={(e) =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        email_app_password: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full px-4 py-2 pr-10 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                    placeholder="Enter app password"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        showPassword: !prev.showPassword,
-                                      }))
-                                    }
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                                  >
-                                    {/* Eye icon */}
-                                    {emailConfirmationModal.showPassword ? (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M18.364 18.364L16.95 16.95m1.414-1.414L9.878 9.878m8.486 8.486L8.464 8.464" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md border">
-                              <span className="text-gray-800">
-                                {emailConfirmationModal.userEmail || 'No email added'}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    isEditing: true,
-                                  }))
-                                }
-                                className="text-purple-600 text-sm font-medium hover:underline"
-                              >
-                                {emailConfirmationModal.userEmail ? 'Edit' : 'Add'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* OTP Receiver Choice */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Where will you receive OTP? <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex space-x-4">
-                            <button
-                              onClick={() => {
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  otpReceiver: 'email',
-                                }));
-                                setEmailModalError(''); 
-                              }}
-                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                emailConfirmationModal.otpReceiver === 'email'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              Email
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  otpReceiver: 'phone',
-                                }));
-                                setEmailModalError(''); 
-                              }}
-                              className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                emailConfirmationModal.otpReceiver === 'phone'
-                                  ? 'bg-purple-600 text-white'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
-                            >
-                              Phone Number
-                            </button>
-                          </div>
-                          
-                          {emailModalError && (
-                            <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
-                          )}
-                        </div>
-
-                        {/* Sender Email Option */}
-                        <div className="mt-4">
-                          <button
-                            onClick={() => setShowSenderEmailField(prev => !prev)}
-                            className="text-purple-600 text-sm hover:text-purple-800"
-                          >
-                            {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
-                          </button>
-
-                          {showSenderEmailField && (
-                            <div className="mt-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Sender Email for OTP (Optional):
-                              </label>
-                              <input
-                                type="email"
-                                value={senderEmail}
-                                onChange={(e) => setSenderEmail(e.target.value)}
-                                placeholder="e.g., no-reply@example.com"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                              />
-                            </div>
-                          )}
-                        </div>                      
-
-                        {/* Info Note */}
-                        <div className="bg-purple-50 p-4 rounded-md">
-                          <p className="text-sm text-purple-700">
-                            <strong>Note:</strong> App password is required for email OTP verification.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Modal Buttons */}
-                      <div className="flex justify-end space-x-3 mt-8">
-                        <button
-                          onClick={() => {
-                            setEmailConfirmationModal({
-                              isOpen: false,
-                              userEmail: '',
-                              email_app_password: '',
-                              otpReceiver: '',
-                              isEditing: false,
-                              showPassword: false,
-                            });
-                            setEmailModalError(''); 
-                          }}
-                          className="px-5 py-2 text-gray-700 hover:text-gray-900"
-                        >
-                          Cancel
-                        </button>
-                        {emailConfirmationModal.isEditing ? (
-                          <button
-                            onClick={() =>
-                              setEmailConfirmationModal((prev) => ({
-                                ...prev,
-                                isEditing: false,
-                              }))
-                            }
-                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                          >
-                            Save
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleEmailConfirmation}
-                            className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                            disabled={!emailConfirmationModal.userEmail.trim() || !emailConfirmationModal.email_app_password?.trim()}
-                          >
-                            Confirm & Continue
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 </div>
                 <ImageModal />
                 <VerificationConfirmation
@@ -5343,7 +4446,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
               testSteps={testSteps}
               previouslySelectedElements={previouslySelectedElements}
               testData={testData}
-              isTestDataLoading={isTestDataLoading}
+              // isTestDataLoading={isTestDataLoading}
               currentScreenshot={editStepModal.currentScreenshot}
             />
 

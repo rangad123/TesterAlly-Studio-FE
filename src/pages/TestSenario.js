@@ -419,7 +419,8 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
   const navigationState = {
     generatedSteps: stepsWithOtpFlags,
     autoExecuteFirst: true,
-    needsOtpVerification: true
+    needsOtpVerification: true,
+    senderEmail: otpConfirmationModal.contactType === 'email' ? testData?.email : null
   };
 
   console.log("🎯 Steps with user-confirmed OTP flags:", stepsWithOtpFlags);
@@ -434,6 +435,12 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
     detectedSteps: []
   });
   setSelectedOtpStep('none');
+
+  console.log("🔍 Debug navigation data:", {
+    contactType: otpConfirmationModal.contactType,
+    testDataEmail: testData?.email,
+    senderEmailToPass: otpConfirmationModal.contactType === 'email' ? testData?.email : null
+  });
 
   // Navigation logic remains the same...
   if (project_type === "Web Application" && platform === "Laptop/PC") {
