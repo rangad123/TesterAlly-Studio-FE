@@ -1612,24 +1612,24 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
               }`}></div>
 
               <div className="flex flex-col flex-grow">
-                  <span className="font-medium">
-                    {element.name || element.text || element.id || 'Element ' + (index + 1)}
-                    {positionLabel}
-                  </span>
+                <span className="font-medium">
+                  {element.name || element.text || element.id || 'Element ' + (index + 1)}
+                  {positionLabel}
+                </span>
 
-                  <div className="flex items-center gap-2 text-xs">
-                    {coordinatesDisplay && (
-                      <span className="text-blue-600 bg-blue-50 px-1 rounded">
-                        {coordinatesDisplay}
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* {element.text && (
-                    <span className="text-gray-500 truncate max-w-xs">
-                      "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                <div className="flex items-center gap-2 text-xs">
+                  {coordinatesDisplay && (
+                    <span className="text-blue-600 bg-blue-50 px-1 rounded">
+                      {coordinatesDisplay}
                     </span>
-                  )} */}
+                  )}
+                </div>
+                  
+                {/* {element.text && (
+                  <span className="text-gray-500 truncate max-w-xs">
+                    "{element.text.substring(0, 50)}{element.text.length > 50 ? '...' : ''}"
+                  </span>
+                )} */}
                 </div>
 
                 {/* Add the adjust button and direct click option */}

@@ -487,14 +487,14 @@ const handleCreateTestCase = async () => {
     const actionType = stepDescription.trim().split(' ')[0].toLowerCase();
 
     // ✅ NEW VALIDATION: Check if command starts with allowed commands
-    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait'];
+    const allowedCommands = ['click', 'open', 'type', 'scroll', 'swipe', 'get', 'verify', 'wait', 'select'];
     if (!allowedCommands.includes(actionType)) {
       alert(`Invalid command. Please start with one of: ${allowedCommands.join(', ')}`);
       return;
     }
     
     // ✅ NEW VALIDATION: Check if element-dependent commands have selected element
-    const elementDependentCommands = ['click', 'type', 'get', 'verify'];
+    const elementDependentCommands = ['click', 'type', 'get', 'verify', 'select'];
     if (elementDependentCommands.includes(actionType)) {
       if (!testSteps[index].selectedElement) {
         alert("Please select an element from the suggestions dropdown for this command.");
@@ -846,7 +846,7 @@ const handleCreateTestCase = async () => {
     const words = input.trim().split(' ');
     const command = words[0].toLowerCase();
     
-    if (['click', 'type', 'verify', 'get'].includes(command)) {
+    if (['click', 'type', 'verify', 'get','select'].includes(command)) {
       setCommandType(command);
       
       // First try to use the current step's captured data
@@ -1101,7 +1101,7 @@ const handleCreateTestCase = async () => {
     // );
     // const position = sameNameElements.length > 0 ? ` (Position ${sameNameElements.length + 1})` : '';
   
-    if (commandType === 'click') {
+    if (commandType === 'click' || commandType === 'select') {
       const baseName = suggestion.name || suggestion.text || 'element';
       if (directionWord) {
         updatedStepValue = `click ${directionWord} ${baseName}`;

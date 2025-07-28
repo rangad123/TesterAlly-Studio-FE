@@ -451,7 +451,7 @@ useEffect(() => {
             };
   
         } 
-        else if (actionType === 'click' || actionType === 'type') {
+        else if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
             
             const selectedElement = stepObj.selectedElement;
             
@@ -769,10 +769,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, 
       // Email OTP
       const emailOtpPayload = { request_time, project_id };
 
-      const emailToUse = passedEmail || senderEmail.trim();
-      if (emailToUse) {
-        emailOtpPayload.expected_sender = emailToUse;
-      }
+      // const emailToUse = passedEmail || senderEmail.trim();
+      // if (emailToUse) {
+      //   emailOtpPayload.expected_sender = emailToUse;
+      // }
 
       console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
 
@@ -867,12 +867,12 @@ const validateStepAgainstResponse = (step, omniparserData) => {
   const words = stepDesc.split(' ');
   const actionType = words[0];
 
-  if (actionType === 'click' || actionType === 'type') {
+  if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
     let searchTerm = '';
     let direction = null;
     const OFFSET_PX = 40; 
 
-    if (actionType === 'click') {
+    if (actionType === 'click' || actionType === 'select') {
       // Check for directional commands
       const directions = ['left', 'right', 'above', 'below', 'bottom'];
       const directionIndex = words.findIndex(word => directions.includes(word));
@@ -1107,14 +1107,26 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         
         // Step 1: Look for existing OTP in testSteps
         let fetchedOtp = '';
-        
+
         for (let i = testSteps.length - 1; i >= 0; i--) {
           const step = testSteps[i];
-          if (step.otpReceived === true && 
-              step.otpValue && 
-              step.otpType === nextStep.otpType) {
-            fetchedOtp = step.otp || step.otpValue;  
-            console.log(`📱 Found existing OTP from step ${i}:`, fetchedOtp);
+          
+          console.log(`🔍 Step ${i}`, {
+            otpReceived: step.otpReceived,
+            otpValue: step.otpValue,
+            stepOtpType: step.otpType,
+            nextOtpType: nextStep.otpType
+          });
+
+          if (
+            step.otpReceived === true &&
+            step.otpValue &&
+            step.otpType &&
+            nextStep.otpType &&
+            step.otpType.trim() === nextStep.otpType.trim()
+          ) {
+            fetchedOtp = step.otp || step.otpValue;
+            console.log(`📱 Found OTP: ${fetchedOtp} from step ${i}`);
             break;
           }
         }
@@ -2484,9 +2496,16 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
   console.log("🔧 Final updated step:", updatedStep);
   
   // Step 3: Update the testSteps array
-  setTestSteps(prev => prev.map(step =>
-    step.id === updatedStep.id ? updatedStep : step
-  ));
+  setTestSteps(prev => {
+    const existingIndex = prev.findIndex(step => step.id === updatedStep.id);
+    if (existingIndex >= 0) {
+      // Update existing
+      return prev.map(step => step.id === updatedStep.id ? updatedStep : step);
+    } else {
+      // Add new step
+      return [...prev, updatedStep];
+    }
+  });
   
   // Step 4: Close the modal
   setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null });
@@ -3025,7 +3044,7 @@ const EditStepModal = ({
     const firstWord = words[0];
     
     // Check if the command is a click or type command
-    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
+    if (['click', 'type', 'verify', 'get', 'select'].includes(firstWord)) {
       setCommandType(firstWord);
 
       if (firstWord === 'wait') {
@@ -3043,7 +3062,7 @@ const EditStepModal = ({
       let direction = null;
       
       // Extract search term based on command type with directional support
-      if (firstWord === 'click' && words.length > 1) {
+      if ((firstWord === 'click' || firstWord === 'select') && words.length > 1) {
         const directions = ['left', 'right', 'above', 'below', 'bottom'];
         const directionIndex = words.findIndex(word => directions.includes(word));
         
@@ -3121,7 +3140,7 @@ const handleSuggestionClick = (suggestion) => {
   let newStepText = '';
   let modifiedSuggestion = { ...suggestion }; 
   
-  if (firstWord === 'click') {
+  if (firstWord === 'click' || firstWord === 'select') {
     // Check if there's a direction word
     const directions = ['left', 'right', 'above', 'below', 'bottom'];
     const directionIndex = words.findIndex(word => directions.includes(word));
@@ -3129,7 +3148,7 @@ const handleSuggestionClick = (suggestion) => {
     if (directionIndex !== -1 && directionIndex === 1) {
       const direction = words[1];
       // Keep the direction: "click left [element]"
-      newStepText = `click ${direction} ${suggestion.displayName || suggestion.name}`;
+      newStepText = `${commandType} ${direction} ${suggestion.displayName || suggestion.name}`;
       
       // *** THIS IS THE MISSING PART - CALCULATE OFFSET COORDINATES ***
       const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
@@ -3146,7 +3165,7 @@ const handleSuggestionClick = (suggestion) => {
       };
     } else {
       // Normal click
-      newStepText = `click ${suggestion.displayName || suggestion.name}`;
+      newStepText = `${commandType} ${suggestion.displayName || suggestion.name}`;
     }
   } else if (firstWord === 'type') {
     // Keep the existing text part and update the target with direction if present
@@ -3251,7 +3270,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
   const shouldShowNoDataMessage =
     suggestions.length === 0 &&
     newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
+    ['click', 'type', 'verify', 'get', 'select'].some(cmd => newStep.startsWith(cmd));
 
   if (shouldShowNoDataMessage) {
     return (
@@ -3758,7 +3777,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                   </div>
                 )} */}
 
-                {showSuggestions && ['click', 'type', 'verify', 'get'].includes(commandType) && (
+                {showSuggestions && ['click', 'type', 'verify', 'get', 'select'].includes(commandType) && (
                   <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 max-h-72 overflow-y-auto animate-fadeIn">
                     <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
                       <h4 className="font-medium text-purple-800 flex items-center">
@@ -3767,6 +3786,16 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                           <>
                             <span className="mr-2">🖱️</span> Click on an element:
                           
+                            {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                          </>
+                        )}
+                        {commandType === 'select' && (
+                          <>
+                            <span className="mr-2">🖱️</span> select on an element:
+                      
                             {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
                             {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
                             {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}

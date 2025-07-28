@@ -702,10 +702,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, 
       // Email OTP
       const emailOtpPayload = { request_time, project_id };
 
-      const emailToUse = passedEmail || senderEmail.trim();
-      if (emailToUse) {
-        emailOtpPayload.expected_sender = emailToUse;
-      }
+      // const emailToUse = passedEmail || senderEmail.trim();
+      // if (emailToUse) {
+      //   emailOtpPayload.expected_sender = emailToUse;
+      // }
 
       console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
 
@@ -1667,11 +1667,23 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         
         for (let i = testSteps.length - 1; i >= 0; i--) {
           const step = testSteps[i];
-          if (step.otpReceived === true && 
-              step.otpValue && 
-              step.otpType === nextStep.otpType) {
-            fetchedOtp = step.otp || step.otpValue;  
-            console.log(`📱 Found existing OTP from step ${i}:`, fetchedOtp);
+          
+          console.log(`🔍 Step ${i}`, {
+            otpReceived: step.otpReceived,
+            otpValue: step.otpValue,
+            stepOtpType: step.otpType,
+            nextOtpType: nextStep.otpType
+          });
+
+          if (
+            step.otpReceived === true &&
+            step.otpValue &&
+            step.otpType &&
+            nextStep.otpType &&
+            step.otpType.trim() === nextStep.otpType.trim()
+          ) {
+            fetchedOtp = step.otp || step.otpValue;
+            console.log(`📱 Found OTP: ${fetchedOtp} from step ${i}`);
             break;
           }
         }
@@ -4298,7 +4310,7 @@ const handleSuggestionClick = (suggestion) => {
     if (directionIndex !== -1 && directionIndex === 1) {
       const direction = words[1];
       // Keep the direction: "click left [element]"
-      newStepText = `click ${direction} ${suggestion.displayName || suggestion.name}`;
+      newStepText = `${commandType} ${direction} ${suggestion.displayName || suggestion.name}`;
       
       // *** THIS IS THE MISSING PART - CALCULATE OFFSET COORDINATES ***
       const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
@@ -4315,7 +4327,7 @@ const handleSuggestionClick = (suggestion) => {
       };
     } else {
       // Normal click
-      newStepText = `click ${suggestion.displayName || suggestion.name}`;
+      newStepText = `${commandType} ${suggestion.displayName || suggestion.name}`;
     }
   } else if (firstWord === 'type') {
     // Keep the existing text part and update the target with direction if present

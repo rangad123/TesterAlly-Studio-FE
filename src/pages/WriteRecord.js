@@ -317,7 +317,7 @@ const WriteRecord = () => {
     const firstWord = words[0];
     
     // Check if the command is a click or type command
-    if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
+    if (['click', 'type', 'verify', 'get', 'select'].includes(firstWord)) {
         setCommandType(firstWord);
 
         if (firstWord === 'wait') {
@@ -335,7 +335,7 @@ const WriteRecord = () => {
         let direction = null;
         
         // Extract search term based on command type
-        if (firstWord === 'click' && words.length > 1) {
+        if ((firstWord === 'click' || firstWord === 'select') && words.length > 1) {
           const directions = ['left', 'right', 'above', 'below', 'bottom'];
           const directionIndex = words.findIndex(word => directions.includes(word));
           
@@ -798,7 +798,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
     console.log("🔍 DEBUG - actionType after normalize:", actionType);
 
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
+    const allowedCommands = ['click', 'select','type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
     if (!allowedCommands.includes(actionType)) {
       alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
       return;
@@ -834,7 +834,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
     }
     
     // For commands that require element selection
-    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
+    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify' || actionType === 'select' ) && !selectedElement) {
       alert("Please select an element from the suggestions before adding this step.");
       return;
     }
@@ -1178,7 +1178,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             };
   
         } 
-        else if (actionType === 'click' || actionType === 'type') {
+        else if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
             
             const selectedElement = stepObj.selectedElement;
             
@@ -1436,13 +1436,13 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
     const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
 
     // Handle CLICK
-    if (commandType === 'click') {
+    if (commandType === 'click' || commandType === 'select') {
       const words = newStep.trim().toLowerCase().split(' ');
       const directionIndex = words.findIndex(word => directions.includes(word));
 
       if (directionIndex !== -1 && directionIndex === 1) {
         const direction = words[1];
-        updatedStep = `click ${direction} ${suggestion.displayName || suggestion.name}`;
+        updatedStep = `${commandType} ${direction} ${suggestion.displayName || suggestion.name}`;
 
         const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
 
@@ -1455,7 +1455,7 @@ const handleWaitConfirm = (waitCommand, waitRequestData) => {
           direction: direction
         };
       } else {
-        updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+        updatedStep = `${commandType} ${suggestion.displayName || suggestion.name}`;
       }
     }
 
