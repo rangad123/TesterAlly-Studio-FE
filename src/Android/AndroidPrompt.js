@@ -2988,6 +2988,125 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      // 🚀 HANDLE OPEN COMMANDS DIRECTLY (NO VALIDATION NEEDED)
+      if (nextStep.description.trim().toLowerCase().startsWith("open")) {
+        console.log("📱 Open command detected - executing directly without validation");
+        
+        const words = nextStep.description.trim().split(' ');
+        const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
+        
+        // Get apps (your existing logic)
+        let appsToCheck = installedApps;
+        if (!appsToCheck || Object.keys(appsToCheck).length === 0) {
+          const storedApps = sessionStorage.getItem('installedApps');
+          if (storedApps) {
+            try {
+                appsToCheck = JSON.parse(storedApps);
+            } catch (error) {
+                console.error('Error parsing stored apps:', error);
+            }
+          }
+        }
+
+        if (!appsToCheck || Object.keys(appsToCheck).length === 0) {
+          alert("No installed apps found. Please connect your device first.");
+          return;
+        }
+        
+        const appEntry = Object.entries(appsToCheck).find(([appName, packageName]) => 
+          appName.toLowerCase().includes(appSearchTerm) || 
+          packageName.toLowerCase().includes(appSearchTerm)
+        );
+        
+        if (!appEntry) {
+          alert(`App "${appSearchTerm}" is not present in your mobile. Please install it first then retry.`);
+          return;
+        }
+        
+        // Create step with app element (NO coordinates, NO validation)
+        const stepWithAppElement = {
+          ...nextStep,
+          description: `open ${appEntry[1]}`,
+          selectedElement: {
+              packageName: appEntry[1],
+              name: appEntry[0],
+              type: 'app'
+          }
+        };
+
+        console.log("🚀 Executing app launch step directly:", stepWithAppElement);
+        
+        // Add to testSteps and execute
+        setTestSteps(prev => [...prev, stepWithAppElement]);
+        
+        const executionResult = await executeStep(stepWithAppElement, nextIndex);
+        console.log("✅ App launch result:", executionResult);
+
+        if (executionResult && executionResult.status) {
+          setTestSteps(prev => prev.map(step => 
+              step.id === nextStep.id ? { ...step, ...executionResult } : step
+          ));
+          setCurrentGeneratedStepIndex(nextIndex);
+          handleNextStep(executionResult, nextIndex);
+        } else {
+          console.error(`❌ App launch failed for Step ${nextIndex + 1}`);
+          openEditModal(
+              stepWithAppElement,
+              executionResult?.error || 'App launch failed',
+              data.omniparser_data || data.coordinates,
+              nextIndex,
+              executionResult?.screenshot 
+          );
+        }
+        return; 
+      }
+
+      // 🚀 HANDLE SCROLL AND SWIPE COMMANDS DIRECTLY (NO VALIDATION NEEDED)
+      if (nextStep.description.trim().toLowerCase().startsWith("scrolldown") || 
+          nextStep.description.trim().toLowerCase().startsWith("scrollup") ||
+          nextStep.description.trim().toLowerCase().startsWith("scroll up") ||
+          nextStep.description.trim().toLowerCase().startsWith("scroll down") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe left") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe right") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe long right") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe long left")) {
+        console.log("📜 Scroll/Swipe command detected - executing directly without validation");
+        
+        // Create step (NO coordinates, NO validation) - just execute directly
+        const stepWithAction = {
+          ...nextStep,
+          selectedElement: {
+            type: 'action'
+          }
+        };
+
+        console.log("📜 Executing scroll/swipe step directly:", stepWithAction);
+        
+        // Add to testSteps and execute
+        setTestSteps(prev => [...prev, stepWithAction]);
+        
+        const executionResult = await executeStep(stepWithAction, nextIndex);
+        console.log("✅ Scroll/Swipe result:", executionResult);
+
+        if (executionResult && executionResult.status) {
+          setTestSteps(prev => prev.map(step => 
+            step.id === nextStep.id ? { ...step, ...executionResult } : step
+          ));
+          setCurrentGeneratedStepIndex(nextIndex);
+          handleNextStep(executionResult, nextIndex);
+        } else {
+          console.error(`❌ Scroll/Swipe failed for Step ${nextIndex + 1}`);
+          openEditModal(
+            stepWithAction,
+            executionResult?.error || 'Scroll/Swipe failed',
+            data.omniparser_data || data.coordinates,
+            nextIndex,
+            executionResult?.screenshot 
+          );
+        }
+        return; 
+      }
+
       if (nextStep.description.toLowerCase().startsWith("wait")) {
         console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
 
@@ -3117,50 +3236,6 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       if (validationResult.isValid) {
         console.log(`✅ Step ${nextIndex + 1} passed validation. Matches found: ${validationResult.matches.length}`);
 
-        // ADD THIS - Check if it's an open command
-        if (nextStep.description.trim().toLowerCase().startsWith("open")) {
-            const words = nextStep.description.trim().split(' ');
-            const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
-            
-            // Check sessionStorage first, then installedApps state
-            let appsToCheck = installedApps;
-            
-            if (!appsToCheck || Object.keys(appsToCheck).length === 0) {
-                const storedApps = sessionStorage.getItem('installedApps');
-                if (storedApps) {
-                try {
-                    appsToCheck = JSON.parse(storedApps);
-                } catch (error) {
-                    console.error('Error parsing stored apps:', error);
-                }
-                }
-            }
-
-            if (!appsToCheck || Object.keys(appsToCheck).length === 0) {
-                alert("No installed apps found. Please connect your device first.");
-                return;
-            }
-            
-            const appEntry = Object.entries(appsToCheck).find(([appName, packageName]) => 
-                appName.toLowerCase().includes(appSearchTerm) || 
-                packageName.toLowerCase().includes(appSearchTerm)
-            );
-            
-            if (!appEntry) {
-                alert(`App "${appSearchTerm}" is not present in your mobile. Please install it first then retry.`);
-                return;
-            }
-            
-            // Update nextStep with packageName
-            nextStep.description = `open ${appEntry[1]}`;
-            nextStep.selectedElement = {
-                packageName: appEntry[1],
-                name: appEntry[0],
-                type: 'app',
-                coordinates: [0, 0]
-            };
-        }
-
         if (validationResult.matches.length > 1) {
           console.log(`⚠️ Step ${nextIndex + 1} has multiple matches. Awaiting user selection.`);
 
@@ -3281,24 +3356,11 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         } else {
           console.log(`🎯 Auto-selecting single matching element for Step ${nextIndex + 1}:`, validationResult.matches[0]);
 
-          const isOpenCommand = nextStep.description.trim().toLowerCase().startsWith("open");
-        
-          let stepWithElement;
-          
-          if (isOpenCommand) {
-              // For apps: Use the selectedElement you already created (no coordinates)
-              stepWithElement = {
-                ...nextStep,
-                selectedElement: nextStep.selectedElement  
-              };
-          } else {
-              // For UI elements: Use validation result (with coordinates)
-              stepWithElement = {
-                ...nextStep,
-                selectedElement: validationResult.matches[0],
-                coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
-              };
-          }
+          const stepWithElement = {
+            ...nextStep,
+            selectedElement: validationResult.matches[0],
+            coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
+          };
 
           setTestSteps(prev => [...prev, stepWithElement]);
 

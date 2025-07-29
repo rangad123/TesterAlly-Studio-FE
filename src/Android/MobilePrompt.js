@@ -1106,6 +1106,96 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
 
+      // 🚀 HANDLE OPEN COMMANDS DIRECTLY (NO VALIDATION NEEDED)
+      if (nextStep.description.trim().toLowerCase().startsWith("open")) {
+        console.log("📱 Open command detected - executing directly without validation");
+        
+        const words = nextStep.description.trim().split(' ');
+        const appOrUrl = words.slice(1).join(' ').toLowerCase();
+
+        // Create step with app element (NO coordinates, NO validation)
+        const stepWithUrl = {
+          ...nextStep,
+          description: `open ${appOrUrl}`,
+          selectedElement: {
+            type: 'url',
+            url: appOrUrl
+          }
+        };
+
+        console.log("🌐 Executing open URL step directly:", stepWithUrl);
+        
+        // Add to testSteps and execute
+        setTestSteps(prev => [...prev, stepWithUrl]);
+        
+        const executionResult = await executeStep(stepWithUrl, nextIndex);
+        console.log("✅ URL open result:", executionResult);
+
+        if (executionResult && executionResult.status) {
+          setTestSteps(prev => prev.map(step => 
+            step.id === nextStep.id ? { ...step, ...executionResult } : step
+          ));
+          setCurrentGeneratedStepIndex(nextIndex);
+          handleNextStep(executionResult, nextIndex);
+        } else {
+          console.error(`❌ URL failed for Step ${nextIndex + 1}`);
+          openEditModal(
+            stepWithUrl,
+            executionResult?.error || 'App launch failed',
+            data.omniparser_data || data.coordinates,
+            nextIndex,
+            executionResult?.screenshot 
+          );
+        }
+        return; 
+      }
+
+      // 🚀 HANDLE SCROLL AND SWIPE COMMANDS DIRECTLY (NO VALIDATION NEEDED)
+      if (nextStep.description.trim().toLowerCase().startsWith("scrolldown") || 
+          nextStep.description.trim().toLowerCase().startsWith("scrollup") ||
+          nextStep.description.trim().toLowerCase().startsWith("scroll up") ||
+          nextStep.description.trim().toLowerCase().startsWith("scroll down") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe left") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe right") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe long right") ||
+          nextStep.description.trim().toLowerCase().startsWith("swipe long left")) {
+        console.log("📜 Scroll/Swipe command detected - executing directly without validation");
+        
+        // Create step (NO coordinates, NO validation) - just execute directly
+        const stepWithAction = {
+          ...nextStep,
+          selectedElement: {
+            type: 'action'
+          }
+        };
+
+        console.log("📜 Executing scroll/swipe step directly:", stepWithAction);
+        
+        // Add to testSteps and execute
+        setTestSteps(prev => [...prev, stepWithAction]);
+        
+        const executionResult = await executeStep(stepWithAction, nextIndex);
+        console.log("✅ Scroll/Swipe result:", executionResult);
+
+        if (executionResult && executionResult.status) {
+          setTestSteps(prev => prev.map(step => 
+            step.id === nextStep.id ? { ...step, ...executionResult } : step
+          ));
+          setCurrentGeneratedStepIndex(nextIndex);
+          handleNextStep(executionResult, nextIndex);
+        } else {
+          console.error(`❌ Scroll/Swipe failed for Step ${nextIndex + 1}`);
+          openEditModal(
+            stepWithAction,
+            executionResult?.error || 'Scroll/Swipe failed',
+            data.omniparser_data || data.coordinates,
+            nextIndex,
+            executionResult?.screenshot 
+          );
+        }
+        return; 
+      }
+
       if (nextStep.description.toLowerCase().startsWith("wait")) {
         console.log(`⏳ Executing pre-configured wait command for Step ${nextIndex + 1}`);
 
