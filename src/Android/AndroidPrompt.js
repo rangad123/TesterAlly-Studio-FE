@@ -32,11 +32,11 @@ const AndroidPrompt = () => {
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
-  const [commandType, setCommandType] = useState('');
+  // const [commandType, setCommandType] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('');
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  const [selectedElement, setSelectedElement] = useState(null);
+  // const [selectedElement, setSelectedElement] = useState(null);
   const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
   const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
   const [secondaryVerification, setSecondaryVerification] = useState({
@@ -45,8 +45,8 @@ const AndroidPrompt = () => {
   });
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   const [waitModalOpen, setWaitModalOpen] = useState(false);
-  const [stepWaitData, setStepWaitData] = useState(null);
-  const [pendingWaitStep, setPendingWaitStep] = useState(false);
+  // const [stepWaitData, setStepWaitData] = useState(null);
+  // const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [deviceConnected, setDeviceConnected] = useState(false);
@@ -57,8 +57,8 @@ const AndroidPrompt = () => {
   const [headerLoading, setHeaderLoading] = useState(false);
   const [syncButton, setSyncButton] = useState(false);
 
-  const [requiresOtp, setRequiresOtp] = useState(false);
-  const [contactSelected, setContactSelected] = useState(false);
+  // const [requiresOtp, setRequiresOtp] = useState(false);
+  // const [contactSelected, setContactSelected] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
     isEnabled: false,
     phoneNumberEntered: false,
@@ -67,105 +67,123 @@ const AndroidPrompt = () => {
     sessionTime: null
   });
 
-  const toggleOtpCheckbox = () => {
-    setRequiresOtp(prev => {
-      const newValue = !prev;
-      if (newValue) {
-        // When enabling OTP, show contact options and hide elements
-        setContactSelected(true);
-      } else {
-        // When disabling OTP, reset everything
-        setContactSelected(false);
-        setOtpVerificationState(prev => ({
-          ...prev,
-          contactEntered: false,
-          waitingForOtp: false,
-          enteredContact: '',
-          sessionTime: null
-        }));
-      }
-      return newValue;
-    });
-  };
+  // const toggleOtpCheckbox = () => {
+  //   setRequiresOtp(prev => {
+  //     const newValue = !prev;
+  //     if (newValue) {
+  //       // When enabling OTP, show contact options and hide elements
+  //       setContactSelected(true);
+  //     } else {
+  //       // When disabling OTP, reset everything
+  //       setContactSelected(false);
+  //       setOtpVerificationState(prev => ({
+  //         ...prev,
+  //         contactEntered: false,
+  //         waitingForOtp: false,
+  //         enteredContact: '',
+  //         sessionTime: null
+  //       }));
+  //     }
+  //     return newValue;
+  //   });
+  // };
 
   const [testData, setTestData] = useState(null);
-  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  // const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
-  const [emailModalError, setEmailModalError] = useState('');
-  const [showSenderEmailField, setShowSenderEmailField] = useState(false);
+  // const [emailModalError, setEmailModalError] = useState('');
+  // const [showSenderEmailField, setShowSenderEmailField] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
-  const [emailConfirmationModal, setEmailConfirmationModal] = useState({
+  // const [emailConfirmationModal, setEmailConfirmationModal] = useState({
+  //   isOpen: false,
+  //   userEmail: '',
+  //   email_app_password: '',
+  //   otpReceiver: '',
+  //   isEditing: false,
+  //   showPassword: false, 
+  // });
+
+  const [isOtpRefreshing, setIsOtpRefreshing] = useState(false);
+
+  const [otpReplacementModal, setOtpReplacementModal] = useState({
     isOpen: false,
-    userEmail: '',
-    email_app_password: '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false, 
+    step: null,
+    fetchedOtp: '',
+    stepIndex: null
+  });
+  const [editStepModal, setEditStepModal] = useState({
+    isOpen: false,
+    step: null,
+    errorMessage: '',
+    currentPageData: null,
+    stepIndex: null,
+    suggestions: [],
+    currentEditText: ''
   });
 
-  useEffect(() => {
-    if (requiresOtp) {
-      const userId = localStorage.getItem("userId");
-      const projectKey = `selectedProject_${userId}`;
-      const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+//   useEffect(() => {
+//     if (requiresOtp) {
+//       const userId = localStorage.getItem("userId");
+//       const projectKey = `selectedProject_${userId}`;
+//       const selectedProject = JSON.parse(localStorage.getItem(projectKey));
       
-      if (selectedProject?.id) {
-        setIsTestDataLoading(true);
-        fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
-          .then((res) => res.json())
-          .then((data) => {
-            console.log("✅ Test data loaded:", data);
-            setTestData(data);
-          })
-          .catch((err) => {
-            console.warn("⚠️ Error fetching test data:", err.message);
-            setTestData(null);
-          })
-          .finally(() => setIsTestDataLoading(false));
-      }
-    }
-  }, [requiresOtp]);
+//       if (selectedProject?.id) {
+//         setIsTestDataLoading(true);
+//         fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`)
+//           .then((res) => res.json())
+//           .then((data) => {
+//             console.log("✅ Test data loaded:", data);
+//             setTestData(data);
+//           })
+//           .catch((err) => {
+//             console.warn("⚠️ Error fetching test data:", err.message);
+//             setTestData(null);
+//           })
+//           .finally(() => setIsTestDataLoading(false));
+//       }
+//     }
+//   }, [requiresOtp]);
 
-const saveTestDataEmail = async (email, password) => {
-  const userId = localStorage.getItem("userId");
-  const projectKey = `selectedProject_${userId}`;
-  const selectedProject = JSON.parse(localStorage.getItem(projectKey));
+// const saveTestDataEmail = async (email, password) => {
+//   const userId = localStorage.getItem("userId");
+//   const projectKey = `selectedProject_${userId}`;
+//   const selectedProject = JSON.parse(localStorage.getItem(projectKey));
   
-  if (!selectedProject?.id) {
-    alert('No project selected');
-    return false;
-  }
+//   if (!selectedProject?.id) {
+//     alert('No project selected');
+//     return false;
+//   }
 
-  const payload = {
-    url: testData?.url || null,
-    email: email.trim(),
-    email_app_password: password.trim(),
-    phone_number: testData?.phone_number || null,
-    region: testData?.region || null
-  };
+//   const payload = {
+//     url: testData?.url || null,
+//     email: email.trim(),
+//     email_app_password: password.trim(),
+//     phone_number: testData?.phone_number || null,
+//     region: testData?.region || null
+//   };
 
-  console.log("Saving email payload:", payload);
+//   console.log("Saving email payload:", payload);
 
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+//   try {
+//     const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify(payload),
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Email saved successfully:", data);
+//     if (response.ok) {
+//       const data = await response.json();
+//       console.log("Email saved successfully:", data);
 
-      setTestData(prev => ({ ...prev, email: email }));
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error saving test data email:', error);
-    return false;
-  }
-};
+//       setTestData(prev => ({ ...prev, email: email }));
+//       return true;
+//     }
+//     return false;
+//   } catch (error) {
+//     console.error('Error saving test data email:', error);
+//     return false;
+//   }
+// };
 
   const [stepsProcessed, setStepsProcessed] = useState(false);
   const [generatedSteps, setGeneratedSteps] = useState([]);
@@ -253,9 +271,13 @@ const saveTestDataEmail = async (email, password) => {
 }, [newStep]);
 
 useEffect(() => {
-  if (location.state?.generatedSteps && location.state?.autoExecuteFirst && !stepsProcessed) {
+  if (location.state?.generatedSteps && !stepsProcessed) {
     const steps = location.state.generatedSteps;
-    console.log("Received steps from prompt:", steps);
+
+    if (location.state?.senderEmail) {
+      console.log("🔍 Setting senderEmail:", location.state.senderEmail);
+      setSenderEmail(location.state.senderEmail);
+    }
 
     const stepObjects = steps.map((step, index) => ({
       id: `${Date.now()}-${index}-${Math.random()}`, 
@@ -263,6 +285,11 @@ useEffect(() => {
       action: step.action,
       target: step.target,
       value: step.value,
+      requiresOtp: step.requiresOtp || false,
+      otpType: step.otpType || null,
+      isOtpRelatedStep: step.isOtpRelatedStep || false,
+      isActualOtpStep: step.isActualOtpStep || false,
+      step: step.step || index + 1,
       status: 'pending',
       duration: '00:00',
       screenshot: null,
@@ -276,167 +303,167 @@ useEffect(() => {
   }
 }, [location.state, stepsProcessed]);
 
-useEffect(() => {
+// useEffect(() => {
 
-    if (stepsProcessed) {
-      console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
-      return;
-    }
+//     if (stepsProcessed) {
+//       console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
+//       return;
+//     }
 
-    if (!newStep) {
-        setShowSuggestions(false);
-        return;
-    }
+//     if (!newStep) {
+//         setShowSuggestions(false);
+//         return;
+//     }
 
-    if (selectedElement && commandType === 'open' && selectedElement.type === 'app') {
-        if (newStep.includes(selectedElement.displayName || selectedElement.name)) {
-          setShowSuggestions(false);
-          return;
-        }
-    } else if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
-        return;
-    }
+//     if (selectedElement && commandType === 'open' && selectedElement.type === 'app') {
+//         if (newStep.includes(selectedElement.displayName || selectedElement.name)) {
+//           setShowSuggestions(false);
+//           return;
+//         }
+//     } else if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
+//         return;
+//     }
 
-    const inputText = newStep.trim().toLowerCase();
-    const words = inputText.split(' ');
-    const firstWord = words[0];
-    const fullCommand = (firstWord === 'scroll' || firstWord === 'swipe') && words.length > 1 
-        ? words.slice(0, firstWord === 'swipe' && words[1] === 'long' ? 3 : 2)
-        : firstWord;
+//     const inputText = newStep.trim().toLowerCase();
+//     const words = inputText.split(' ');
+//     const firstWord = words[0];
+//     const fullCommand = (firstWord === 'scroll' || firstWord === 'swipe') && words.length > 1 
+//         ? words.slice(0, firstWord === 'swipe' && words[1] === 'long' ? 3 : 2)
+//         : firstWord;
 
-    console.log("Command detected:", fullCommand);
+//     console.log("Command detected:", fullCommand);
 
-      // Check if the command is a click, type, or open command
-      if (['click', 'type', 'verify', 'get', 'open', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
-        setCommandType(fullCommand);
+//       // Check if the command is a click, type, or open command
+//       if (['click', 'type', 'verify', 'get', 'open', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
+//         setCommandType(fullCommand);
 
-        if (
-            ['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)
-          ) {
-            setShowSuggestions(false);
-            return;
-          }
+//         if (
+//             ['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)
+//           ) {
+//             setShowSuggestions(false);
+//             return;
+//           }
 
-        if (firstWord === 'wait') {
-            setShowSuggestions(false);
-            return;
-        }
+//         if (firstWord === 'wait') {
+//             setShowSuggestions(false);
+//             return;
+//         }
 
-        if (firstWord === 'open') {
-          console.log("Open command detected!");
-          console.log("installedApps:", installedApps);
+//         if (firstWord === 'open') {
+//           console.log("Open command detected!");
+//           console.log("installedApps:", installedApps);
         
-          if (!appsLoaded || !installedApps || Object.keys(installedApps).length === 0) {
-            console.log("Apps not yet loaded, setting pending command");
-            setPendingOpenCommand(true);
-            setShowSuggestions(false);
-            return;
-          }
+//           if (!appsLoaded || !installedApps || Object.keys(installedApps).length === 0) {
+//             console.log("Apps not yet loaded, setting pending command");
+//             setPendingOpenCommand(true);
+//             setShowSuggestions(false);
+//             return;
+//           }
 
-          if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
-            setPendingOpenCommand(false);
-              const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
+//           if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
+//             setPendingOpenCommand(false);
+//               const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
               
-              let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
-                  id: packageName,
-                  name: appName,
-                  displayName: appName,
-                  packageName: packageName,
-                  type: 'app',
-                  click_point: [0, 0]
-              }));
+//               let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+//                   id: packageName,
+//                   name: appName,
+//                   displayName: appName,
+//                   packageName: packageName,
+//                   type: 'app',
+//                   click_point: [0, 0]
+//               }));
 
-              // Filter for Chrome only if platform is Mobile
-              if (testCaseInfo.platform === 'Mobile') {
-                console.log("Platform is Mobile, filtering for Chrome only");
-                console.log("Before Chrome filter:", appSuggestions);
+//               // Filter for Chrome only if platform is Mobile
+//               if (testCaseInfo.platform === 'Mobile') {
+//                 console.log("Platform is Mobile, filtering for Chrome only");
+//                 console.log("Before Chrome filter:", appSuggestions);
                 
-                appSuggestions = appSuggestions.filter(app => 
-                  app.name.toLowerCase().includes('chrome') ||
-                  app.packageName.toLowerCase().includes('chrome')
-                );
+//                 appSuggestions = appSuggestions.filter(app => 
+//                   app.name.toLowerCase().includes('chrome') ||
+//                   app.packageName.toLowerCase().includes('chrome')
+//                 );
                 
-                console.log("After Chrome filter:", appSuggestions);
-                console.log("testCaseInfo.platform:", testCaseInfo.platform);
-              } else if (appSearchTerm) {
-                appSuggestions = appSuggestions.filter(app => 
-                    app.name.toLowerCase().includes(appSearchTerm) ||
-                    app.packageName.toLowerCase().includes(appSearchTerm)
-                );
-              }
+//                 console.log("After Chrome filter:", appSuggestions);
+//                 console.log("testCaseInfo.platform:", testCaseInfo.platform);
+//               } else if (appSearchTerm) {
+//                 appSuggestions = appSuggestions.filter(app => 
+//                     app.name.toLowerCase().includes(appSearchTerm) ||
+//                     app.packageName.toLowerCase().includes(appSearchTerm)
+//                 );
+//               }
               
-              console.log("App suggestions created:", appSuggestions);
-              setSuggestions(appSuggestions);
-              setShowSuggestions(appSuggestions.length > 0);
-          } else {
-              console.log("No installed apps available");
-              setSuggestions([]);
-              setShowSuggestions(false);
-          }
-          return; 
-        }
+//               console.log("App suggestions created:", appSuggestions);
+//               setSuggestions(appSuggestions);
+//               setShowSuggestions(appSuggestions.length > 0);
+//           } else {
+//               console.log("No installed apps available");
+//               setSuggestions([]);
+//               setShowSuggestions(false);
+//           }
+//           return; 
+//         }
  
-        if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-            setSuggestions([]);
-            setShowSuggestions(false);
-            return;
-        }
+//         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
+//             setSuggestions([]);
+//             setShowSuggestions(false);
+//             return;
+//         }
         
-        let searchTerm = '';
+//         let searchTerm = '';
         
-        if (firstWord === 'click' && words.length > 1) {
-            searchTerm = words.slice(1).join(' ').toLowerCase();
-        } else if (firstWord === 'type') {
-            const inIndex = inputText.indexOf(' in ');
-            if (inIndex !== -1) {
-                searchTerm = inputText.substring(inIndex + 4).trim();
-            }
-        } else if (firstWord === 'verify' && words.length > 1) {
-            searchTerm = words.slice(1).join(' ').toLowerCase();
-        } else if (firstWord === 'get' && words.length > 1) {
-            searchTerm = words.slice(1).join(' ').toLowerCase();
-        }
+//         if (firstWord === 'click' && words.length > 1) {
+//             searchTerm = words.slice(1).join(' ').toLowerCase();
+//         } else if (firstWord === 'type') {
+//             const inIndex = inputText.indexOf(' in ');
+//             if (inIndex !== -1) {
+//                 searchTerm = inputText.substring(inIndex + 4).trim();
+//             }
+//         } else if (firstWord === 'verify' && words.length > 1) {
+//             searchTerm = words.slice(1).join(' ').toLowerCase();
+//         } else if (firstWord === 'get' && words.length > 1) {
+//             searchTerm = words.slice(1).join(' ').toLowerCase();
+//         }
 
-        const lastClickCoordinates = testSteps.length > 0 ? 
-            getLastClickCoordinates(testSteps) : null;
+//         const lastClickCoordinates = testSteps.length > 0 ? 
+//             getLastClickCoordinates(testSteps) : null;
         
-        const suggestedElements = getSuggestedElements(
-            elementData.elements,
-            searchTerm,
-            firstWord,
-            { 
-                previouslySelectedElements, 
-                lastClickCoordinates 
-            }
-        );
+//         const suggestedElements = getSuggestedElements(
+//             elementData.elements,
+//             searchTerm,
+//             firstWord,
+//             { 
+//                 previouslySelectedElements, 
+//                 lastClickCoordinates 
+//             }
+//         );
         
-        setSuggestions(suggestedElements);
-        setShowSuggestions(suggestedElements.length > 0);
+//         setSuggestions(suggestedElements);
+//         setShowSuggestions(suggestedElements.length > 0);
 
-      } else if (firstWord === 'scroll') {
-        setCommandType('scroll');
-        setShowSuggestions(false);
-      } else if (firstWord === 'swipe') {
-        setCommandType('swipe');
-        setShowSuggestions(false);
-      } else if (firstWord === 'search') {
-        setCommandType('search');
-        setShowSuggestions(false);
-    } else {
-        console.log("Unrecognized command, hiding suggestions");
-        setShowSuggestions(false);
-    }
+//       } else if (firstWord === 'scroll') {
+//         setCommandType('scroll');
+//         setShowSuggestions(false);
+//       } else if (firstWord === 'swipe') {
+//         setCommandType('swipe');
+//         setShowSuggestions(false);
+//       } else if (firstWord === 'search') {
+//         setCommandType('search');
+//         setShowSuggestions(false);
+//     } else {
+//         console.log("Unrecognized command, hiding suggestions");
+//         setShowSuggestions(false);
+//     }
 
-}, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, appsLoaded, testCaseInfo.platform, stepsProcessed]);
+// }, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, appsLoaded, testCaseInfo.platform, stepsProcessed]);
 
-useEffect(() => {
-  if (showSuggestions && suggestions.length > 0) {
-    const dropdownElement = document.querySelector('.suggestions-dropdown');
-    if (dropdownElement) {
-      dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }
-}, [showSuggestions, suggestions.length]);
+// useEffect(() => {
+//   if (showSuggestions && suggestions.length > 0) {
+//     const dropdownElement = document.querySelector('.suggestions-dropdown');
+//     if (dropdownElement) {
+//       dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+//     }
+//   }
+// }, [showSuggestions, suggestions.length]);
 
 useEffect(() => {
   if (appsLoaded && pendingOpenCommand && newStep && newStep.trim().toLowerCase().startsWith('open')) {
@@ -668,197 +695,197 @@ useEffect(() => {
     return null;
   };
 
-const handlePhoneNumberClick = async (contact) => {
-  setContactSelected(true);
+// const handlePhoneNumberClick = async (contact) => {
+//   setContactSelected(true);
   
-  setNewStep(prev => {
-    const trimmed = prev.trim();
+//   setNewStep(prev => {
+//     const trimmed = prev.trim();
     
-    // If there's already a contact in the step, replace it completely
-    if (otpVerificationState.enteredContact) {
-      // Remove the old contact completely and add new one
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+//     // If there's already a contact in the step, replace it completely
+//     if (otpVerificationState.enteredContact) {
+//       // Remove the old contact completely and add new one
+//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
       
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + contact;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + contact;
-      }
-      return withoutOldContact + ' ' + contact;
-    }
+//       if (withoutOldContact.endsWith('type')) {
+//         return withoutOldContact + ' ' + contact;
+//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+//         return withoutOldContact + ' in ' + contact;
+//       }
+//       return withoutOldContact + ' ' + contact;
+//     }
     
-    // First time selecting contact
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + contact;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + contact;
-    }
-    return prev + ' ' + contact;
-  });
+//     // First time selecting contact
+//     if (trimmed.endsWith('type')) {
+//       return prev + ' ' + contact;
+//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+//       return prev + ' in ' + contact;
+//     }
+//     return prev + ' ' + contact;
+//   });
   
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+//   try {
+//     const response = await fetch('http://localhost:8000/api/get_time/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: contact,
-        timestamp: Date.now()
-      };
+//     if (response.ok) {
+//       const data = await response.json();
+//       const timeData = {
+//         ...data,
+//         phoneNumber: contact,
+//         timestamp: Date.now()
+//       };
       
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
       
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: contact,
-        enteredContactInboxId: contact,
-        sessionTime: timeData
-      }));
+//       setOtpVerificationState(prev => ({
+//         ...prev,
+//         contactEntered: true,
+//         waitingForOtp: true,
+//         enteredContact: contact,
+//         enteredContactInboxId: contact,
+//         sessionTime: timeData
+//       }));
             
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
+//       console.log('OTP Session Time stored:', timeData);
+//     }
+//   } catch (error) {
+//     console.error('Error calling get_time API:', error);
+//   }
 
-  setContactSelected(false);
-};
+//   setContactSelected(false);
+// };
 
-const handleEmailClick = async () => {
-  // Check if OTP verification is enabled and validate email match
-  if (requiresOtp && testData?.email) {
-    const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
+// const handleEmailClick = async () => {
+//   // Check if OTP verification is enabled and validate email match
+//   if (requiresOtp && testData?.email) {
+//     const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
     
-    if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
-      alert(`For OTP verification, please use your configured email: ${testData.email}`);
-      return;
-    }
-  }
+//     if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
+//       alert(`For OTP verification, please use your configured email: ${testData.email}`);
+//       return;
+//     }
+//   }
   
-  // Show email confirmation modal
-  setEmailConfirmationModal({
-    isOpen: true,
-    userEmail: testData?.email || '',
-    email_app_password: testData?.email_app_password || '',
-    otpReceiver: '',
-    isEditing: false,
-    showPassword: false,
-  });
-};
+//   // Show email confirmation modal
+//   setEmailConfirmationModal({
+//     isOpen: true,
+//     userEmail: testData?.email || '',
+//     email_app_password: testData?.email_app_password || '',
+//     otpReceiver: '',
+//     isEditing: false,
+//     showPassword: false,
+//   });
+// };
 
-const handleEmailConfirmation = async () => {
-  const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
+// const handleEmailConfirmation = async () => {
+//   const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
   
-  setEmailModalError('');
+//   setEmailModalError('');
 
-  // Validate email
-  if (!userEmail.trim()) {
-    setEmailModalError('Please enter your email address');
-    return;
-  }
+//   // Validate email
+//   if (!userEmail.trim()) {
+//     setEmailModalError('Please enter your email address');
+//     return;
+//   }
   
-  // Validate password
-  if (!email_app_password?.trim()) {
-    setEmailModalError('Please enter your password');
-    return;
-  }
+//   // Validate password
+//   if (!email_app_password?.trim()) {
+//     setEmailModalError('Please enter your password');
+//     return;
+//   }
   
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(userEmail)) {
-    setEmailModalError('Please enter a valid email address');
-    return;
-  }
+//   // Validate email format
+//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//   if (!emailRegex.test(userEmail)) {
+//     setEmailModalError('Please enter a valid email address');
+//     return;
+//   }
 
-  if (!otpReceiver) {
-    setEmailModalError('Please select where you will receive the OTP');
-    return;
-  }
+//   if (!otpReceiver) {
+//     setEmailModalError('Please select where you will receive the OTP');
+//     return;
+//   }
   
-  // Save email to test data if it's new or changed
-  if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
-    const saved = await saveTestDataEmail(userEmail, email_app_password);
-    if (!saved) {
-      alert('Failed to save email. Please try again.');
-      return;
-    }
-  }
+//   // Save email to test data if it's new or changed
+//   if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
+//     const saved = await saveTestDataEmail(userEmail, email_app_password);
+//     if (!saved) {
+//       alert('Failed to save email. Please try again.');
+//       return;
+//     }
+//   }
   
-  setEmailConfirmationModal({ 
-    isOpen: false, 
-    userEmail: '', 
-    email_app_password: '',  
-    otpReceiver: '',
-    isEditing: false 
-  });
+//   setEmailConfirmationModal({ 
+//     isOpen: false, 
+//     userEmail: '', 
+//     email_app_password: '',  
+//     otpReceiver: '',
+//     isEditing: false 
+//   });
   
-  // Original email click logic
-  setContactSelected(true);
+//   // Original email click logic
+//   setContactSelected(true);
   
-  setNewStep(prev => {
-    const trimmed = prev.trim();
+//   setNewStep(prev => {
+//     const trimmed = prev.trim();
     
-    if (otpVerificationState.enteredContact) {
-      const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
+//     if (otpVerificationState.enteredContact) {
+//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
       
-      if (withoutOldContact.endsWith('type')) {
-        return withoutOldContact + ' ' + userEmail;
-      } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-        return withoutOldContact + ' in ' + userEmail;
-      }
-      return withoutOldContact + ' ' + userEmail;
-    }
+//       if (withoutOldContact.endsWith('type')) {
+//         return withoutOldContact + ' ' + userEmail;
+//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
+//         return withoutOldContact + ' in ' + userEmail;
+//       }
+//       return withoutOldContact + ' ' + userEmail;
+//     }
     
-    if (trimmed.endsWith('type')) {
-      return prev + ' ' + userEmail;
-    } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-      return prev + ' in ' + userEmail;
-    }
-    return prev + ' ' + userEmail;
-  });
+//     if (trimmed.endsWith('type')) {
+//       return prev + ' ' + userEmail;
+//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
+//       return prev + ' in ' + userEmail;
+//     }
+//     return prev + ' ' + userEmail;
+//   });
   
 
-  try {
-    const response = await fetch('http://localhost:8000/api/get_time/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+//   try {
+//     const response = await fetch('http://localhost:8000/api/get_time/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      const timeData = {
-        ...data,
-        phoneNumber: userEmail, 
-        actualUserEmail: userEmail, 
-        timestamp: Date.now()
-      };
+//     if (response.ok) {
+//       const data = await response.json();
+//       const timeData = {
+//         ...data,
+//         phoneNumber: userEmail, 
+//         actualUserEmail: userEmail, 
+//         timestamp: Date.now()
+//       };
       
-      sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
+//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
       
-      setOtpVerificationState(prev => ({
-        ...prev,
-        contactEntered: true,
-        waitingForOtp: true,
-        enteredContact: userEmail, 
-        enteredContactInboxId: userEmail, 
-        sessionTime: timeData,
-        otpReceiver: emailConfirmationModal.otpReceiver
-      }));
+//       setOtpVerificationState(prev => ({
+//         ...prev,
+//         contactEntered: true,
+//         waitingForOtp: true,
+//         enteredContact: userEmail, 
+//         enteredContactInboxId: userEmail, 
+//         sessionTime: timeData,
+//         otpReceiver: emailConfirmationModal.otpReceiver
+//       }));
             
-      console.log('OTP Session Time stored:', timeData);
-    }
-  } catch (error) {
-    console.error('Error calling get_time API:', error);
-  }
+//       console.log('OTP Session Time stored:', timeData);
+//     }
+//   } catch (error) {
+//     console.error('Error calling get_time API:', error);
+//   }
 
-  setContactSelected(false);
-};
+//   setContactSelected(false);
+// };
 
 const updateOtpSessionTime = async () => {
   if (!otpVerificationState.contactEntered) return;
@@ -899,27 +926,27 @@ const copyToClipboard = (text) => {
   });
 };
 
-const checkAndroidConnection = async () => {
-  try {
-    const response = await fetch('http://localhost:8000/android/connection/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
+// const checkAndroidConnection = async () => {
+//   try {
+//     const response = await fetch('http://localhost:8000/android/connection/', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' }
+//     });
     
-    if (response.ok) {
-      const data = await response.json();
-      console.log("check Android Connection:", data)
-      return data.status === "success";
-    }
-    return false;
-  } catch (error) {
-    console.error('Error checking Android connection:', error);
-    return false;
-  }
-};
+//     if (response.ok) {
+//       const data = await response.json();
+//       console.log("check Android Connection:", data)
+//       return data.status === "success";
+//     }
+//     return false;
+//   } catch (error) {
+//     console.error('Error checking Android connection:', error);
+//     return false;
+//   }
+// };
 
-const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEmailStep = false) => {
-  if (!otpVerificationState.waitingForOtp || (!isPhoneNumberStep && !isEmailStep)) {
+const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep, isEmailStep, forceCall, passedEmail = null) => {
+  if ((!otpVerificationState.waitingForOtp && !forceCall) || (!isPhoneNumberStep && !isEmailStep)) {
     console.log('Skipping get_otp call - not an OTP step');
     return;
   }
@@ -958,11 +985,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
     } else if (isEmailStep) {
       // Email OTP
-      const emailOtpPayload = { request_time, project_id }
+      const emailOtpPayload = { request_time, project_id };
 
-      if (senderEmail.trim()) {
-        emailOtpPayload.expected_sender = senderEmail.trim();
-      }
+      // const emailToUse = passedEmail || senderEmail.trim();
+      // if (emailToUse) {
+      //   emailOtpPayload.expected_sender = emailToUse;
+      // }
 
       console.log("📤 Sending to /get_mail_otp/:", JSON.stringify(emailOtpPayload, null, 2));
 
@@ -984,6 +1012,11 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
     const isValidOtp = /^\d{4,8}$/.test(otpValue);
 
+    if (otpData?.status === 'waiting') {
+      console.warn('Still waiting for OTP...');
+      return { status: 'waiting' };
+    }
+
     if (isValidOtp) {
       setOtpVerificationState(prev => ({
         ...prev,
@@ -991,28 +1024,36 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
       }));
 
       if (isPhoneNumberStep || isEmailStep) {  
-        setTestSteps(prev => prev.map(step =>
-          step.id === stepId ? {
-            ...step,
-            otpReceived: true,
-            otpValue: otpValue,
-            otpType: isPhoneNumberStep ? 'phone' : 'email'
-          } : step
-        ));
+        setTestSteps(prev => prev.map(step => {
+          if (step.id === stepId) {
+            console.log(`✅ Updating OTP for step id ${stepId}:`, {
+              previousStep: step,
+              newOtpValue: otpValue,
+              otpType: isPhoneNumberStep ? 'phone' : 'email'
+            });
+
+            return {
+              ...step,
+              otpReceived: true,
+              otpValue: otpValue,
+              otp: otpValue,
+              otpType: isPhoneNumberStep ? 'phone' : 'email',
+            };
+          } else {
+            console.log(`❌ Skipping step id ${step.id}, not matching target stepId: ${stepId}`);
+          }
+          return step;
+        }));
       }
 
-    } else {
-      if (isPhoneNumberStep || isEmailStep) {  
-        setTestSteps(prev => prev.map(step =>
-          step.id === stepId ? {
-            ...step,
-            otpReceived: false,
-            otpPending: true,
-            otpType: isPhoneNumberStep ? 'phone' : 'email'
-          } : step
-        ));
-      }
+      return { 
+        status: 'success', 
+        otp: otpValue, 
+        otpValue: otpValue 
+      };
     }
+
+    return { status: 'failed', reason: 'Invalid or no OTP received' };
 
   } catch (error) {
     console.error('Error getting OTP after execution:', error);
@@ -1037,247 +1078,247 @@ useEffect(() => {
   console.log("📊 currentGeneratedStepIndex changed to:", currentGeneratedStepIndex);
 }, [currentGeneratedStepIndex]);
 
-  const addTestStep = async () => {
-    if (!newStep.trim() || isProcessing) return;
+  // const addTestStep = async () => {
+  //   if (!newStep.trim() || isProcessing) return;
     
-    setShowSuggestions(false);
+  //   setShowSuggestions(false);
     
-    const words = newStep.trim().split(' ');
-    const actionType = words[0].toLowerCase();
+  //   const words = newStep.trim().split(' ');
+  //   const actionType = words[0].toLowerCase();
 
-    if (actionType === 'open' && testCaseInfo?.platform === 'Mobile') {
-      // No special handling needed - let it go through normal flow
-      // This will pass the command directly to executeStep
-    }
+  //   if (actionType === 'open' && testCaseInfo?.platform === 'Mobile') {
+  //     // No special handling needed - let it go through normal flow
+  //     // This will pass the command directly to executeStep
+  //   }
 
-    const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search', 'swipe'];
-    if (!allowedCommands.includes(actionType)) {
-      alert("Unknown command. Please use: click, open, scroll, search, swipe or type.");
-      return;
-    }
+  //   const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll', 'get', 'wait', 'search', 'swipe'];
+  //   if (!allowedCommands.includes(actionType)) {
+  //     alert("Unknown command. Please use: click, open, scroll, search, swipe or type.");
+  //     return;
+  //   }
 
-    if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
-      setWaitModalOpen(true);
-      return;
-    }
+  //   if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
+  //     setWaitModalOpen(true);
+  //     return;
+  //   }
     
-    if (actionType === 'verify') {
-      const textToVerify = words.slice(1).join(' ');
+  //   if (actionType === 'verify') {
+  //     const textToVerify = words.slice(1).join(' ');
       
-      // Always try to find matching elements by text, even if an element is selected
-      const matchingElements = checkTextInElementData(textToVerify);
+  //     // Always try to find matching elements by text, even if an element is selected
+  //     const matchingElements = checkTextInElementData(textToVerify);
       
-      if (matchingElements && matchingElements.length > 0) {
-        // Always open confirmation modal for verify commands
-        setVerificationModal({
-          isOpen: true,
-          textToVerify,
-          matchingElements,
-          selectedElement: selectedElement || matchingElements[0]
-        });
-        return;
-      } else {
-        alert("Text not found on the current page. Please try a different text or command.");
-        return;
-      }
-    }
+  //     if (matchingElements && matchingElements.length > 0) {
+  //       // Always open confirmation modal for verify commands
+  //       setVerificationModal({
+  //         isOpen: true,
+  //         textToVerify,
+  //         matchingElements,
+  //         selectedElement: selectedElement || matchingElements[0]
+  //       });
+  //       return;
+  //     } else {
+  //       alert("Text not found on the current page. Please try a different text or command.");
+  //       return;
+  //     }
+  //   }
     
-    if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
-      alert("Please select an element from the suggestions before adding this step.");
-      return;
-    }
+  //   if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
+  //     alert("Please select an element from the suggestions before adding this step.");
+  //     return;
+  //   }
 
-    let finalStepText = newStep;
+  //   let finalStepText = newStep;
 
-    if (requiresOtp && actionType === 'type') {
-      const emailInStep = newStep.match(/\S+@\S+\.\S+/);
+  //   if (requiresOtp && actionType === 'type') {
+  //     const emailInStep = newStep.match(/\S+@\S+\.\S+/);
       
-      if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
-        alert(`For OTP verification, please use your configured email: ${testData.email}`);
-        return;
-      }
-    }
+  //     if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
+  //       alert(`For OTP verification, please use your configured email: ${testData.email}`);
+  //       return;
+  //     }
+  //   }
 
-    // Call get_time before executing any step if phone number is entered
-    if (otpVerificationState.contactEntered) {
-      await updateOtpSessionTime();
-    }
+  //   // Call get_time before executing any step if phone number is entered
+  //   if (otpVerificationState.contactEntered) {
+  //     await updateOtpSessionTime();
+  //   }
 
-    let isOtpStep = false;
-    let isPhoneNumberStep = false;
-    let isEmailStep = false;
+  //   let isOtpStep = false;
+  //   let isPhoneNumberStep = false;
+  //   let isEmailStep = false;
 
-    if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-      // Check if user selected OTP receiver in email modal (only available in email flow)
-      if (otpVerificationState.otpReceiver) {
-        // Email flow - use user's selection from modal
-        isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
-        isEmailStep = otpVerificationState.otpReceiver === 'email';
-      } else {
-        // Phone number flow - use contact type detection
-        const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-        isPhoneNumberStep = !isEmail;
-        isEmailStep = isEmail;
-      }
-    }
+  //   if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
+  //     // Check if user selected OTP receiver in email modal (only available in email flow)
+  //     if (otpVerificationState.otpReceiver) {
+  //       // Email flow - use user's selection from modal
+  //       isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
+  //       isEmailStep = otpVerificationState.otpReceiver === 'email';
+  //     } else {
+  //       // Phone number flow - use contact type detection
+  //       const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
+  //       isPhoneNumberStep = !isEmail;
+  //       isEmailStep = isEmail;
+  //     }
+  //   }
 
-    // Check Android connection if OTP verification is enabled for phone numbers
-    if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
-      console.log('🔍 Checking Android device connection before executing step...');
-      const isConnected = await checkAndroidConnection();
+  //   // Check Android connection if OTP verification is enabled for phone numbers
+  //   if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
+  //     console.log('🔍 Checking Android device connection before executing step...');
+  //     const isConnected = await checkAndroidConnection();
       
-      if (!isConnected) {
-        console.log('❌ Android device not connected');
-        checkConnectionStatus();
-        return; 
-      }
+  //     if (!isConnected) {
+  //       console.log('❌ Android device not connected');
+  //       checkConnectionStatus();
+  //       return; 
+  //     }
       
-      console.log('✅ Android device connected, proceeding with step execution');
-    }
+  //     console.log('✅ Android device connected, proceeding with step execution');
+  //   }
 
-    console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
-    console.log("📞 Is phone number step?", isPhoneNumberStep);
+  //   console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
+  //   console.log("📞 Is phone number step?", isPhoneNumberStep);
 
-    if (otpVerificationState.waitingForOtp && actionType === 'type') {
-      // Check if user is entering OTP (4-8 digits)
-      const match = newStep.match(/\b\d{4,8}\b/);
-      if (match) {
-        isOtpStep = true;
-        finalStepText = newStep;
-        console.log('Detected OTP input:', match[0]);
-      }
-    }
+  //   if (otpVerificationState.waitingForOtp && actionType === 'type') {
+  //     // Check if user is entering OTP (4-8 digits)
+  //     const match = newStep.match(/\b\d{4,8}\b/);
+  //     if (match) {
+  //       isOtpStep = true;
+  //       finalStepText = newStep;
+  //       console.log('Detected OTP input:', match[0]);
+  //     }
+  //   }
 
-    const newStepObj = {
-      id: Date.now(),
-      description: commandType === 'open' && selectedElement?.packageName 
-      ? `open ${selectedElement.packageName}` 
-      : finalStepText,
-      status: 'pending',
-      duration: '00:00',
-      screenshot: null,
-      selectedElement: selectedElement,
-      verificationType: selectedElement?.verificationType || 'text',
-      waitRequestData: stepWaitData || null,
-      requiresOtp: requiresOtp,
-      otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
-      otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
-      isPhoneNumberStep: isPhoneNumberStep,
-      isEmailStep: isEmailStep 
-    };
+  //   const newStepObj = {
+  //     id: Date.now(),
+  //     description: commandType === 'open' && selectedElement?.packageName 
+  //     ? `open ${selectedElement.packageName}` 
+  //     : finalStepText,
+  //     status: 'pending',
+  //     duration: '00:00',
+  //     screenshot: null,
+  //     selectedElement: selectedElement,
+  //     verificationType: selectedElement?.verificationType || 'text',
+  //     waitRequestData: stepWaitData || null,
+  //     requiresOtp: requiresOtp,
+  //     otpType: isOtpStep ? (isPhoneNumberStep ? 'phone' : (isEmailStep ? 'email' : null)) : null,
+  //     otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
+  //     isPhoneNumberStep: isPhoneNumberStep,
+  //     isEmailStep: isEmailStep 
+  //   };
 
-    console.log("New step object:", newStepObj)
+  //   console.log("New step object:", newStepObj)
     
-    // Clear selections
-    setSelectedElement(null);
-    setStepWaitData(null);
-    setNewStep('');
+  //   // Clear selections
+  //   setSelectedElement(null);
+  //   setStepWaitData(null);
+  //   setNewStep('');
     
-    setTestSteps(prev => [...prev, newStepObj]);
+  //   setTestSteps(prev => [...prev, newStepObj]);
     
-    try {
-      // Execute the step first
-      const executionResult = await executeStep(newStepObj);
+  //   try {
+  //     // Execute the step first
+  //     const executionResult = await executeStep(newStepObj);
 
-      // Check if execution was aborted (undefined) or failed
-      if (executionResult === undefined) {
-        console.log("Step execution was aborted, not adding to test case");
-        return;
-      }
+  //     // Check if execution was aborted (undefined) or failed
+  //     if (executionResult === undefined) {
+  //       console.log("Step execution was aborted, not adding to test case");
+  //       return;
+  //     }
       
-      if (executionResult.status === 'error') {
-        console.log("Step execution failed:", executionResult.error);
-        alert(`Step execution failed: ${executionResult.error}\nThis step will not be added to the test case.`);
-        setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id)); 
-        return;
-      }
+  //     if (executionResult.status === 'error') {
+  //       console.log("Step execution failed:", executionResult.error);
+  //       alert(`Step execution failed: ${executionResult.error}\nThis step will not be added to the test case.`);
+  //       setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id)); 
+  //       return;
+  //     }
       
-      // Only update testSteps if execution was successful
-      if (executionResult.status === 'complete') {
-        console.log("Step executed successfully, updating test case");
+  //     // Only update testSteps if execution was successful
+  //     if (executionResult.status === 'complete') {
+  //       console.log("Step executed successfully, updating test case");
         
-        // Update the existing step with execution results
-        setTestSteps(prev => prev.map(step => 
-          step.id === newStepObj.id ? {
-            ...step,
-            ...executionResult,
-            elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
-            elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-            waitCondition: executionResult.waitCondition,
-            waitText: executionResult.waitText,
-            waitTimeout: executionResult.waitTimeout
-          } : step
-        ));
+  //       // Update the existing step with execution results
+  //       setTestSteps(prev => prev.map(step => 
+  //         step.id === newStepObj.id ? {
+  //           ...step,
+  //           ...executionResult,
+  //           elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
+  //           elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
+  //           waitCondition: executionResult.waitCondition,
+  //           waitText: executionResult.waitText,
+  //           waitTimeout: executionResult.waitTimeout
+  //         } : step
+  //       ));
         
-        // Update previouslySelectedElements after successful execution
-        if (newStepObj.selectedElement?.click_point) {
-          setLastClickCoordinates(newStepObj.selectedElement.click_point);
-          const element = newStepObj.selectedElement;
+  //       // Update previouslySelectedElements after successful execution
+  //       if (newStepObj.selectedElement?.click_point) {
+  //         setLastClickCoordinates(newStepObj.selectedElement.click_point);
+  //         const element = newStepObj.selectedElement;
 
-          if (element.click_point) {
-            const x = Math.round(element.click_point[0]);
-            const y = Math.round(element.click_point[1]);
-            const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
+  //         if (element.click_point) {
+  //           const x = Math.round(element.click_point[0]);
+  //           const y = Math.round(element.click_point[1]);
+  //           const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
 
-            console.log('Generated key for element:', exactCoordinateKey);
+  //           console.log('Generated key for element:', exactCoordinateKey);
             
-            setPreviouslySelectedElements(prev => {
-              const updatedPrev = {};
-              Object.keys(prev).forEach(key => {
-                updatedPrev[key] = {
-                  ...prev[key],
-                  lastExecutedElement: false 
-                };
-              });
+  //           setPreviouslySelectedElements(prev => {
+  //             const updatedPrev = {};
+  //             Object.keys(prev).forEach(key => {
+  //               updatedPrev[key] = {
+  //                 ...prev[key],
+  //                 lastExecutedElement: false 
+  //               };
+  //             });
               
-              return {
-                ...updatedPrev,
-                [exactCoordinateKey]: {
-                  lastSelected: Date.now(),
-                  count: (prev[exactCoordinateKey]?.count || 0) + 1,
-                  element: element,
-                  lastExecutedElement: true,
-                  coordinates: [x, y]
-                }
-              };
-            });
-          }
-        }
+  //             return {
+  //               ...updatedPrev,
+  //               [exactCoordinateKey]: {
+  //                 lastSelected: Date.now(),
+  //                 count: (prev[exactCoordinateKey]?.count || 0) + 1,
+  //                 element: element,
+  //                 lastExecutedElement: true,
+  //                 coordinates: [x, y]
+  //               }
+  //             };
+  //           });
+  //         }
+  //       }
 
-        // IMPORTANT: Call get_otp after successful execution when waiting for OTP
-        if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
-          await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
-        }
+  //       // IMPORTANT: Call get_otp after successful execution when waiting for OTP
+  //       if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
+  //         await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
+  //       }
         
-        setNewStep('');
-        if (newStepObj.otpSessionData) {
-          setRequiresOtp(false);
-        }
+  //       setNewStep('');
+  //       if (newStepObj.otpSessionData) {
+  //         setRequiresOtp(false);
+  //       }
         
-        // Scroll to bottom after successful addition
-        setTimeout(() => {
-          if (previewRef.current) {
-            previewRef.current.scrollTo({
-              top: previewRef.current.scrollHeight,
-              behavior: 'smooth'
-            });
-          }
-          if (stepsRef.current) {
-            stepsRef.current.scrollTo({
-              top: stepsRef.current.scrollHeight,
-              behavior: 'smooth'
-            });
-          }
-        }, 100);
-      }
+  //       // Scroll to bottom after successful addition
+  //       setTimeout(() => {
+  //         if (previewRef.current) {
+  //           previewRef.current.scrollTo({
+  //             top: previewRef.current.scrollHeight,
+  //             behavior: 'smooth'
+  //           });
+  //         }
+  //         if (stepsRef.current) {
+  //           stepsRef.current.scrollTo({
+  //             top: stepsRef.current.scrollHeight,
+  //             behavior: 'smooth'
+  //           });
+  //         }
+  //       }, 100);
+  //     }
       
-    } catch (error) {
-      console.error('Unexpected error during step execution:', error);
-      alert(`Unexpected error: ${error.message}\nThis step will not be added to the test case.`);
-    }
-  };
+  //   } catch (error) {
+  //     console.error('Unexpected error during step execution:', error);
+  //     alert(`Unexpected error: ${error.message}\nThis step will not be added to the test case.`);
+  //   }
+  // };
 
-  const executeStep = async (stepObj) => {
+  const executeStep = async (stepObj, stepIndex) => {
     setIsProcessing(true);
   
     try {
@@ -1307,7 +1348,8 @@ useEffect(() => {
 
         console.log("Updated Step Description:", updatedStepDescription); 
         
-        const stepIndex = testSteps.length;
+        // const stepIndex = testSteps.length;
+
         if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
         } else if (actionType === 'search') {
@@ -1732,7 +1774,8 @@ useEffect(() => {
             // For type, keep the command as is
 
             let requestBody = {
-                command: modifiedCommand
+                command: modifiedCommand,
+                click_point: selectedElement.click_point
             };
 
             console.log(`Sending ${actionType} command:`, {
@@ -2701,50 +2744,235 @@ useEffect(() => {
 
 const validateStepAgainstResponse = (step, omniparserData) => {
   if (!omniparserData || !omniparserData.elements) return { isValid: false, matches: [] };
-  
+
   const stepDesc = step.description.toLowerCase();
   const words = stepDesc.split(' ');
   const actionType = words[0];
-  
-  if (actionType === 'click' || actionType === 'type') {
+
+ 
+  if (actionType === 'click' || actionType === 'type' || actionType === 'select' || actionType === 'verify' || actionType === 'get') {
     let searchTerm = '';
-    
-    if (actionType === 'click') {
-      searchTerm = words.slice(1).join(' ');
-    } else if (actionType === 'type' && stepDesc.includes(' in ')) {
-      searchTerm = stepDesc.substring(stepDesc.indexOf(' in ') + 4);
-    }
-    
-    if (!searchTerm) return { isValid: false, matches: [] };
-    
-    // Extract key terms for flexible matching
-    const keyTerms = extractKeyTerms(searchTerm);
-    
-    // Find matching elements
-    const matchingElements = omniparserData.elements.filter(element => {
-      const elementName = (element.name || '').toLowerCase();
-      const elementDisplayName = (element.displayName || '').toLowerCase();
-      const elementText = (element.text || '').toLowerCase();
+    let direction = null;
+    const OFFSET_PX = 40; 
+
+    if (actionType === 'click' || actionType === 'select') {
+      // Check for directional commands
+      const directions = ['left', 'right', 'above', 'below', 'bottom'];
+      const directionIndex = words.findIndex(word => directions.includes(word));
       
-      // Check if any key term matches
-      return keyTerms.some(term => 
-        elementName.includes(term) || 
-        elementDisplayName.includes(term) ||
-        elementText.includes(term)
-      );
+      if (directionIndex !== -1 && directionIndex === 1) {
+        // Format: "click left login" or "click above submit button"
+        direction = words[1];
+        searchTerm = words.slice(2).join(' ');
+      } else {
+        // Normal click: "click login"
+        searchTerm = words.slice(1).join(' ');
+      }
+    } else if (actionType === 'type' && stepDesc.includes(' in ')) {
+      // Handle type commands: "type password in username" or "type password in right username"
+      const inIndex = stepDesc.indexOf(' in ');
+      const afterIn = stepDesc.substring(inIndex + 4).trim();
+      const afterInWords = afterIn.split(' ');
+      
+      const directions = ['left', 'right', 'above', 'below', 'bottom'];
+      if (directions.includes(afterInWords[0])) {
+        // Format: "type password in right username"
+        direction = afterInWords[0];
+        searchTerm = afterInWords.slice(1).join(' ');
+      } else {
+        // Normal type: "type password in username"
+        searchTerm = afterIn;
+      }
+    } else if (actionType === 'verify' && words.length > 1) {
+      // ✅ NEW: Handle verify commands: "verify success message"
+      searchTerm = words.slice(1).join(' ');
+    } else if (actionType === 'get' && words.length > 1) {
+      // ✅ NEW: Handle get commands: "get username field"
+      searchTerm = words.slice(1).join(' ');
+    }
+
+    if (!searchTerm) return { isValid: false, matches: [] };
+
+    const keyTerms = extractKeyTerms(searchTerm);
+    const searchTermWords = searchTerm.split(' ').filter(word => word.length > 0);
+
+    // console.log(`🔍 Validation Debug:`);
+    console.log(`   Action: "${actionType}"`);
+    // console.log(`   Search term: "${searchTerm}"`);
+    // console.log(`   Key terms:`, keyTerms);
+    // console.log(`   Search words:`, searchTermWords);
+    // console.log(`   Direction:`, direction);
+
+    const checkElementForMatch = (element) => {
+      const elementFields = [
+        (element.name || '').toLowerCase(),
+        (element.displayName || '').toLowerCase(),
+        (element.text || '').toLowerCase()
+      ];
+
+      // console.log(`   Checking element ${element.id}:`, {
+      //   name: element.name,
+      //   displayName: element.displayName,
+      //   text: element.text,
+      //   fields: elementFields
+      // });
+
+      // 1. Exact Match - any field exactly matches any keyTerm
+      const exactMatch = keyTerms.some(term => elementFields.some(field => field === term));
+      if (exactMatch) {
+        console.log(`     ✅ EXACT match found`);
+        return { type: 'exact', score: 100 };
+      }
+
+      // 2. Partial Match - any field contains any keyTerm as substring
+      const partialMatch = keyTerms.some(term => elementFields.some(field => field.includes(term)));
+      if (partialMatch) {
+        console.log(`     🔍 PARTIAL match found`);
+        return { type: 'partial', score: 80 };
+      }
+
+      // 3. Word Match - any word in searchTerm exists in any field
+      const wordMatch = searchTermWords.some(word => elementFields.some(field => field.includes(word)));
+      if (wordMatch) {
+        console.log(`     🔎 WORD match found`);
+        return { type: 'word', score: 60 };
+      }
+
+      // console.log(`     ❌ No match`);
+      return null;
+    };
+
+    // Collect ALL matches with their scores
+    let allMatches = [];
+
+    omniparserData.elements.forEach(element => {
+      const matchResult = checkElementForMatch(element);
+      if (matchResult) {
+        allMatches.push({
+          ...element,
+          matchType: matchResult.type,
+          matchScore: matchResult.score
+        });
+      }
     });
+
+    console.log(`🎯 All matches found (${allMatches.length}):`, allMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
+
+    // Apply directional offset to coordinates if direction is specified
+    const applyDirectionalOffset = (matches) => {
+      if (!direction) return matches;
+      
+      return matches.map(element => {
+        const originalCoords = element.coordinates || element.click_point;
+        if (!originalCoords || !Array.isArray(originalCoords)) return element;
+        
+        let newCoords = [...originalCoords];
+        
+        switch (direction) {
+          case 'left':
+            newCoords[0] = Math.max(0, originalCoords[0] - OFFSET_PX);
+            break;
+          case 'right':
+            newCoords[0] = originalCoords[0] + OFFSET_PX;
+            break;
+          case 'above':
+            newCoords[1] = Math.max(0, originalCoords[1] - OFFSET_PX);
+            break;
+          case 'below':
+          case 'bottom':
+            newCoords[1] = originalCoords[1] + OFFSET_PX;
+            break;
+          default:
+            break;
+        }
+        
+        return {
+          ...element,
+          coordinates: newCoords,
+          click_point: newCoords,
+          originalCoordinates: originalCoords,
+          appliedDirection: direction,
+          offsetApplied: OFFSET_PX
+        };
+      });
+    };
+
+    if (allMatches.length === 0) {
+      console.log("🚫 No matches found for step:", stepDesc);
+      return { isValid: false, matches: [], searchTerm, keyTerms, direction };
+    }
+
+    // Sort matches by score (highest first), then by match type priority
+    allMatches.sort((a, b) => {
+      if (a.matchScore !== b.matchScore) {
+        return b.matchScore - a.matchScore; // Higher score first
+      }
+      // If same score, prioritize by type
+      const typeOrder = { 'exact': 0, 'partial': 1, 'word': 2 };
+      return typeOrder[a.matchType] - typeOrder[b.matchType];
+    });
+
+    const processedMatches = applyDirectionalOffset(allMatches);
     
-    console.log("🔍 Matched elements:", matchingElements);
-    console.log("🔍 First matched element:", matchingElements[0]);
+    console.log(`🎯 Final processed matches (${processedMatches.length}):`, processedMatches.map(m => ({
+      id: m.id,
+      name: m.name,
+      matchType: m.matchType,
+      score: m.matchScore
+    })));
+
+    if (direction) {
+      console.log(`🎯 Applied ${direction} direction with ${OFFSET_PX}px offset`);
+    }
+
+    // CRITICAL LOGIC: Always return ALL matches - let caller decide based on COUNT
+    // - If processedMatches.length > 1 → Show multiple match dialog (even if all are 100% matches)
+    // - If processedMatches.length === 1 → Auto-select single match (even if it's 80% match)
     
-    return {
-      isValid: matchingElements.length > 0,
-      matches: matchingElements,
-      searchTerm: searchTerm,
-      keyTerms: keyTerms
+    console.log(`📊 Match Decision Logic:`);
+    console.log(`   Total matches found: ${processedMatches.length}`);
+    
+    if (processedMatches.length > 1) {
+      console.log(`   🔀 MULTIPLE MATCHES → Will show selection dialog`);
+    } else if (processedMatches.length === 1) {
+      console.log(`   🎯 SINGLE MATCH → Will auto-select (Score: ${processedMatches[0].matchScore}%)`);
+    }
+
+    return { 
+      isValid: true, 
+      matches: processedMatches, 
+      searchTerm, 
+      keyTerms, 
+      direction,
+      totalMatches: processedMatches.length,
+      shouldShowMultipleDialog: processedMatches.length > 1,
+      shouldAutoSelect: processedMatches.length === 1,
+      matchBreakdown: {
+        exact: processedMatches.filter(m => m.matchType === 'exact').length,
+        partial: processedMatches.filter(m => m.matchType === 'partial').length,
+        word: processedMatches.filter(m => m.matchType === 'word').length
+      }
     };
   }
-  
+
+  // ✅ ADDED: Handle commands that don't need element validation (open, scroll, swipe, wait)
+  if (actionType === 'open') {
+    console.log(`📱 Open command detected - no element validation needed`);
+    return { isValid: true, matches: [], isOpenCommand: true };
+  }
+
+  if (['scroll', 'swipe', 'wait'].includes(actionType)) {
+    console.log(`🔄 ${actionType} command detected - no element validation needed`);
+    return { isValid: true, matches: [], isMovementCommand: true };
+  }
+
+  // For any other commands, return valid but no matches
+  console.log(`❓ Unknown command: ${actionType}`);
   return { isValid: true, matches: [] };
 };
 
@@ -2773,6 +3001,113 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         }
 
         console.log("⚠️ Wait step already configured and executed");
+        return; 
+      }
+
+      if (nextStep.action === "type" && 
+          nextStep.isActualOtpStep === true && 
+          (nextStep.description.toLowerCase().includes('otp'))) {
+        
+        console.log(`🔐 OTP Step ${nextIndex + 1} detected! Checking for OTP...`);
+        
+        // Step 1: Look for existing OTP in testSteps
+        let fetchedOtp = '';
+
+        for (let i = testSteps.length - 1; i >= 0; i--) {
+          const step = testSteps[i];
+          
+          console.log(`🔍 Step ${i}`, {
+            otpReceived: step.otpReceived,
+            otpValue: step.otpValue,
+            stepOtpType: step.otpType,
+            nextOtpType: nextStep.otpType
+          });
+
+          if (
+            step.otpReceived === true &&
+            step.otpValue &&
+            step.otpType &&
+            nextStep.otpType &&
+            step.otpType.trim() === nextStep.otpType.trim()
+          ) {
+            fetchedOtp = step.otp || step.otpValue;
+            console.log(`📱 Found OTP: ${fetchedOtp} from step ${i}`);
+            break;
+          }
+        }
+        
+        // Step 2: If no existing OTP, try to fetch immediately
+        if (!fetchedOtp && nextStep.otpType) {
+          console.log(`🔄 No existing OTP found, trying to fetch fresh OTP for ${nextStep.otpType}...`);
+
+          // ✅ Show temporary modal BEFORE fetch
+          setIsOtpRefreshing(true);
+          
+          try {
+            const isPhoneNumberStep = nextStep.otpType === 'phone';
+            const isEmailStep = nextStep.otpType === 'email';
+            
+            const otpFetchResult = await callGetOtpAfterExecution(
+              nextStep.id,
+              isPhoneNumberStep,
+              isEmailStep,
+              true, 
+              isEmailStep ? senderEmail : null
+            );
+            
+            console.log("🔄 Fresh OTP fetch result:", otpFetchResult);
+            // ✅ Hide temporary refresh modal after response
+            setIsOtpRefreshing(false);
+            
+            if (otpFetchResult?.status === 'success') {
+              fetchedOtp = otpFetchResult.otp || otpFetchResult.otpValue;
+              console.log(`✅ Successfully fetched fresh OTP:`, fetchedOtp);
+              
+              // Update testSteps with the new OTP
+              setTestSteps(prev => prev.map(step =>
+                step.id === nextStep.id ? {
+                  ...step,
+                  otp: fetchedOtp,
+                  otpValue: fetchedOtp,
+                  otpReceived: true,
+                  otpType: nextStep.otpType
+                } : step
+              ));
+              
+            } else if (otpFetchResult?.status === 'waiting') {
+              console.log(`⏳ OTP still waiting for ${nextStep.otpType}`);
+              setTestSteps(prev => prev.map(step =>
+                step.id === nextStep.id ? {
+                  ...step,
+                  otpWaiting: true,
+                  otpPending: false,
+                  otpReceived: false,
+                  otpType: nextStep.otpType
+                } : step
+              ));
+              fetchedOtp = ''; 
+            } else {
+              console.log(`❌ OTP fetch failed:`, otpFetchResult);
+              fetchedOtp = '';
+            }
+            
+          } catch (error) {
+            console.error('Error fetching OTP:', error);
+            fetchedOtp = '';
+          }
+        }
+        
+        console.log(`📱 Final OTP for step ${nextIndex + 1}:`, fetchedOtp || 'Not found - will show modal');
+        
+        // Step 3: Always show modal (with or without OTP)
+        setOtpReplacementModal({
+          isOpen: true,
+          step: nextStep,
+          fetchedOtp: fetchedOtp,
+          stepIndex: nextIndex,
+          currentPageData: data 
+        });
+        
         return; 
       }
 
@@ -2821,7 +3156,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
             nextStep.selectedElement = {
                 packageName: appEntry[1],
                 name: appEntry[0],
-                type: 'app'
+                type: 'app',
+                coordinates: [0, 0]
             };
         }
 
@@ -2838,6 +3174,23 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
 
               setTestSteps(prev => [...prev, stepWithElement]);
 
+              if (stepWithElement.requiresOtp && stepWithElement.otpType) {
+                console.log(`🔐 OTP Required for Step ${nextIndex + 1}:`, stepWithElement.otpType);
+
+                setOtpVerificationState(prev => ({
+                  ...prev,
+                  waitingForOtp: true,
+                  enteredContact: stepWithElement.value,
+                  contactEntered: true,
+                  stepId: stepWithElement.id
+                }));
+
+                await updateOtpSessionTime({
+                  contactEntered: true,
+                  enteredContact: stepWithElement.value
+                });
+              }
+
               const nextExecutionResult = await executeStep(stepWithElement, nextIndex);
               console.log("🚀 Executed Step (Multiple Match):", nextExecutionResult);
 
@@ -2846,10 +3199,80 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                 setTestSteps(prev => prev.map(step => 
                   step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
                 ));
+
+                // 🔔 OTP Logic start
+                if (stepWithElement.requiresOtp && stepWithElement.otpType) {
+                  console.log(`🔐 OTP Required after Step ${nextIndex + 1}:`, stepWithElement.otpType);
+
+                  const isPhoneNumberStep = stepWithElement.otpType === 'phone';
+                  const isEmailStep = stepWithElement.otpType === 'email';
+
+                  console.log("📧 Debug stepWithElement:", {
+                    userEmail: senderEmail,
+                    value: stepWithElement.value,
+                    otpType: stepWithElement.otpType,
+                    requiresOtp: stepWithElement.requiresOtp
+                  });
+
+                  setOtpVerificationState(prev => ({
+                    ...prev,
+                    waitingForOtp: true,
+                    enteredContact: stepWithElement.value,
+                    contactEntered: true,
+                    stepId: stepWithElement.id
+                  }));
+
+                  await new Promise(resolve => setTimeout(resolve, 0));
+                  console.log("🟩 Before get OTP call - otpVerificationState:", otpVerificationState);
+
+                  const otpFetchResult = await callGetOtpAfterExecution(
+                    stepWithElement.id,
+                    isPhoneNumberStep,
+                    isEmailStep,
+                    true,
+                    isEmailStep ? senderEmail : null
+                  );
+
+                  if (otpFetchResult?.status === 'success') {
+                    setTestSteps(prev => prev.map(step =>
+                      step.id === stepWithElement.id ? {
+                        ...step,
+                        otp: otpFetchResult.otp,           
+                        otpValue: otpFetchResult.otp, 
+                        otpReceived: true
+                      } : step
+                    ));
+                  } else if (otpFetchResult?.status === 'waiting') {
+                    setTestSteps(prev => prev.map(step =>
+                      step.id === stepWithElement.id ? {
+                        ...step,
+                        otpWaiting: true,
+                        otpPending: false,
+                        otpReceived: false
+                      } : step
+                    ));
+                    console.log('OTP still pending, will check again in next execution cycle if needed');
+                  } else if (otpFetchResult?.status === 'failed') {
+                    console.error('Failed to get OTP. Please resend OTP manually.');
+                  } else {
+                    console.error('OTP fetch failed due to API error or unexpected response. Halting next step.');
+                    return;  
+                  }
+
+                }
+
                 setCurrentGeneratedStepIndex(nextIndex);
                 handleNextStep(nextExecutionResult, nextIndex);
               } else {
                 console.error(`❌ Step ${nextIndex + 1} (multiple match) failed to execute properly.`);
+                // Open edit modal for execution errors
+                openEditModal(
+                  stepWithElement,
+                  nextExecutionResult?.error || 'Step execution failed',
+                  data.omniparser_data || data.coordinates,
+                  nextIndex,
+                  nextExecutionResult?.screenshot 
+                );
               }
             } else {
               console.error(`❌ No element selected for Step ${nextIndex + 1} with multiple matches.`);
@@ -2858,13 +3281,43 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
         } else {
           console.log(`🎯 Auto-selecting single matching element for Step ${nextIndex + 1}:`, validationResult.matches[0]);
 
-          const stepWithElement = {
-            ...nextStep,
-            selectedElement: validationResult.matches[0],
-            coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
-          };
+          const isOpenCommand = nextStep.description.trim().toLowerCase().startsWith("open");
+        
+          let stepWithElement;
+          
+          if (isOpenCommand) {
+              // For apps: Use the selectedElement you already created (no coordinates)
+              stepWithElement = {
+                ...nextStep,
+                selectedElement: nextStep.selectedElement  
+              };
+          } else {
+              // For UI elements: Use validation result (with coordinates)
+              stepWithElement = {
+                ...nextStep,
+                selectedElement: validationResult.matches[0],
+                coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
+              };
+          }
 
           setTestSteps(prev => [...prev, stepWithElement]);
+
+          if (stepWithElement.requiresOtp && stepWithElement.otpType) {
+            console.log(`🔐 OTP Required for Step ${nextIndex + 1}:`, stepWithElement.otpType);
+
+            setOtpVerificationState(prev => ({
+              ...prev,
+              waitingForOtp: true,
+              enteredContact: stepWithElement.value,
+              contactEntered: true,
+              stepId: stepWithElement.id
+            }));
+
+            await updateOtpSessionTime({
+              contactEntered: true,
+              enteredContact: stepWithElement.value
+            });
+          }
 
           const nextExecutionResult = await executeStep(stepWithElement, nextIndex);
           console.log("🚀 Executed Step (Single Match):", nextExecutionResult);
@@ -2874,15 +3327,92 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
             setTestSteps(prev => prev.map(step => 
               step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
             ));
+
+            // 🔔 OTP Logic start
+            if (stepWithElement.requiresOtp && stepWithElement.otpType) {
+              console.log(`🔐 OTP Required after Step ${nextIndex + 1}:`, stepWithElement.otpType);
+
+              const isPhoneNumberStep = stepWithElement.otpType === 'phone';
+              const isEmailStep = stepWithElement.otpType === 'email';
+
+              console.log("📧 Debug stepWithElement:", {
+                userEmail: senderEmail,
+                value: stepWithElement.value,
+                otpType: stepWithElement.otpType,
+                requiresOtp: stepWithElement.requiresOtp
+              });
+              
+              setOtpVerificationState(prev => ({
+                ...prev,
+                waitingForOtp: true,
+                enteredContact: stepWithElement.value,
+                contactEntered: true,
+                stepId: stepWithElement.id
+              }));
+
+              await new Promise(resolve => setTimeout(resolve, 0));
+              console.log("🟩 Before get OTP call - otpVerificationState:", otpVerificationState);
+
+              const otpFetchResult = await callGetOtpAfterExecution(
+                stepWithElement.id,
+                isPhoneNumberStep,
+                isEmailStep,
+                true,
+                isEmailStep ? senderEmail : null
+              );
+
+              if (otpFetchResult?.status === 'success') {
+                setTestSteps(prev => prev.map(step =>
+                  step.id === stepWithElement.id ? {
+                    ...step,
+                    otp: otpFetchResult.otp,           
+                    otpValue: otpFetchResult.otp,
+                    otpReceived: true
+                  } : step
+                ));
+              } else if (otpFetchResult?.status === 'waiting') {
+                setTestSteps(prev => prev.map(step =>
+                  step.id === stepWithElement.id ? {
+                    ...step,
+                    otpWaiting: true,
+                    otpPending: false,
+                    otpReceived: false
+                  } : step
+                ));
+                console.log('OTP still pending, will check again in next execution cycle if needed');
+              } else if (otpFetchResult?.status === 'failed') {
+                console.error('Failed to get OTP. Please resend OTP manually.');
+              } else {
+                console.error('OTP fetch failed due to API error or unexpected response. Halting next step.');
+                return;  
+              }
+
+            }
+
             setCurrentGeneratedStepIndex(nextIndex);
             handleNextStep(nextExecutionResult, nextIndex);
           } else {
             console.error(`❌ Step ${nextIndex + 1} (single match) failed to execute properly.`);
+            // Open edit modal for execution errors
+            openEditModal(
+              stepWithElement,
+              nextExecutionResult?.error || 'Step execution failed',
+              data.omniparser_data || data.coordinates,
+              nextIndex,
+              nextExecutionResult?.screenshot
+            );
           }
         }
       } else {
         console.error(`🚫 Step ${nextIndex + 1} validation failed. No matching elements found.`);
-        alert(`Step ${nextIndex + 1} cannot be executed: No matching elements found for "${validationResult.searchTerm}"`);
+        // Open edit modal instead of alert
+        openEditModal(
+          nextStep,
+          `No matching elements found for "${validationResult.searchTerm}"`,
+          data.omniparser_data || data.coordinates,
+          nextIndex,
+          data.screenshot
+        );
       }
     } else {
       console.log("🎉 Automation finished! All steps executed.");
@@ -2950,7 +3480,7 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   console.log("step With Package:", stepWithPackage)
   
   setTestSteps([stepWithPackage]);
-  const executionResult = await executeStep(stepWithPackage);
+  const executionResult = await executeStep(stepWithPackage, 0);
   
   if (executionResult && executionResult.status === 'complete') {
     // Update step 1 with execution result
@@ -2979,13 +3509,13 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     return description;
   };
 
-  useEffect(() => {
-    if (pendingWaitStep && newStep.includes('wait')) {
-      addTestStep();
-      setPendingWaitStep(false); 
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newStep, pendingWaitStep]);
+  // useEffect(() => {
+  //   if (pendingWaitStep && newStep.includes('wait')) {
+  //     addTestStep();
+  //     setPendingWaitStep(false); 
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [newStep, pendingWaitStep]);
 
   const handleWaitConfirm = (waitCommand, waitRequestData) => {
     if (waitStepData && waitStepIndex !== null) {
@@ -3023,125 +3553,125 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     setWaitModalOpen(false);
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    const handleSelection = () => {
-      setPreviouslySelectedElements(prev => ({
-        ...prev,
-        [suggestion.id]: {
-          timestamp: Date.now(),
-          element: suggestion
-        }
-      }));
-    };
+  // const handleSuggestionClick = (suggestion) => {
+  //   const handleSelection = () => {
+  //     setPreviouslySelectedElements(prev => ({
+  //       ...prev,
+  //       [suggestion.id]: {
+  //         timestamp: Date.now(),
+  //         element: suggestion
+  //       }
+  //     }));
+  //   };
     
-    let updatedStep = '';
+  //   let updatedStep = '';
     
-    if (commandType === 'click') {
-      updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-    } else if (commandType === 'type') {
-      // Get the text the user has already typed (if any)
-      let userText = '';
+  //   if (commandType === 'click') {
+  //     updatedStep = `click ${suggestion.displayName || suggestion.name}`;
+  //   } else if (commandType === 'type') {
+  //     // Get the text the user has already typed (if any)
+  //     let userText = '';
       
-      if (newStep.toLowerCase().startsWith('type ')) {
-        const inIndex = newStep.toLowerCase().indexOf(' in ');
-        if (inIndex !== -1) {
-          // If " in " exists, extract text between "type " and " in "
-          userText = newStep.substring(5, inIndex).trim();
-        } else {
-          // If " in " doesn't exist, extract all text after "type "
-          userText = newStep.substring(5).trim();
-        }
-      }
+  //     if (newStep.toLowerCase().startsWith('type ')) {
+  //       const inIndex = newStep.toLowerCase().indexOf(' in ');
+  //       if (inIndex !== -1) {
+  //         // If " in " exists, extract text between "type " and " in "
+  //         userText = newStep.substring(5, inIndex).trim();
+  //       } else {
+  //         // If " in " doesn't exist, extract all text after "type "
+  //         userText = newStep.substring(5).trim();
+  //       }
+  //     }
       
-      // Use the user's text if available, otherwise use placeholder
-      if (userText) {
-        updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
-      } else {
-        updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-      }
-    } else if (commandType === 'verify') {
-      updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
+  //     // Use the user's text if available, otherwise use placeholder
+  //     if (userText) {
+  //       updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
+  //     } else {
+  //       updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
+  //     }
+  //   } else if (commandType === 'verify') {
+  //     updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
 
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
+  //     // Close suggestions dropdown
+  //     setShowSuggestions(false);
+  //     handleSelection();
       
-      // Set verification modal data
-      const textToVerify = suggestion.displayName || suggestion.name;
-      const matchingElements = [suggestion]; 
+  //     // Set verification modal data
+  //     const textToVerify = suggestion.displayName || suggestion.name;
+  //     const matchingElements = [suggestion]; 
       
-      // Need to update these states together with minimal delay to avoid re-renders
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
+  //     // Need to update these states together with minimal delay to avoid re-renders
+  //     setNewStep(updatedStep);
+  //     setSelectedElement(suggestion);
       
-      // Show verification modal
-      setVerificationModal({
-        isOpen: true,
-        textToVerify,
-        matchingElements,
-        selectedElement: suggestion
-      });
+  //     // Show verification modal
+  //     setVerificationModal({
+  //       isOpen: true,
+  //       textToVerify,
+  //       matchingElements,
+  //       selectedElement: suggestion
+  //     });
       
-      return;  
-    } else if (commandType === 'get') {
-      updatedStep = `get ${suggestion.displayName || suggestion.name}`;
+  //     return;  
+  //   } else if (commandType === 'get') {
+  //     updatedStep = `get ${suggestion.displayName || suggestion.name}`;
       
-      // Close suggestions dropdown
-      setShowSuggestions(false);
-      handleSelection();
+  //     // Close suggestions dropdown
+  //     setShowSuggestions(false);
+  //     handleSelection();
       
-      // Update step in one batch to minimize effect triggers
-      setNewStep(updatedStep);
-      setSelectedElement(suggestion);
+  //     // Update step in one batch to minimize effect triggers
+  //     setNewStep(updatedStep);
+  //     setSelectedElement(suggestion);
       
-      return;
-    } else if (commandType === 'open') {
-        updatedStep = `open ${suggestion.displayName}`;
+  //     return;
+  //   } else if (commandType === 'open') {
+  //       updatedStep = `open ${suggestion.displayName}`;
         
-        setShowSuggestions(false);
-        handleSelection();
-        setNewStep(updatedStep);
-        setSelectedElement(suggestion);
+  //       setShowSuggestions(false);
+  //       handleSelection();
+  //       setNewStep(updatedStep);
+  //       setSelectedElement(suggestion);
         
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.focus();
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
-          }
-        }, 0);
+  //       setTimeout(() => {
+  //         if (inputRef.current) {
+  //           inputRef.current.focus();
+  //           const length = updatedStep.length;
+  //           inputRef.current.setSelectionRange(length, length);
+  //         }
+  //       }, 0);
         
-        return; 
-      }
+  //       return; 
+  //     }
 
-    setShowSuggestions(false);
-    handleSelection();
+  //   setShowSuggestions(false);
+  //   handleSelection();
 
-    setNewStep(updatedStep);
-    setSelectedElement(suggestion);
+  //   setNewStep(updatedStep);
+  //   setSelectedElement(suggestion);
   
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        if (commandType === 'type' && updatedStep.includes(' in ')) {
-          // Position cursor after "type " but before " in " for user to enter text
-          const typeIndex = updatedStep.indexOf('type ') + 5;
+  //   setTimeout(() => {
+  //     if (inputRef.current) {
+  //       inputRef.current.focus();
+  //       if (commandType === 'type' && updatedStep.includes(' in ')) {
+  //         // Position cursor after "type " but before " in " for user to enter text
+  //         const typeIndex = updatedStep.indexOf('type ') + 5;
           
-          // If there's no text between "type " and " in ", set cursor right after "type "
-          if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
-            inputRef.current.setSelectionRange(typeIndex, typeIndex);
-          } else {
-            // If there's already text, position cursor at the end of the command
-            const length = updatedStep.length;
-            inputRef.current.setSelectionRange(length, length);
-          }
-        } else {
-          const length = updatedStep.length;
-          inputRef.current.setSelectionRange(length, length);
-        }
-      }
-    }, 0);
-  };
+  //         // If there's no text between "type " and " in ", set cursor right after "type "
+  //         if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
+  //           inputRef.current.setSelectionRange(typeIndex, typeIndex);
+  //         } else {
+  //           // If there's already text, position cursor at the end of the command
+  //           const length = updatedStep.length;
+  //           inputRef.current.setSelectionRange(length, length);
+  //         }
+  //       } else {
+  //         const length = updatedStep.length;
+  //         inputRef.current.setSelectionRange(length, length);
+  //       }
+  //     }
+  //   }, 0);
+  // };
 
 const handleVerificationConfirm = () => {
   const { textToVerify, selectedElement } = verificationModal;
@@ -3345,14 +3875,14 @@ const createTestCase = async () => {
       enteredContactInboxId: ''
     });
     setTestData(null);
-    setRequiresOtp(false);
-    setContactSelected(false);
-    setEmailConfirmationModal({
-      isOpen: false,
-      userEmail: '',
-      defaultEmail: 'suriya.prakash@crowd4test.com',
-      isEditing: false
-    });
+    // setRequiresOtp(false);
+    // setContactSelected(false);
+    // setEmailConfirmationModal({
+    //   isOpen: false,
+    //   userEmail: '',
+    //   defaultEmail: 'suriya.prakash@crowd4test.com',
+    //   isEditing: false
+    // });
 
     alert('Session data cleared!');
   };
@@ -3394,17 +3924,17 @@ const ImageModal = () => {
   );
 };
 
-const checkTextInElementData = (textToVerify) => {
-  if (!elementData || !elementData.elements) return null;
+// const checkTextInElementData = (textToVerify) => {
+//   if (!elementData || !elementData.elements) return null;
   
-  const searchText = textToVerify.toLowerCase();
-  const matchingElements = elementData.elements.filter(element => {
-    // Check if element has text content that includes the search text
-    return element.text && element.text.toLowerCase().includes(searchText);
-  });
+//   const searchText = textToVerify.toLowerCase();
+//   const matchingElements = elementData.elements.filter(element => {
+//     // Check if element has text content that includes the search text
+//     return element.text && element.text.toLowerCase().includes(searchText);
+//   });
   
-  return matchingElements.length > 0 ? matchingElements : null;
-};
+//   return matchingElements.length > 0 ? matchingElements : null;
+// };
 
 const SecondaryVerificationConfirmation = ({ isOpen, onClose, onConfirm, stepObj }) => {
   if (!isOpen || !stepObj) return null;
@@ -3484,283 +4014,283 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
   );
 };
 
-const SuggestionsDropdown = () => {
-  if (!showSuggestions) return null;
+// const SuggestionsDropdown = () => {
+//   if (!showSuggestions) return null;
 
-  const shouldShowNoDataMessage =
-    suggestions.length === 0 &&
-    newStep?.trim() !== '' &&
-    ['click', 'type', 'verify', 'get',].some(cmd => newStep.startsWith(cmd)); 
+//   const shouldShowNoDataMessage =
+//     suggestions.length === 0 &&
+//     newStep?.trim() !== '' &&
+//     ['click', 'type', 'verify', 'get',].some(cmd => newStep.startsWith(cmd)); 
   
-  if (shouldShowNoDataMessage) {
-    return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-        <div className="p-4 text-center">
-          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            No element data available
-          </div>
-          <p className="text-sm text-gray-700">
-            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-          </p>
-          <button 
-            onClick={() => setShowSuggestions(false)}
-            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  }
+//   if (shouldShowNoDataMessage) {
+//     return (
+//       <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+//         <div className="p-4 text-center">
+//           <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+//             <AlertCircle className="w-5 h-5 mr-2" />
+//             No element data available
+//           </div>
+//           <p className="text-sm text-gray-700">
+//             Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+//           </p>
+//           <button 
+//             onClick={() => setShowSuggestions(false)}
+//             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+//           >
+//             Dismiss
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
 
-  const shouldShowNoAppsMessage =
-    suggestions.length === 0 &&
-    newStep?.trim() !== '' &&
-    newStep.startsWith('open');
+//   const shouldShowNoAppsMessage =
+//     suggestions.length === 0 &&
+//     newStep?.trim() !== '' &&
+//     newStep.startsWith('open');
 
-  if (shouldShowNoAppsMessage) {
-    return (
-      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-        <div className="p-4 text-center">
-          <div className="text-orange-600 font-medium mb-2 flex items-center justify-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            No apps available
-          </div>
-          <p className="text-sm text-gray-700">
-            No installed apps found or apps are still loading. Please wait a moment and try again.
-          </p>
-          <button 
-            onClick={() => setShowSuggestions(false)}
-            className="mt-3 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors text-sm"
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-    );
-  }
+//   if (shouldShowNoAppsMessage) {
+//     return (
+//       <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+//         <div className="p-4 text-center">
+//           <div className="text-orange-600 font-medium mb-2 flex items-center justify-center">
+//             <AlertCircle className="w-5 h-5 mr-2" />
+//             No apps available
+//           </div>
+//           <p className="text-sm text-gray-700">
+//             No installed apps found or apps are still loading. Please wait a moment and try again.
+//           </p>
+//           <button 
+//             onClick={() => setShowSuggestions(false)}
+//             className="mt-3 px-4 py-2 bg-orange-100 text-orange-700 rounded-md hover:bg-orange-200 transition-colors text-sm"
+//           >
+//             Dismiss
+//           </button>
+//         </div>
+//       </div>
+//     );
+//   }
   
   
-  return (
-    <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
-      <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-        <h4 className="font-medium text-purple-800 flex items-center">
-          {commandType === 'click' ? (
-            <>
-              <span className="mr-2">🖱️</span> Click on an element:
-            </>
-          ) : commandType === 'type' ? (
-            <>
-              <span className="mr-2">⌨️</span> Select where to type:
-            </>
-          ) : commandType === 'verify' ? (
-            <>
-              <span className="mr-2">✓</span> Verify text on page:
-            </>
-          ) : commandType === 'get' ? (
-            <>
-              <span className="mr-2">📄</span> Get text from page:
-            </>
-          ) : commandType === 'open' ? (
-            <>
-              <span className="mr-2">📱</span> Select an app to open:
-            </>
-          ) : null}
+//   return (
+//     <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-72 overflow-y-auto animate-fadeIn suggestions-dropdown">
+//       <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+//         <h4 className="font-medium text-purple-800 flex items-center">
+//           {commandType === 'click' ? (
+//             <>
+//               <span className="mr-2">🖱️</span> Click on an element:
+//             </>
+//           ) : commandType === 'type' ? (
+//             <>
+//               <span className="mr-2">⌨️</span> Select where to type:
+//             </>
+//           ) : commandType === 'verify' ? (
+//             <>
+//               <span className="mr-2">✓</span> Verify text on page:
+//             </>
+//           ) : commandType === 'get' ? (
+//             <>
+//               <span className="mr-2">📄</span> Get text from page:
+//             </>
+//           ) : commandType === 'open' ? (
+//             <>
+//               <span className="mr-2">📱</span> Select an app to open:
+//             </>
+//           ) : null}
 
-        </h4>
+//         </h4>
 
-        {commandType === 'type' && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-            <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requiresOtp}
-                onChange={toggleOtpCheckbox}
-                className="accent-blue-500"
-              />
-              OTP Verification
-            </label>
+//         {commandType === 'type' && (
+//           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+//             <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
+//               <input
+//                 type="checkbox"
+//                 checked={requiresOtp}
+//                 onChange={toggleOtpCheckbox}
+//                 className="accent-blue-500"
+//               />
+//               OTP Verification
+//             </label>
             
-            {/* Show contact selection only when OTP is checked and no contact selected */}
-            {requiresOtp && !otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
-                <span className="text-sm font-medium text-gray-700 block mb-2">
-                  Select Contact Method:
-                </span>
+//             {/* Show contact selection only when OTP is checked and no contact selected */}
+//             {requiresOtp && !otpVerificationState.contactEntered && (
+//               <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
+//                 <span className="text-sm font-medium text-gray-700 block mb-2">
+//                   Select Contact Method:
+//                 </span>
 
-                {/* ✅ Loading state */}
-                {isTestDataLoading ? (
-                  <div className="text-blue-500 text-sm flex items-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                              stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                    Loading test data...
-                  </div>
-                ) : testData?.phone || testData?.email ? (
-                  <div className="flex gap-2 flex-wrap">
-                    {testData.phone_number && (
-                      <button
-                        onClick={() => handlePhoneNumberClick(testData.phone_number)}
-                        className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
-                      >
-                        📱 Phone: {testData.phone_number}
-                      </button>
-                    )}
-                    {testData.email && (
-                      <button
-                        onClick={() => handleEmailClick()}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-                      >
-                        📧 Email: {testData.email}
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm text-red-600">
-                    ⚠ No contact method found. Please add test data first.
-                  </div>
-                )}
+//                 {/* ✅ Loading state */}
+//                 {isTestDataLoading ? (
+//                   <div className="text-blue-500 text-sm flex items-center gap-2">
+//                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+//                       <circle className="opacity-25" cx="12" cy="12" r="10"
+//                               stroke="currentColor" strokeWidth="4"></circle>
+//                       <path className="opacity-75" fill="currentColor"
+//                             d="M4 12a8 8 0 018-8v8H4z"></path>
+//                     </svg>
+//                     Loading test data...
+//                   </div>
+//                 ) : testData?.phone || testData?.email ? (
+//                   <div className="flex gap-2 flex-wrap">
+//                     {testData.phone_number && (
+//                       <button
+//                         onClick={() => handlePhoneNumberClick(testData.phone_number)}
+//                         className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
+//                       >
+//                         📱 Phone: {testData.phone_number}
+//                       </button>
+//                     )}
+//                     {testData.email && (
+//                       <button
+//                         onClick={() => handleEmailClick()}
+//                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
+//                       >
+//                         📧 Email: {testData.email}
+//                       </button>
+//                     )}
+//                   </div>
+//                 ) : (
+//                   <div className="text-sm text-red-600">
+//                     ⚠ No contact method found. Please add test data first.
+//                   </div>
+//                 )}
 
-                <div className="mt-2 text-xs text-gray-600">
-                  Click on a contact method to proceed
-                </div>
-              </div>
-            )}       
+//                 <div className="mt-2 text-xs text-gray-600">
+//                   Click on a contact method to proceed
+//                 </div>
+//               </div>
+//             )}       
 
-            {/* Show selected contact and allow changing */}
-            {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-green-700">
-                    ✅ Selected: {otpVerificationState.enteredContact}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setContactSelected(false);
-                      setOtpVerificationState(prev => ({
-                        ...prev,
-                        contactEntered: false,
-                        enteredContact: ''
-                      }));
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Change Contact
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+//             {/* Show selected contact and allow changing */}
+//             {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
+//               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+//                 <div className="flex items-center justify-between">
+//                   <div className="text-sm text-green-700">
+//                     ✅ Selected: {otpVerificationState.enteredContact}
+//                   </div>
+//                   <button
+//                     onClick={() => {
+//                       setContactSelected(false);
+//                       setOtpVerificationState(prev => ({
+//                         ...prev,
+//                         contactEntered: false,
+//                         enteredContact: ''
+//                       }));
+//                     }}
+//                     className="text-xs text-blue-600 hover:text-blue-800 underline"
+//                   >
+//                     Change Contact
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         )}
 
-        <p className="text-xs text-gray-600">
-          Found {suggestions.length} matching {commandType === 'open' ? 'apps' : 'elements'}
-          {suggestions.some(s => s.isDuplicate) && 
-            " (highlighted items have duplicate names)"}
-          {lastClickCoordinates && commandType !== 'open' && " (ordered by proximity to last click)"}
-        </p>
-      </div>
-      <ul className="divide-y divide-gray-100">
-        {suggestions.map((suggestion, index) => (
-          <li 
-            key={`${suggestion.id}-${index}`}
-            className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-            }`}
-            tabIndex={0}
-            onClick={() => handleSuggestionClick(suggestion)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSuggestionClick(suggestion);
-              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-                e.preventDefault();
-                document.querySelectorAll('.suggestion-item')[index + 1].focus();
-              } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (index > 0) {
-                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
-                } else {
-                  inputRef.current.focus();
-                }
-              } else if (e.key === 'Escape') {
-                setShowSuggestions(false);
-                inputRef.current.focus();
-              }
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-medium">
-                {suggestion.displayName || suggestion.name}
-                {suggestion.usageInfo && (
-                  <span className={`ml-2 text-xs font-semibold ${
-                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-                    'text-green-600'
-                  }`}>
-                    ({suggestion.usageInfo})
-                  </span>
-                )}
-              </span>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  suggestion.type === 'button' || suggestion.tag === 'button' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : suggestion.type === 'input' || suggestion.tag === 'input'
-                      ? 'bg-green-100 text-green-700'
-                      : suggestion.type === 'link' || suggestion.tag === 'a'
-                      ? 'bg-purple-100 text-purple-700'
-                      : suggestion.type === 'text'
-                      ? 'bg-gray-100 text-gray-700'
-                      : suggestion.type === 'app'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {suggestion.type || suggestion.tag || "Element"}
-                </span>
-              </div>
-            </div>
+//         <p className="text-xs text-gray-600">
+//           Found {suggestions.length} matching {commandType === 'open' ? 'apps' : 'elements'}
+//           {suggestions.some(s => s.isDuplicate) && 
+//             " (highlighted items have duplicate names)"}
+//           {lastClickCoordinates && commandType !== 'open' && " (ordered by proximity to last click)"}
+//         </p>
+//       </div>
+//       <ul className="divide-y divide-gray-100">
+//         {suggestions.map((suggestion, index) => (
+//           <li 
+//             key={`${suggestion.id}-${index}`}
+//             className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+//               suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+//               suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+//               suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+//               suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+//               suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+//               suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+//               suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+//             }`}
+//             tabIndex={0}
+//             onClick={() => handleSuggestionClick(suggestion)}
+//             onKeyDown={(e) => {
+//               if (e.key === 'Enter') {
+//                 handleSuggestionClick(suggestion);
+//               } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+//                 e.preventDefault();
+//                 document.querySelectorAll('.suggestion-item')[index + 1].focus();
+//               } else if (e.key === 'ArrowUp') {
+//                 e.preventDefault();
+//                 if (index > 0) {
+//                   document.querySelectorAll('.suggestion-item')[index - 1].focus();
+//                 } else {
+//                   inputRef.current.focus();
+//                 }
+//               } else if (e.key === 'Escape') {
+//                 setShowSuggestions(false);
+//                 inputRef.current.focus();
+//               }
+//             }}
+//           >
+//             <div className="flex justify-between items-center">
+//               <span className="font-medium">
+//                 {suggestion.displayName || suggestion.name}
+//                 {suggestion.usageInfo && (
+//                   <span className={`ml-2 text-xs font-semibold ${
+//                     suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+//                     suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+//                     suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+//                     'text-green-600'
+//                   }`}>
+//                     ({suggestion.usageInfo})
+//                   </span>
+//                 )}
+//               </span>
+//               <div className="flex items-center gap-2">
+//                 <span className={`text-xs px-2 py-1 rounded-full ${
+//                   suggestion.type === 'button' || suggestion.tag === 'button' 
+//                       ? 'bg-blue-100 text-blue-700' 
+//                       : suggestion.type === 'input' || suggestion.tag === 'input'
+//                       ? 'bg-green-100 text-green-700'
+//                       : suggestion.type === 'link' || suggestion.tag === 'a'
+//                       ? 'bg-purple-100 text-purple-700'
+//                       : suggestion.type === 'text'
+//                       ? 'bg-gray-100 text-gray-700'
+//                       : suggestion.type === 'app'
+//                       ? 'bg-orange-100 text-orange-700'
+//                       : 'bg-gray-100 text-gray-700'
+//                 }`}>
+//                   {suggestion.type || suggestion.tag || "Element"}
+//                 </span>
+//               </div>
+//             </div>
             
-            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-              {suggestion.type === 'app' ? (
-                <span>Package: {suggestion.packageName}</span>
-              ) : (
-                <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-              )}
-              {suggestion.isDuplicate && !suggestion.usageInfo && (
-                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                  Multiple matches
-                </span>
-              )}
-              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  Near last click
-                </span>
-              )}
-            </div>
+//             <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+//               {suggestion.type === 'app' ? (
+//                 <span>Package: {suggestion.packageName}</span>
+//               ) : (
+//                 <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+//               )}
+//               {suggestion.isDuplicate && !suggestion.usageInfo && (
+//                 <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+//                   Multiple matches
+//                 </span>
+//               )}
+//               {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+//                 <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+//                   Near last click
+//                 </span>
+//               )}
+//             </div>
             
-            {/* Extra details to help distinguish elements */}
-            {suggestion.text && (
-              <div className="text-xs text-gray-500 mt-1 truncate">
-                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
+//             {/* Extra details to help distinguish elements */}
+//             {suggestion.text && (
+//               <div className="text-xs text-gray-500 mt-1 truncate">
+//                 Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+//               </div>
+//             )}
+//           </li>
+//         ))}
+//       </ul>
+//     </div>
+//   );
+// };
 
 const InstructionModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -4253,6 +4783,1570 @@ const ElementSelectionModal = () => {
   );
 };
 
+const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
+  // console.log("🔧 Starting OTP replacement...");
+  // console.log("🔧 Original step description:", otpReplacementModal.step.description);
+  // console.log("🔧 New OTP value:", newOtp);
+  // console.log("🔧 Original step:", otpReplacementModal.step);
+  
+  // Step 1: Fix the description replacement
+  let updatedDescription = otpReplacementModal.step.description;
+  
+  // Try multiple replacement strategies
+  if (/\d{4,8}/.test(updatedDescription)) {
+    // Strategy 1: Replace existing 4-8 digit numbers
+    updatedDescription = updatedDescription.replace(/\d{4,8}/, newOtp);
+    console.log("✅ Strategy 1: Replaced existing digits");
+  } else if (/otp/i.test(updatedDescription)) {
+    // Strategy 2: Replace "OTP" word with actual OTP
+    updatedDescription = updatedDescription.replace(/otp/i, newOtp);
+    console.log("✅ Strategy 2: Replaced 'OTP' word");
+  } else if (/number/i.test(updatedDescription)) {
+    // Strategy 3: Replace "number" word with OTP
+    updatedDescription = updatedDescription.replace(/number/i, newOtp);
+    console.log("✅ Strategy 3: Replaced 'number' word");
+  } else {
+    // Strategy 4: Create completely new description
+    updatedDescription = `type ${newOtp}`;
+    console.log("✅ Strategy 4: Created new description");
+  }
+  
+  console.log("🔧 Final updated description:", updatedDescription);
+  
+  // Step 2: Create the updated step with ALL necessary properties
+  const updatedStep = {
+    ...otpReplacementModal.step,
+    value: newOtp,
+    description: updatedDescription,
+    // CRITICAL: Keep the element selection
+    selectedElement: otpReplacementModal.step.selectedElement,
+    coordinates: otpReplacementModal.step.coordinates
+  };
+  
+  console.log("🔧 Final updated step:", updatedStep);
+  
+  // Step 3: Update the testSteps array
+  setTestSteps(prev => {
+    const existingIndex = prev.findIndex(step => step.id === updatedStep.id);
+    if (existingIndex >= 0) {
+      // Update existing
+      return prev.map(step => step.id === updatedStep.id ? updatedStep : step);
+    } else {
+      // Add new step
+      return [...prev, updatedStep];
+    }
+  });
+  
+  // Step 4: Close the modal
+  setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null });
+  
+  // Step 5: Execute the current step with proper validation
+  const currentIndex = otpReplacementModal.stepIndex;
+  console.log("🚀 Executing OTP step at index:", currentIndex);
+
+  const validationResult = validateStepAgainstResponse(updatedStep, otpReplacementModal.currentPageData.omniparser_data || otpReplacementModal.currentPageData.coordinates);
+
+  if (!validationResult.isValid) {
+    console.error("❌ OTP step validation failed - element not found on current page");
+    
+    // Open edit modal instead of alert
+    openEditModal(
+      updatedStep,
+      "OTP input field not found on current page",
+      otpReplacementModal.currentPageData,
+      currentIndex,
+      otpReplacementModal.currentPageData?.screenshot
+    );
+    return;
+  }
+
+  // Handle multiple matches - same logic as handleNextStep
+  if (validationResult.matches.length > 1) {
+    console.log(`⚠️ OTP step has multiple matches. Awaiting user selection.`);
+
+    handleMultipleMatches(validationResult.matches, updatedStep.description, async (selectedElement) => {
+      if (selectedElement) {
+        const stepWithElement = {
+          ...updatedStep,
+          selectedElement: selectedElement,
+          coordinates: selectedElement.coordinates || selectedElement.click_point
+        };
+
+        // Update testSteps with selected element
+        setTestSteps(prev => prev.map(step => 
+          step.id === updatedStep.id ? stepWithElement : step
+        ));
+
+        // Execute with selected element
+        const executionResult = await executeStep(stepWithElement, currentIndex);
+        console.log("✅ OTP Step execution result (Multiple Match):", executionResult);
+        
+        // Update the step with execution result
+        setTestSteps(prev => prev.map(step => 
+          step.id === stepWithElement.id ? { ...step, ...executionResult } : step
+        ));
+        
+        // Only proceed if execution was successful
+        if (executionResult && executionResult.status === 'complete') {
+          console.log("✅ OTP step succeeded, moving to next step");
+          setCurrentGeneratedStepIndex(currentIndex);
+          handleNextStep(executionResult, currentIndex);
+        } else {
+          console.error(`❌ OTP Step failed:`, executionResult);
+          
+          // Open edit modal for OTP execution errors
+          openEditModal(
+            stepWithElement,
+            executionResult?.error || 'OTP step execution failed',
+            otpReplacementModal.currentPageData,
+            currentIndex
+          );
+        }
+      } else {
+        console.error(`❌ No element selected for OTP step with multiple matches.`);
+      }
+    });
+  } else {
+    // Single match - auto-select
+    console.log(`🎯 Auto-selecting single matching element for OTP step:`, validationResult.matches[0]);
+    
+    const stepWithElement = {
+      ...updatedStep,
+      selectedElement: validationResult.matches[0],
+      coordinates: validationResult.matches[0].coordinates || validationResult.matches[0].click_point
+    };
+
+    // Update testSteps with selected element
+    setTestSteps(prev => prev.map(step => 
+      step.id === updatedStep.id ? stepWithElement : step
+    ));
+
+    // Execute with selected element
+    executeStep(stepWithElement, currentIndex).then(result => {
+      console.log("✅ OTP Step execution result (Single Match):", result);
+      
+      // Update the step with execution result
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepWithElement.id ? { ...step, ...result } : step
+      ));
+      
+      // Only proceed if execution was successful
+      if (result && result.status === 'complete') {
+        console.log("✅ OTP step succeeded, moving to next step");
+        setCurrentGeneratedStepIndex(currentIndex);
+        handleNextStep(result, currentIndex);
+      } else {
+        console.error(`❌ OTP Step failed:`, result);
+        
+        // Open edit modal for OTP execution errors
+        openEditModal(
+          stepWithElement,
+          result?.error || 'OTP step execution failed',
+          otpReplacementModal.currentPageData,
+          currentIndex
+        );
+      }
+    }).catch(error => {
+      console.error('❌ OTP step execution error:', error);
+      alert(`OTP execution failed: ${error.message}`);
+    });
+  }
+};
+
+const OtpReplacementModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  otpStep, 
+  fetchedOtp, 
+  stepIndex,
+  onRetryFetch 
+}) => {
+  const [editedOtp, setEditedOtp] = useState(fetchedOtp || '');
+  const [isOtpNotFound, setIsOtpNotFound] = useState(!fetchedOtp || fetchedOtp.trim() === '');
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  useEffect(() => {
+    setEditedOtp(fetchedOtp || '');
+    setIsOtpNotFound(!fetchedOtp || fetchedOtp.trim() === '');
+  }, [fetchedOtp]);
+
+  const handleRetryOtp = async () => {
+    setIsRetrying(true);
+    try {
+      if (onRetryFetch) {
+        const retryResult = await onRetryFetch(otpStep);
+        if (retryResult?.otpValue) {
+          setEditedOtp(retryResult.otpValue);
+          setIsOtpNotFound(false);
+        }
+      }
+    } catch (error) {
+      console.error('Retry failed:', error);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (editedOtp && editedOtp.trim()) {
+      onConfirm(editedOtp.trim());
+    }
+  };
+
+  if (!isOpen || !otpStep) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">
+                {typeof stepIndex === 'number' ? stepIndex + 1 : '?'}
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              OTP Step Detected
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Step Description */}
+        <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+          <p className="text-sm text-gray-600 mb-1">
+            <span className="font-medium">Step {typeof stepIndex === 'number' ? stepIndex + 1 : '?'}:</span>
+          </p>
+          <p className="text-purple-800 font-medium">
+            {otpStep.description}
+          </p>
+        </div>
+
+        {/* OTP Status */}
+        {isOtpNotFound ? (
+          <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.866 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <span className="text-red-700 font-medium">OTP Not Found</span>
+            </div>
+            <p className="text-red-600 text-sm">
+              No OTP received yet. Please enter manually or retry fetching.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-green-700 font-medium">OTP Found</span>
+            </div>
+            <p className="text-green-600 text-sm mb-2">
+              <span className="font-medium">Fetched OTP:</span> {fetchedOtp}
+            </p>
+          </div>
+        )}
+
+        {/* OTP Input */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            OTP Value:
+          </label>
+          <input
+            type="text"
+            value={editedOtp}
+            onChange={(e) => setEditedOtp(e.target.value)}
+            placeholder={isOtpNotFound ? "Enter OTP manually" : "Edit OTP if needed"}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+            maxLength="8"
+          />
+        </div>
+
+        {/* OTP Type Info */}
+        <div className="mb-6 flex items-center space-x-2 text-sm text-gray-600">
+          <div className={`px-2 py-1 rounded text-xs font-medium ${
+            otpStep.otpType === 'phone' 
+              ? 'bg-blue-100 text-blue-800' 
+              : 'bg-orange-100 text-orange-800'
+          }`}>
+            {otpStep.otpType === 'phone' ? '📱 Phone OTP' : '📧 Email OTP'}
+          </div>
+          <span>•</span>
+          <span>Step {typeof stepIndex === 'number' ? stepIndex + 1 : '?'} of {otpStep.totalSteps || 'N/A'}</span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex space-x-3">
+          {isOtpNotFound && onRetryFetch && (
+            <button
+              onClick={handleRetryOtp}
+              disabled={isRetrying}
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isRetrying ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Retrying...</span>
+                </span>
+              ) : (
+                '🔄 Retry Fetch'
+              )}
+            </button>
+          )}
+          
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          
+          <button
+            onClick={handleConfirm}
+            disabled={!editedOtp || editedOtp.trim() === ''}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Replace & Execute
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const isStepWaitingForOtp = (step) => {
+  return step.requiresOtp &&
+    (step.otpReceived || step.otpPending || step.otpWaiting || otpCheckLoadingStepId === step.id || otpVerificationState.stepId === step.id);
+};
+
+const openEditModal = (step, errorMessage, pageData, stepIndex, screenshot) => {
+  setEditStepModal({
+    isOpen: true,
+    step: step,
+    errorMessage: errorMessage,
+    currentPageData: pageData,
+    stepIndex: stepIndex,
+    currentScreenshot: screenshot, 
+  });
+};
+
+const handleEditStep = async (updatedStep) => {
+  const { currentPageData, stepIndex } = editStepModal;
+    
+  // console.log("🔧 handleEditStep called:");
+  // console.log("  - Updated step:", updatedStep);
+  // console.log("  - Has selectedElement:", !!updatedStep.selectedElement);
+  // console.log("  - Has coordinates:", !!updatedStep.coordinates);
+  // console.log("  - Step index:", stepIndex);
+
+  // Close modal first
+  setEditStepModal({
+    isOpen: false,
+    step: null,
+    errorMessage: '',
+    currentPageData: null,
+    stepIndex: null,
+    suggestions: []
+  });
+  
+  // CHECK: Is this step already in testSteps?
+  const stepExists = testSteps.find(s => s.id === updatedStep.id);
+  
+  if (stepExists) {
+    setTestSteps(prev => prev.map(s => s.id === updatedStep.id ? updatedStep : s));
+  } else {
+    setTestSteps(prev => [...prev, updatedStep]);
+  }
+  
+  // 🔔 ADD OTP CHECK BEFORE EXECUTION (same logic as handleNextStep)
+  if (updatedStep.action === "type" && 
+      updatedStep.isActualOtpStep === true && 
+      (updatedStep.description.toLowerCase().includes('otp'))) {
+    
+    console.log(`🔐 Manual OTP Step ${stepIndex + 1} detected! User will enter OTP manually.`);
+    
+    // Look for existing OTP in testSteps
+    let fetchedOtp = '';
+    
+    for (let i = testSteps.length - 1; i >= 0; i--) {
+      const step = testSteps[i];
+      if (step.otpReceived === true && 
+          step.otpValue && 
+          step.otpType === updatedStep.otpType) {
+        fetchedOtp = step.otp || step.otpValue;  
+        console.log(`📱 Found existing OTP from step ${i}:`, fetchedOtp);
+        break;
+      }
+    }
+  }
+  
+  // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+  if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+    console.log(`🔐 OTP Required for edited step ${stepIndex + 1}:`, updatedStep.otpType);
+
+    setOtpVerificationState(prev => ({
+      ...prev,
+      waitingForOtp: true,
+      enteredContact: updatedStep.value,
+      contactEntered: true,
+      stepId: updatedStep.id
+    }));
+
+    await updateOtpSessionTime({
+      contactEntered: true,
+      enteredContact: updatedStep.value
+    });
+  }
+  
+  // Execute the updated step
+  try {
+    console.log("🚀 About to execute edited step:", updatedStep);
+    const executionResult = await executeStep(updatedStep, stepIndex);
+    
+    if (executionResult && executionResult.status === 'complete') {
+      setTestSteps(prev => prev.map(s => 
+        s.id === updatedStep.id ? { ...s, ...executionResult } : s
+      ));
+      
+      // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
+      if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
+        console.log(`🔐 OTP Required after edited Step ${stepIndex + 1}:`, updatedStep.otpType);
+
+        const isPhoneNumberStep = updatedStep.otpType === 'phone';
+        const isEmailStep = updatedStep.otpType === 'email';
+
+        setOtpVerificationState(prev => ({
+          ...prev,
+          waitingForOtp: true,
+          enteredContact: updatedStep.value,
+          contactEntered: true,
+          stepId: updatedStep.id
+        }));
+
+        const otpFetchResult = await callGetOtpAfterExecution(
+          updatedStep.id,
+          isPhoneNumberStep,
+          isEmailStep,
+          true,
+          isEmailStep ? senderEmail : null
+        );
+
+        if (otpFetchResult?.status === 'success') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otp: otpFetchResult.otp,
+              otpValue: otpFetchResult.otp,
+              otpReceived: true
+            } : step
+          ));
+        } else if (otpFetchResult?.status === 'waiting') {
+          setTestSteps(prev => prev.map(step =>
+            step.id === updatedStep.id ? {
+              ...step,
+              otpWaiting: true,
+              otpPending: false,
+              otpReceived: false
+            } : step
+          ));
+        }
+      }
+      
+      setCurrentGeneratedStepIndex(stepIndex);
+      handleNextStep(executionResult, stepIndex);
+    } else {
+      console.error("❌ Edited step execution failed:", executionResult);
+      openEditModal(
+        updatedStep,
+        executionResult?.error || 'Step execution failed after edit',
+        currentPageData,
+        stepIndex
+      );
+    }
+  } catch (error) {
+    console.error('❌ Error executing edited step:', error);
+    openEditModal(
+      updatedStep,
+      error.message || 'Unexpected error during step execution',
+      currentPageData,
+      stepIndex
+    );
+  }
+};
+
+const handleSkipStep = () => {
+  const { stepIndex } = editStepModal;
+  
+  // Close modal
+  setEditStepModal({
+    isOpen: false,
+    step: null,
+    errorMessage: '',
+    currentPageData: null,
+    stepIndex: null,
+    suggestions: []
+  });
+  
+  // Continue with next step
+  setCurrentGeneratedStepIndex(stepIndex);
+  
+  // Create dummy successful result to continue flow
+  const dummyResult = { status: 'complete', skipped: true };
+  handleNextStep(dummyResult, stepIndex);
+};
+
+const EditStepModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave,
+  onSkip,
+  step, 
+  errorMessage,
+  onEditTextChange,
+  elementData,
+  testSteps,
+  previouslySelectedElements,
+  currentScreenshot,
+  installedApps,       
+  appsLoaded,         
+  testCaseInfo,    
+  setPendingOpenCommand 
+}) => {
+  const [editableStep, setEditableStep] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [commandType, setCommandType] = useState('');
+  const [selectedElement, setSelectedElement] = useState(null);
+  // const [showScrollSuggestions, setShowScrollSuggestions] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  const [showPositionControls, setShowPositionControls] = useState(false);
+  
+  // Position adjustment increments (in pixels)
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+  
+  const inputRef = useRef(null);
+  const screenshotContainerRef = useRef(null);
+
+  // Initialize modal state
+  useEffect(() => {
+    if (isOpen && step) {
+      setEditableStep(step.description);
+      // Reset all suggestion states
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setCommandType('');
+      setSelectedElement(null);
+      // Focus input after modal animation
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen, step]);
+
+  useEffect(() => {
+    if (showPositionControls && selectedSuggestion && screenshotContainerRef.current) {
+      const container = screenshotContainerRef.current;
+      const currentPos = adjustedPosition || selectedSuggestion.click_point;
+      
+      // Center the view on the current position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [showPositionControls, selectedSuggestion, adjustedPosition ]);
+
+  useEffect(() => {
+    if (!editableStep) {
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (selectedElement && editableStep.includes(selectedElement.displayName || selectedElement.name)) {
+      return;
+    }
+
+    if (selectedElement && commandType === 'open' && selectedElement.type === 'app') {
+      if (editableStep.includes(selectedElement.displayName || selectedElement.name)) {
+        setShowSuggestions(false);
+        return;
+      }
+    } else if (selectedElement && editableStep.includes(selectedElement.displayName || selectedElement.name)) {
+      return;
+    }
+
+    const inputText = editableStep.trim().toLowerCase();
+    const words = inputText.split(' ');
+    const firstWord = words[0];
+    
+    // Handle compound commands like "scroll up", "swipe left", etc.
+    const fullCommand = (firstWord === 'scroll' || firstWord === 'swipe') && words.length > 1 
+        ? words.slice(0, firstWord === 'swipe' && words[1] === 'long' ? 3 : 2).join(' ')
+        : firstWord;
+
+    console.log("Command detected:", fullCommand);
+
+    // Check if the command is a click, type, or open command
+    if (['click', 'type', 'verify', 'get', 'open', 'select', 'scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
+      setCommandType(fullCommand);
+
+      // Handle scroll and swipe commands - no suggestions needed
+      if (['scroll up', 'scroll down', 'swipe left', 'swipe right', 'swipe long left', 'swipe long right'].includes(fullCommand)) {
+        setShowSuggestions(false);
+        return;
+      }
+
+      // Handle wait command
+      if (firstWord === 'wait') {
+        setShowSuggestions(false);
+        return;
+      }
+
+      // Handle open command for apps
+      if (firstWord === 'open') {
+        console.log("Open command detected!");
+        console.log("installedApps:", installedApps);
+      
+        if (!appsLoaded || !installedApps || Object.keys(installedApps).length === 0) {
+          console.log("Apps not yet loaded, setting pending command");
+          setPendingOpenCommand(true);
+          setShowSuggestions(false);
+          return;
+        }
+
+        if (installedApps && typeof installedApps === 'object' && Object.keys(installedApps).length > 0) {
+          setPendingOpenCommand(false);
+          const appSearchTerm = words.length > 1 ? words.slice(1).join(' ').toLowerCase() : '';
+            
+          let appSuggestions = Object.entries(installedApps).map(([appName, packageName]) => ({
+            id: packageName,
+            name: appName,
+            displayName: appName,
+            packageName: packageName,
+            type: 'app',
+            click_point: [0, 0]
+          }));
+
+          // Filter for Chrome only if platform is Mobile
+          if (testCaseInfo.platform === 'Mobile') {
+            console.log("Platform is Mobile, filtering for Chrome only");
+            console.log("Before Chrome filter:", appSuggestions);
+            
+            appSuggestions = appSuggestions.filter(app => 
+              app.name.toLowerCase().includes('chrome') ||
+              app.packageName.toLowerCase().includes('chrome')
+            );
+            
+            console.log("After Chrome filter:", appSuggestions);
+            console.log("testCaseInfo.platform:", testCaseInfo.platform);
+          } else if (appSearchTerm) {
+            appSuggestions = appSuggestions.filter(app => 
+              app.name.toLowerCase().includes(appSearchTerm) ||
+              app.packageName.toLowerCase().includes(appSearchTerm)
+            );
+          }
+            
+          console.log("App suggestions created:", appSuggestions);
+          setSuggestions(appSuggestions);
+          setShowSuggestions(appSuggestions.length > 0);
+        } else {
+          console.log("No installed apps available");
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+        return; 
+      }
+
+      // Handle element-based commands (click, type, verify, get, select)
+      if (!elementData || !elementData.elements || elementData.elements.length === 0) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+      
+      let searchTerm = '';
+      let direction = null;
+      
+      // Extract search term based on command type with directional support
+      if ((firstWord === 'click' || firstWord === 'select') && words.length > 1) {
+        const directions = ['left', 'right', 'above', 'below', 'bottom'];
+        const directionIndex = words.findIndex(word => directions.includes(word));
+        
+        if (directionIndex !== -1 && directionIndex === 1) {
+          // Format: "click left login" or "click above submit button"
+          direction = words[1];
+          searchTerm = words.slice(2).join(' ').toLowerCase();
+        } else {
+          // Normal click: "click login"
+          searchTerm = words.slice(1).join(' ').toLowerCase();
+        }
+      } else if (firstWord === 'type') {
+        const inIndex = inputText.indexOf(' in ');
+        if (inIndex !== -1) {
+          const afterIn = inputText.substring(inIndex + 4).trim();
+          const afterInWords = afterIn.split(' ');
+          
+          const directions = ['left', 'right', 'above', 'below', 'bottom'];
+          if (directions.includes(afterInWords[0])) {
+            // Format: "type password in right username"
+            direction = afterInWords[0];
+            searchTerm = afterInWords.slice(1).join(' ');
+          } else {
+            // Normal type: "type password in username"
+            searchTerm = afterIn;
+          }
+        }
+      } else if (firstWord === 'verify' && words.length > 1) {
+        searchTerm = words.slice(1).join(' ').toLowerCase();
+      } else if (firstWord === 'get' && words.length > 1) {
+        searchTerm = words.slice(1).join(' ').toLowerCase();
+      }
+
+      const lastClickCoordinates = testSteps.length > 0 ? 
+        getLastClickCoordinates(testSteps) : null;
+      
+      const suggestedElements = getSuggestedElements(
+        elementData.elements,
+        searchTerm,
+        firstWord,
+        { 
+          previouslySelectedElements, 
+          lastClickCoordinates,
+          direction 
+        }
+      );
+      
+      setSuggestions(suggestedElements);
+      setShowSuggestions(suggestedElements.length > 0);
+
+    } else if (firstWord === 'scroll') {
+      setCommandType('scroll');
+      setShowSuggestions(false);
+    } else if (firstWord === 'swipe') {
+      setCommandType('swipe');
+      setShowSuggestions(false);
+    } else if (firstWord === 'search') {
+      setCommandType('search');
+      setShowSuggestions(false);
+    } else {
+      console.log("Unrecognized command, hiding suggestions");
+      setShowSuggestions(false);
+    }
+
+  }, [editableStep, elementData, previouslySelectedElements, testSteps, selectedElement, installedApps, commandType, appsLoaded, testCaseInfo?.platform, setPendingOpenCommand]);
+
+  const handleInputChange = (value) => {
+    setEditableStep(value);
+    // onEditTextChange?.(value);
+  };
+
+const handleSuggestionClick = (suggestion) => {
+  const inputText = editableStep.trim();
+  const words = inputText.split(' ');
+  const firstWord = words[0];
+  
+  let newStepText = '';
+  let modifiedSuggestion = { ...suggestion }; 
+  
+  if (firstWord === 'click' || firstWord === 'select') {
+    // Check if there's a direction word
+    const directions = ['left', 'right', 'above', 'below', 'bottom'];
+    const directionIndex = words.findIndex(word => directions.includes(word));
+    
+    if (directionIndex !== -1 && directionIndex === 1) {
+      const direction = words[1];
+      // Keep the direction: "click left [element]"
+      newStepText = `${commandType} ${direction} ${suggestion.displayName || suggestion.name}`;
+      
+      // *** THIS IS THE MISSING PART - CALCULATE OFFSET COORDINATES ***
+      const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+      const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+      
+      // Update the suggestion object with offset coordinates
+      modifiedSuggestion = {
+        ...suggestion,
+        click_point: offsetCoords,
+        coordinates: offsetCoords,
+        hasDirectionalOffset: true,
+        originalCoordinates: originalCoords,
+        direction: direction
+      };
+    } else {
+      // Normal click
+      newStepText = `${commandType} ${suggestion.displayName || suggestion.name}`;
+    }
+  } else if (firstWord === 'type') {
+    // Keep the existing text part and update the target with direction if present
+    const inIndex = inputText.indexOf(' in ');
+    if (inIndex !== -1) {
+      const beforeIn = inputText.substring(0, inIndex + 4);
+      const afterIn = inputText.substring(inIndex + 4).trim();
+      const afterInWords = afterIn.split(' ');
+      
+      const directions = ['left', 'right', 'above', 'below', 'bottom'];
+      if (directions.includes(afterInWords[0])) {
+        const direction = afterInWords[0];
+        // Keep the direction: "type password in right [element]"
+        newStepText = `${beforeIn}${direction} ${suggestion.displayName || suggestion.name}`;
+        
+        // *** APPLY OFFSET FOR TYPE COMMANDS TOO ***
+        const originalCoords = suggestion.click_point || suggestion.coordinates || [0, 0];
+        const offsetCoords = calculateDirectionalOffset(originalCoords, direction);
+        
+        modifiedSuggestion = {
+          ...suggestion,
+          click_point: offsetCoords,
+          coordinates: offsetCoords,
+          hasDirectionalOffset: true,
+          originalCoordinates: originalCoords,
+          direction: direction
+        };
+      } else {
+        // Normal type
+        newStepText = `${beforeIn}${suggestion.displayName || suggestion.name}`;
+      }
+    } else {
+      newStepText = `type in ${suggestion.displayName || suggestion.name}`;
+    }
+  } else if (firstWord === 'verify') {
+    newStepText = `verify ${suggestion.displayName || suggestion.name}`;
+  } else if (firstWord === 'get') {
+    newStepText = `get ${suggestion.displayName || suggestion.name}`;
+  }
+  
+  setEditableStep(newStepText);
+  setSelectedElement(modifiedSuggestion); 
+  setShowSuggestions(false);
+};
+
+const calculateDirectionalOffset = (coordinates, direction) => {
+  const [x, y] = coordinates;
+  const offset = 40; 
+  
+  switch (direction.toLowerCase()) {
+    case 'above':
+      return [x, y - offset];
+    case 'below':
+    case 'bottom':
+      return [x, y + offset];
+    case 'left':
+      return [x - offset, y];
+    case 'right':
+      return [x + offset, y];
+    default:
+      return [x, y];
+  }
+};
+
+  const handleSave = () => {
+    if (editableStep.trim()) {
+      onEditTextChange?.(editableStep.trim());
+      onSave(editableStep.trim(), selectedElement);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const shouldShowNoDataMessage =
+    suggestions.length === 0 &&
+    newStep?.trim() !== '' &&
+    ['click', 'type', 'verify', 'get', 'select'].some(cmd => newStep.startsWith(cmd));
+
+  if (shouldShowNoDataMessage) {
+    return (
+      <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
+        <div className="p-4 text-center">
+          <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+            <AlertCircle className="w-5 h-5 mr-2" />
+            No element data available
+          </div>
+          <p className="text-sm text-gray-700 mb-3">
+            Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
+          </p>
+          <p className="text-xs text-gray-600 mb-3">
+            💡 Tip: If elements aren't detected properly, you can use the position adjustment controls to fine-tune the click location.
+          </p>
+          <button 
+            onClick={() => setShowSuggestions(false)}
+            className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+    if (!selectedSuggestion) return;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.click_point;
+    let newPos = [...currentPos];
+    
+    switch (direction) {
+      case 'up':
+        newPos[1] -= step;
+        break;
+      case 'down':
+        newPos[1] += step;
+        break;
+      case 'left':
+        newPos[0] -= step;
+        break;
+      case 'right':
+        newPos[0] += step;
+        break;
+      default:
+        return;
+    }
+    
+    // Ensure position doesn't go negative
+    newPos[0] = Math.max(0, newPos[0]);
+    newPos[1] = Math.max(0, newPos[1]);
+    
+    setAdjustedPosition(newPos);
+    
+    // Scroll the container to keep the crosshair visible
+    setTimeout(() => {
+      if (screenshotContainerRef.current) {
+        const container = screenshotContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate if we need to scroll to keep the crosshair visible
+        const targetX = newPos[0] - containerRect.width / 2;
+        const targetY = newPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }
+    }, 0);
+  };
+
+  const handleSuggestionSelect = (suggestion) => {
+    setSelectedSuggestion(suggestion);
+    setAdjustedPosition(null);
+    setShowPositionControls(true);
+  };
+
+  const handleConfirmSelection = () => {
+    if (selectedSuggestion) {
+      const finalPosition = adjustedPosition || selectedSuggestion.click_point;
+      const updatedSuggestion = {
+        ...selectedSuggestion,
+        click_point: finalPosition
+      };
+      handleSuggestionClick(updatedSuggestion);
+      setShowPositionControls(false);
+      setSelectedSuggestion(null);
+      setAdjustedPosition(null);
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const resetPosition = () => {
+    setAdjustedPosition(null);
+  };
+
+  const PositionControls = () => {
+    if (!selectedSuggestion) return null;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.click_point;
+    const originalPos = selectedSuggestion.click_point;
+    const hasAdjustment = adjustedPosition && 
+      (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                  <p className="text-sm text-blue-600">
+                    Element: {selectedSuggestion.displayName || selectedSuggestion.name}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCancelSelection}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex h-[calc(600px-140px)]">
+            {/* Screenshot Panel */}
+            
+            <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+              <div className="relative inline-block min-w-full min-h-full">
+                {currentScreenshot ? (
+                  <img 
+                    src={currentScreenshot} 
+                    alt="Page Screenshot" 
+                    className="max-w-none"
+                    style={{ cursor: 'crosshair' }}
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const scaleX = e.target.naturalWidth / rect.width;
+                      const scaleY = e.target.naturalHeight / rect.height;
+                      const x = (e.clientX - rect.left) * scaleX;
+                      const y = (e.clientY - rect.top) * scaleY;
+                      setAdjustedPosition([Math.round(x), Math.round(y)]);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📸</div>
+                      <p>Screenshot not available</p>
+                      <p className="text-sm">Use the controls to adjust position</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Original Position Indicator */}
+                <div 
+                  className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${originalPos[0]}px`, 
+                    top: `${originalPos[1]}px` 
+                  }}
+                >
+                  <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Original Position
+                  </div>
+                </div>
+                
+                {/* Current/Adjusted Position Indicator */}
+                <div 
+                  className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ 
+                    left: `${currentPos[0]}px`, 
+                    top: `${currentPos[1]}px` 
+                  }}
+                >
+                  {/* Crosshair */}
+                  <div className="absolute inset-0">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                    <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                  </div>
+                  
+                  {/* Center dot */}
+                  <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                  
+                  {/* Label */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                  </div>
+                  
+                  {/* Connection line to original if adjusted */}
+                  {/* {hasAdjustment && (
+                    <svg className="absolute pointer-events-none" style={{
+                      left: `${originalPos[0] - currentPos[0]}px`,
+                      top: `${originalPos[1] - currentPos[1]}px`,
+                      width: `${Math.abs(currentPos[0] - originalPos[0]) + 20}px`,
+                      height: `${Math.abs(currentPos[1] - originalPos[1]) + 20}px`
+                    }}>
+                      <line
+                        x1={currentPos[0] > originalPos[0] ? 10 : Math.abs(currentPos[0] - originalPos[0]) + 10}
+                        y1={currentPos[1] > originalPos[1] ? 10 : Math.abs(currentPos[1] - originalPos[1]) + 10}
+                        x2={currentPos[0] > originalPos[0] ? Math.abs(currentPos[0] - originalPos[0]) + 10 : 10}
+                        y2={currentPos[1] > originalPos[1] ? Math.abs(currentPos[1] - originalPos[1]) + 10 : 10}
+                        stroke="#fbbf24"
+                        strokeWidth="2"
+                        strokeDasharray="5,5"
+                        markerEnd="url(#arrowhead)"
+                      />
+                      <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                refX="0" refY="3.5" orient="auto">
+                          <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+                        </marker>
+                      </defs>
+                    </svg>
+                  )} */}
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Panel */}
+            <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                {/* Position Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current:</span>
+                      <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original:</span>
+                      <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                    </div>
+                    {hasAdjustment && (
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600">Offset:</span>
+                        <span className="font-mono text-green-600">
+                          x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Directional Controls */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Up Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move up (fine)"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('up')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move up"
+                      >
+                        ⬆
+                      </button>
+                    </div>
+                    
+                    {/* Left and Right Arrows */}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move left (fine)"
+                        >
+                          ⬅
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('left')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move left"
+                        >
+                          ⬅
+                        </button>
+                      </div>
+                      
+                      <div className="mx-2 text-center">
+                        <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                          🎯
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">Target</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('right')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move right"
+                        >
+                          ➡
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move right (fine)"
+                        >
+                          ➡
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Down Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('down')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move down"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move down (fine)"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {hasAdjustment && (
+                    <button
+                      onClick={resetPosition}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                    >
+                      🔄 Reset to Original
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleConfirmSelection}
+                    className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    ✓ Use This Position
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelSelection}
+                    className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Quick Instructions */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Click directly on the screenshot</li>
+                    <li>• Use arrow buttons for precise control</li>
+                    <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                    <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                  </ul>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="bg-red-50 border-b border-red-200 px-6 py-4 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"></path>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-red-800">Step Failed</h3>
+              </div>
+              <button 
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="px-6 py-4 flex-1 overflow-y-auto">
+            {/* Error Details */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Error Details:</p>
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-red-700 text-sm font-medium">{errorMessage}</p>
+              </div>
+            </div>
+
+            {/* Original Step */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Original Step:</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                <p className="text-gray-700 text-sm font-mono">{step?.description}</p>
+              </div>
+            </div>
+
+            {/* Edit Step */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Edit Step:</p>
+              <div className="relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editableStep}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !showSuggestions) {
+                      e.preventDefault();
+                      handleSave();
+                    } else if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
+                      e.preventDefault();
+                      document.querySelector('.modal-suggestion-item')?.focus();
+                    }
+                  }}
+                  className="w-full p-3 border border-gray-200 rounded-md text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter step description..."
+                />
+
+                {showSuggestions && ['click', 'type', 'verify', 'get','select'].includes(commandType) && (
+                  <div className="absolute z-20 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-1 max-h-72 overflow-y-auto animate-fadeIn">
+                    <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
+                      <h4 className="font-medium text-purple-800 flex items-center">
+                        
+                        {commandType === 'click' && (
+                          <>
+                            <span className="mr-2">🖱️</span> Click on an element:
+                      
+                            {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                          </>
+                        )}
+                        {commandType === 'select' && (
+                          <>
+                            <span className="mr-2">🖱️</span> select on an element:
+                      
+                            {editableStep.includes(' left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' below ') || editableStep.includes(' bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                          </>
+                        )}
+                        {commandType === 'type' && (
+                          <>
+                            <span className="mr-2">⌨️</span> Select where to type:
+                            
+                            {editableStep.includes(' in left ') && <span className="ml-2 text-blue-600">(← 60px left offset)</span>}
+                            {editableStep.includes(' in right ') && <span className="ml-2 text-blue-600">(→ 60px right offset)</span>}
+                            {editableStep.includes(' in above ') && <span className="ml-2 text-blue-600">(↑ 60px above offset)</span>}
+                            {(editableStep.includes(' in below ') || editableStep.includes(' in bottom ')) && <span className="ml-2 text-blue-600">(↓ 60px below offset)</span>}
+                        </>
+                        )}
+                        {commandType === 'verify' && (
+                          <>
+                            <span className="mr-2">✓</span> Verify text on page:
+                          </>
+                        )}
+                        {commandType === 'get' && (
+                          <>
+                            <span className="mr-2">📄</span> Get text from page:
+                          </>
+                        )}
+                      </h4>
+
+                      {!showPositionControls && (
+                        <p className="text-xs text-gray-600 mt-2">
+                          Found {suggestions.length} matching elements
+                          {suggestions.some(s => s.isDuplicate) && 
+                            " (highlighted items have duplicate names)"}
+                          {lastClickCoordinates && " (ordered by proximity to last click)"}
+                          <br />
+                          💡 Click on an element to fine-tune its position if needed
+                        </p>
+                      )}
+
+
+                      {/* Position Controls */}
+                      {/* {showPositionControls && <PositionControls />} */}
+
+                    </div>
+
+                    {suggestions.length === 0 ? (
+                      <div className="p-4 text-center">
+                        <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
+                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                          </svg>
+                          No element data available
+                        </div>
+                        <p className="text-sm text-gray-700">
+                          Please check your network connection and try again.
+                        </p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {suggestions.map((suggestion, index) => (
+                          <li 
+                            key={`modal-${suggestion.id}-${index}`}
+                            className={`modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
+                              suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                              suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
+                              suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
+                              suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
+                              suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
+                              suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
+                              suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
+                            }`}
+                            tabIndex={0}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSuggestionSelect(suggestion);
+                              } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
+                                e.preventDefault();
+                                document.querySelectorAll('.suggestion-item')[index + 1].focus();
+                              } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                if (index > 0) {
+                                  document.querySelectorAll('.suggestion-item')[index - 1].focus();
+                                } else {
+                                  inputRef.current.focus();
+                                }
+                              } else if (e.key === 'Escape') {
+                                setShowSuggestions(false);
+                                inputRef.current.focus();
+                              }
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium">
+                                {suggestion.displayName || suggestion.name}
+                                {suggestion.usageInfo && (
+                                  <span className={`ml-2 text-xs font-semibold ${
+                                    suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                                    suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
+                                    suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
+                                    'text-green-600'
+                                  }`}>
+                                    ({suggestion.usageInfo})
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSuggestionSelect(suggestion);
+                                  }}
+                                  >
+                                  🎯 Adjust
+                                </span>
+
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  suggestion.type === 'button' || suggestion.tag === 'button' 
+                                      ? 'bg-blue-100 text-blue-700' 
+                                      : suggestion.type === 'input' || suggestion.tag === 'input'
+                                      ? 'bg-green-100 text-green-700'
+                                      : suggestion.type === 'link' || suggestion.tag === 'a'
+                                      ? 'bg-purple-100 text-purple-700'
+                                      : suggestion.type === 'text'
+                                      ? 'bg-gray-100 text-gray-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {suggestion.type || suggestion.tag || "Element"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                              <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
+                              {suggestion.isDuplicate && !suggestion.usageInfo && (
+                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                                  Multiple matches
+                                </span>
+                              )}
+                              {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  Near last click
+                                </span>
+                              )}
+                            </div>
+                            
+                            {suggestion.text && (
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="bg-gray-50 px-6 py-4 rounded-b-lg flex justify-between">
+            <button 
+              onClick={onSkip} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Skip Step
+            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!editableStep.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showPositionControls && <PositionControls />}
+    </>
+  );
+};
+
   return ( 
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
@@ -4407,7 +6501,7 @@ const ElementSelectionModal = () => {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
-                          addTestStep();
+                          // addTestStep();
                         } else if (e.key === 'Escape') {
                           setShowSuggestions(false);
                         } else if (e.key === 'ArrowDown' && showSuggestions && suggestions.length > 0) {
@@ -4420,7 +6514,7 @@ const ElementSelectionModal = () => {
                       className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 text-sm transition-all duration-200"
                     />
                     <button
-                      onClick={addTestStep}
+                      // onClick={addTestStep}
                       disabled={isProcessing || !newStep.trim()}
                       className="p-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors duration-200"
                     >
@@ -4432,11 +6526,8 @@ const ElementSelectionModal = () => {
                     </button>
                   </div>
                   
-                  {/* Suggestions dropdown with animation */}
-                  <SuggestionsDropdown />
-                  
                   {/* Command type indicator */}
-                  {commandType && (
+                  {/* {commandType && (
                     <div className="text-xs text-gray-500 mt-1">
                       {commandType === 'click' && "Click command - type element name or select from suggestions"}
                       {commandType === 'type' && "Type command - format: 'type [text] in [element]'"}
@@ -4445,7 +6536,7 @@ const ElementSelectionModal = () => {
                       {commandType === 'scroll' && "Scroll command - choose direction (scroll up / scroll down)"}
                       {commandType === 'swipe' && "Swipe command - choose direction (swipe left / swipe right / swipe long left / swipe long right)"}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -4506,7 +6597,7 @@ const ElementSelectionModal = () => {
                         )}
 
                         {/* OTP Display Section - Only for OTP steps */}
-                        {(step.otpReceived || step.otpPending || otpCheckLoadingStepId === step.id) && (
+                        {isStepWaitingForOtp(step) && (
                           <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center">
@@ -4561,6 +6652,42 @@ const ElementSelectionModal = () => {
                                 </div>
                               </div>
                             )}
+                          </div>
+                        )}
+
+                        {isOtpRefreshing && (
+                          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+                            <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-6 text-center transition-all duration-300 ease-out scale-100 opacity-100">
+                              <h2 className="text-lg font-semibold text-purple-600 mb-2">
+                                Still waiting for OTP
+                              </h2>
+                              <p className="text-gray-700 mb-4">
+                                You haven’t received the OTP yet. Rechecking automatically before executing the step...
+                              </p>
+
+                              <div className="flex justify-center">
+                                <svg
+                                  className="animate-spin h-6 w-6 text-purple-600"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                  />
+                                </svg>
+                              </div>
+                            </div>
                           </div>
                         )}
 
@@ -4666,220 +6793,6 @@ const ElementSelectionModal = () => {
                     ))
                   )}
 
-                  {emailConfirmationModal.isOpen && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg mx-4">
-                        <h3 className="text-xl font-bold text-purple-700 mb-6 text-center">
-                          Email & Password Configuration
-                        </h3>
-
-                        <div className="space-y-5">
-                        {/* Email Display/Edit */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Email Address: <span className="text-red-500">*</span>
-                          </label>
-                          {emailConfirmationModal.isEditing ? (
-                            <>
-                              {/* Email Input (shown in edit mode) */}
-                              <input
-                                type="email"
-                                value={emailConfirmationModal.userEmail}
-                                onChange={(e) =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    userEmail: e.target.value,
-                                  }))
-                                }
-                                className="w-full px-4 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                placeholder="Enter your email address"
-                              />
-
-                              {/* Password Input (shown only in edit mode) */}
-                              <div className="mt-4">
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                  App Password: <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                  <input
-                                    type={emailConfirmationModal.showPassword ? "text" : "password"}
-                                    value={emailConfirmationModal.email_app_password || ''}
-                                    onChange={(e) =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        email_app_password: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full px-4 py-2 pr-10 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                                    placeholder="Enter app password"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setEmailConfirmationModal((prev) => ({
-                                        ...prev,
-                                        showPassword: !prev.showPassword,
-                                      }))
-                                    }
-                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                                  >
-                                    {/* Eye icon */}
-                                    {emailConfirmationModal.showPassword ? (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M18.364 18.364L16.95 16.95m1.414-1.414L9.878 9.878m8.486 8.486L8.464 8.464" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-md border">
-                              <span className="text-gray-800">
-                                {emailConfirmationModal.userEmail || 'No email added'}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    isEditing: true,
-                                  }))
-                                }
-                                className="text-purple-600 text-sm font-medium hover:underline"
-                              >
-                                {emailConfirmationModal.userEmail ? 'Edit' : 'Add'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                          {/* OTP Receiver Choice */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Where will you receive OTP? <span className="text-red-500">*</span>
-                            </label>
-                            <div className="flex space-x-4">
-                              <button
-                                onClick={() => {
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    otpReceiver: 'email',
-                                  }));
-                                  setEmailModalError(''); 
-                                }}
-                                className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                  emailConfirmationModal.otpReceiver === 'email'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-100 text-gray-700'
-                                }`}
-                              >
-                                Email
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEmailConfirmationModal((prev) => ({
-                                    ...prev,
-                                    otpReceiver: 'phone',
-                                  }));
-                                  setEmailModalError(''); 
-                                }}
-                                className={`flex-1 px-4 py-2 rounded-md text-center font-medium ${
-                                  emailConfirmationModal.otpReceiver === 'phone'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-100 text-gray-700'
-                                }`}
-                              >
-                                Phone Number
-                              </button>
-                            </div>
-                            
-                            {emailModalError && (
-                              <p className="text-red-500 text-sm mt-2">{emailModalError}</p>
-                            )}
-                          </div>
-
-                        {/* Sender Email Option */}
-                        <div className="mt-4">
-                          <button
-                            onClick={() => setShowSenderEmailField(prev => !prev)}
-                            className="text-purple-600 text-sm hover:text-purple-800"
-                          >
-                            {showSenderEmailField ? "Hide Sender Email Field" : "Add Sender Email (Optional)"}
-                          </button>
-
-                          {showSenderEmailField && (
-                            <div className="mt-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Sender Email for OTP (Optional):
-                              </label>
-                              <input
-                                type="email"
-                                value={senderEmail}
-                                onChange={(e) => setSenderEmail(e.target.value)}
-                                placeholder="e.g., no-reply@example.com"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-600"
-                              />
-                            </div>
-                          )}
-                        </div>          
-
-                          {/* Info Note */}
-                          <div className="bg-purple-50 p-4 rounded-md">
-                            <p className="text-sm text-purple-700">
-                              <strong>Note:</strong> App password is required for email OTP verification.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Modal Buttons */}
-                        <div className="flex justify-end space-x-3 mt-8">
-                          <button
-                            onClick={() => {
-                              setEmailConfirmationModal({
-                                isOpen: false,
-                                userEmail: '',
-                                email_app_password: '',
-                                otpReceiver: '',
-                                isEditing: false,
-                                showPassword: false,
-                              });
-                              setEmailModalError(''); 
-                            }}
-                            className="px-5 py-2 text-gray-700 hover:text-gray-900"
-                          >
-                            Cancel
-                          </button>
-                          {emailConfirmationModal.isEditing ? (
-                            <button
-                              onClick={() =>
-                                setEmailConfirmationModal((prev) => ({
-                                  ...prev,
-                                  isEditing: false,
-                                }))
-                              }
-                              className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                            >
-                              Save
-                            </button>
-                          ) : (
-                            <button
-                              onClick={handleEmailConfirmation}
-                              className="px-5 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                              disabled={!emailConfirmationModal.userEmail.trim() || !emailConfirmationModal.email_app_password?.trim()}
-                            >
-                              Confirm & Continue
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                 </div>
                 <ImageModal />
                 <VerificationConfirmation
@@ -4909,6 +6822,72 @@ const ElementSelectionModal = () => {
             </div>
 
             <ElementSelectionModal />
+            <OtpReplacementModal
+              isOpen={otpReplacementModal.isOpen}
+              onClose={() => setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null })}
+              onConfirm={handleOtpReplaceConfirm}
+              otpStep={otpReplacementModal.step}
+              fetchedOtp={otpReplacementModal.fetchedOtp}
+              stepIndex={otpReplacementModal.stepIndex}
+            />
+            <EditStepModal
+              isOpen={editStepModal.isOpen}
+              onClose={() => setEditStepModal({
+                isOpen: false,
+                step: null,
+                errorMessage: '',
+                currentPageData: null,
+                stepIndex: null,
+                suggestions: [],
+                currentEditText: ''
+              })}
+              onSave={(newStepDescription, selectedElementData) => {
+                // console.log("🔧 EditModal onSave called:");
+                // console.log("  - New description:", newStepDescription);
+                // console.log("  - Selected element:", selectedElementData);
+                
+                const updatedStep = {
+                  ...editStepModal.step,
+                  description: newStepDescription,
+                  // ✅ CRITICAL: Add the selected element and coordinates
+                  selectedElement: selectedElementData,
+                  coordinates: selectedElementData?.coordinates || selectedElementData?.click_point
+                };
+                
+                console.log("🔧 Updated step with element:", updatedStep);
+                
+                if (selectedElementData) {
+                  const elementKey = `${selectedElementData.name || selectedElementData.displayName}_${editStepModal.stepIndex}`;
+                  setPreviouslySelectedElements(prev => ({
+                    ...prev,
+                    [elementKey]: {
+                      element: selectedElementData,
+                      stepIndex: editStepModal.stepIndex,
+                      timestamp: Date.now()
+                    }
+                  }));
+
+                  if (selectedElementData.click_point) {
+                    setLastClickCoordinates(selectedElementData.click_point);
+                  }
+                }
+                
+                handleEditStep(updatedStep);
+              }}
+              onSkip={handleSkipStep}
+              step={editStepModal.step}
+              errorMessage={editStepModal.errorMessage}
+              onEditTextChange={(text) => setEditStepModal(prev => ({
+                ...prev, 
+                currentEditText: text
+              }))}
+              elementData={elementData}
+              testSteps={testSteps}
+              previouslySelectedElements={previouslySelectedElements}
+              testData={testData}
+              // isTestDataLoading={isTestDataLoading}
+              currentScreenshot={editStepModal.currentScreenshot}
+            />
 
           </div>
         </div>

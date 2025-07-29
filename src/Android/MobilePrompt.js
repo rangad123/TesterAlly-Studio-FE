@@ -867,7 +867,8 @@ const validateStepAgainstResponse = (step, omniparserData) => {
   const words = stepDesc.split(' ');
   const actionType = words[0];
 
-  if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
+ 
+  if (actionType === 'click' || actionType === 'type' || actionType === 'select' || actionType === 'verify' || actionType === 'get') {
     let searchTerm = '';
     let direction = null;
     const OFFSET_PX = 40; 
@@ -900,6 +901,12 @@ const validateStepAgainstResponse = (step, omniparserData) => {
         // Normal type: "type password in username"
         searchTerm = afterIn;
       }
+    } else if (actionType === 'verify' && words.length > 1) {
+      // ✅ NEW: Handle verify commands: "verify success message"
+      searchTerm = words.slice(1).join(' ');
+    } else if (actionType === 'get' && words.length > 1) {
+      // ✅ NEW: Handle get commands: "get username field"
+      searchTerm = words.slice(1).join(' ');
     }
 
     if (!searchTerm) return { isValid: false, matches: [] };
@@ -908,6 +915,7 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     const searchTermWords = searchTerm.split(' ').filter(word => word.length > 0);
 
     // console.log(`🔍 Validation Debug:`);
+    console.log(`   Action: "${actionType}"`);
     // console.log(`   Search term: "${searchTerm}"`);
     // console.log(`   Key terms:`, keyTerms);
     // console.log(`   Search words:`, searchTermWords);
@@ -1070,6 +1078,19 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     };
   }
 
+  // ✅ ADDED: Handle commands that don't need element validation (open, scroll, swipe, wait)
+  if (actionType === 'open') {
+    console.log(`📱 Open command detected - no element validation needed`);
+    return { isValid: true, matches: [], isOpenCommand: true };
+  }
+
+  if (['scroll', 'swipe', 'wait'].includes(actionType)) {
+    console.log(`🔄 ${actionType} command detected - no element validation needed`);
+    return { isValid: true, matches: [], isMovementCommand: true };
+  }
+
+  // For any other commands, return valid but no matches
+  console.log(`❓ Unknown command: ${actionType}`);
   return { isValid: true, matches: [] };
 };
 
@@ -1363,66 +1384,67 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
             ));
 
-              // 🔔 OTP Logic start
-              if (stepWithElement.requiresOtp && stepWithElement.otpType) {
-                console.log(`🔐 OTP Required after Step ${nextIndex + 1}:`, stepWithElement.otpType);
+            // 🔔 OTP Logic start
+            if (stepWithElement.requiresOtp && stepWithElement.otpType) {
+              console.log(`🔐 OTP Required after Step ${nextIndex + 1}:`, stepWithElement.otpType);
 
-                const isPhoneNumberStep = stepWithElement.otpType === 'phone';
-                const isEmailStep = stepWithElement.otpType === 'email';
+              const isPhoneNumberStep = stepWithElement.otpType === 'phone';
+              const isEmailStep = stepWithElement.otpType === 'email';
 
-                console.log("📧 Debug stepWithElement:", {
-                  userEmail: senderEmail,
-                  value: stepWithElement.value,
-                  otpType: stepWithElement.otpType,
-                  requiresOtp: stepWithElement.requiresOtp
-                });
-                
-                setOtpVerificationState(prev => ({
-                  ...prev,
-                  waitingForOtp: true,
-                  enteredContact: stepWithElement.value,
-                  contactEntered: true,
-                  stepId: stepWithElement.id
-                }));
+              console.log("📧 Debug stepWithElement:", {
+                userEmail: senderEmail,
+                value: stepWithElement.value,
+                otpType: stepWithElement.otpType,
+                requiresOtp: stepWithElement.requiresOtp
+              });
+              
+              setOtpVerificationState(prev => ({
+                ...prev,
+                waitingForOtp: true,
+                enteredContact: stepWithElement.value,
+                contactEntered: true,
+                stepId: stepWithElement.id
+              }));
 
-                await new Promise(resolve => setTimeout(resolve, 0));
-                console.log("🟩 Before get OTP call - otpVerificationState:", otpVerificationState);
+              await new Promise(resolve => setTimeout(resolve, 0));
+              console.log("🟩 Before get OTP call - otpVerificationState:", otpVerificationState);
 
-                const otpFetchResult = await callGetOtpAfterExecution(
-                  stepWithElement.id,
-                  isPhoneNumberStep,
-                  isEmailStep,
-                  true,
-                  isEmailStep ? senderEmail : null
-                );
+              const otpFetchResult = await callGetOtpAfterExecution(
+                stepWithElement.id,
+                isPhoneNumberStep,
+                isEmailStep,
+                true,
+                isEmailStep ? senderEmail : null
+              );
 
-                if (otpFetchResult?.status === 'success') {
-                  setTestSteps(prev => prev.map(step =>
-                    step.id === stepWithElement.id ? {
-                      ...step,
-                      otp: otpFetchResult.otp,           
-                      otpValue: otpFetchResult.otp,
-                      otpReceived: true
-                    } : step
-                  ));
-                } else if (otpFetchResult?.status === 'waiting') {
-                  setTestSteps(prev => prev.map(step =>
-                    step.id === stepWithElement.id ? {
-                      ...step,
-                      otpWaiting: true,
-                      otpPending: false,
-                      otpReceived: false
-                    } : step
-                  ));
-                  console.log('OTP still pending, will check again in next execution cycle if needed');
-                } else if (otpFetchResult?.status === 'failed') {
-                  console.error('Failed to get OTP. Please resend OTP manually.');
-                } else {
-                  console.error('OTP fetch failed due to API error or unexpected response. Halting next step.');
-                  return;  
-                }
-
+              if (otpFetchResult?.status === 'success') {
+                setTestSteps(prev => prev.map(step =>
+                  step.id === stepWithElement.id ? {
+                    ...step,
+                    otp: otpFetchResult.otp,           
+                    otpValue: otpFetchResult.otp,
+                    otpReceived: true
+                  } : step
+                ));
+              } else if (otpFetchResult?.status === 'waiting') {
+                setTestSteps(prev => prev.map(step =>
+                  step.id === stepWithElement.id ? {
+                    ...step,
+                    otpWaiting: true,
+                    otpPending: false,
+                    otpReceived: false
+                  } : step
+                ));
+                console.log('OTP still pending, will check again in next execution cycle if needed');
+              } else if (otpFetchResult?.status === 'failed') {
+                console.error('Failed to get OTP. Please resend OTP manually.');
+              } else {
+                console.error('OTP fetch failed due to API error or unexpected response. Halting next step.');
+                return;  
               }
+
+            }
+
             setCurrentGeneratedStepIndex(nextIndex);
             handleNextStep(nextExecutionResult, nextIndex);
           } else {

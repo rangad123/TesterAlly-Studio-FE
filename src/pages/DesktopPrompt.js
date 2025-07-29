@@ -1424,7 +1424,8 @@ const validateStepAgainstResponse = (step, omniparserData) => {
   const words = stepDesc.split(' ');
   const actionType = words[0];
 
-  if (actionType === 'click' || actionType === 'type' || actionType === 'select' ) {
+ 
+  if (actionType === 'click' || actionType === 'type' || actionType === 'select' || actionType === 'verify' || actionType === 'get') {
     let searchTerm = '';
     let direction = null;
     const OFFSET_PX = 40; 
@@ -1457,6 +1458,12 @@ const validateStepAgainstResponse = (step, omniparserData) => {
         // Normal type: "type password in username"
         searchTerm = afterIn;
       }
+    } else if (actionType === 'verify' && words.length > 1) {
+      // ✅ NEW: Handle verify commands: "verify success message"
+      searchTerm = words.slice(1).join(' ');
+    } else if (actionType === 'get' && words.length > 1) {
+      // ✅ NEW: Handle get commands: "get username field"
+      searchTerm = words.slice(1).join(' ');
     }
 
     if (!searchTerm) return { isValid: false, matches: [] };
@@ -1465,6 +1472,7 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     const searchTermWords = searchTerm.split(' ').filter(word => word.length > 0);
 
     // console.log(`🔍 Validation Debug:`);
+    console.log(`   Action: "${actionType}"`);
     // console.log(`   Search term: "${searchTerm}"`);
     // console.log(`   Key terms:`, keyTerms);
     // console.log(`   Search words:`, searchTermWords);
@@ -1627,6 +1635,19 @@ const validateStepAgainstResponse = (step, omniparserData) => {
     };
   }
 
+  // ✅ ADDED: Handle commands that don't need element validation (open, scroll, swipe, wait)
+  if (actionType === 'open') {
+    console.log(`📱 Open command detected - no element validation needed`);
+    return { isValid: true, matches: [], isOpenCommand: true };
+  }
+
+  if (['scroll', 'swipe', 'wait'].includes(actionType)) {
+    console.log(`🔄 ${actionType} command detected - no element validation needed`);
+    return { isValid: true, matches: [], isMovementCommand: true };
+  }
+
+  // For any other commands, return valid but no matches
+  console.log(`❓ Unknown command: ${actionType}`);
   return { isValid: true, matches: [] };
 };
 
