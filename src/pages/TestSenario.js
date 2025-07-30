@@ -470,6 +470,140 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
     });
   };
 
+  const parseStepText = (stepText) => {
+    const lowerText = stepText.toLowerCase().trim();
+    
+    // Scroll actions
+    const scrollOptions = [
+      "scroll up", "scroll up a bit", "scroll up a lot", "scroll up fast",
+      "scroll down", "scroll down a bit", "scroll down a lot", "scroll down fast",
+      "scroll left", "scroll right"
+    ];
+    
+    const swipeOptions = [
+      "swipe left", "swipe right", "swipe long left", "swipe long right"
+    ];
+    
+    // Check for scroll actions
+    for (const scrollAction of scrollOptions) {
+      if (lowerText.startsWith(scrollAction)) {
+        const remainingText = stepText.replace(new RegExp(`^${scrollAction}`, 'i'), '').trim();
+        return {
+          action: scrollAction, 
+          target: remainingText || null, 
+          value: null
+        };
+      }
+    }
+    
+    // Check for swipe actions
+    for (const swipeAction of swipeOptions) {
+      if (lowerText.startsWith(swipeAction)) {
+        const remainingText = stepText.replace(new RegExp(`^${swipeAction}`, 'i'), '').trim();
+        return {
+          action: swipeAction, 
+          target: remainingText || null,
+          value: null
+        };
+      }
+    }
+    
+    // Search action - just "search" as action, everything else as target
+    if (lowerText.startsWith('search')) {
+      return {
+        action: 'search',
+        target: stepText.replace(/^search\s+/i, '').trim(), // Everything after "search"
+        value: null
+      };
+    }
+    
+    // Click action
+    if (lowerText.startsWith('click')) {
+      return {
+        action: 'click',
+        target: stepText.replace(/^click\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Type action
+    if (lowerText.startsWith('type')) {
+      const match = stepText.match(/type\s+(.+?)\s+in\s+(.+)/i);
+      if (match) {
+        return {
+          action: 'type',
+          target: match[2].trim(),
+          value: match[1].trim()
+        };
+      }
+      return {
+        action: 'type',
+        target: null,
+        value: stepText.replace(/^type\s+/i, '').trim()
+      };
+    }
+    
+    // Open action
+    if (lowerText.startsWith('open')) {
+      return {
+        action: 'open',
+        target: stepText.replace(/^open\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Get action
+    if (lowerText.startsWith('get')) {
+      return {
+        action: 'get',
+        target: stepText.replace(/^get\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Verify action
+    if (lowerText.startsWith('verify')) {
+      return {
+        action: 'verify',
+        target: stepText.replace(/^verify\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Select action
+    if (lowerText.startsWith('select')) {
+      return {
+        action: 'select',
+        target: stepText.replace(/^select\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Wait action
+    if (lowerText.startsWith('wait')) {
+      const match = stepText.match(/wait\s+(\d+)\s*(seconds?|mins?|minutes?)?/i);
+      if (match) {
+        return {
+          action: 'wait',
+          target: match[2] || 'seconds',
+          value: match[1]
+        };
+      }
+      return {
+        action: 'wait',
+        target: stepText.replace(/^wait\s+/i, '').trim(),
+        value: null
+      };
+    }
+    
+    // Default case
+    return {
+      action: null,
+      target: null,
+      value: null
+    };
+  };
+
   const handleInsertStep = (index) => {
     setInsertingStepIndex(index);
     setInsertingStepText('');
@@ -478,8 +612,31 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
   const handleSaveInsert = () => {
     if (insertingStepText.trim()) {
       const updatedSteps = [...extractedSteps];
-      updatedSteps.splice(insertingStepIndex + 1, 0, insertingStepText.trim());
-      setExtractedSteps(updatedSteps);
+      
+      const isObjectFormat = extractedSteps.some(step => typeof step === 'object' && step.step);
+      
+      let newStep;
+      if (isObjectFormat) {
+        const parsedStep = parseStepText(insertingStepText.trim());
+        newStep = {
+          step: insertingStepIndex + 2,
+          ...parsedStep,
+          command: insertingStepText.trim(),
+          description: insertingStepText.trim()
+        };
+      }
+      
+      updatedSteps.splice(insertingStepIndex + 1, 0, newStep);
+      
+      // Re-index all steps to maintain proper numbering
+      const reindexedSteps = updatedSteps.map((step, index) => {
+        if (typeof step === 'object') {
+          return { ...step, step: index + 1 };
+        }
+        return step;
+      });
+      
+      setExtractedSteps(reindexedSteps);
     }
     setInsertingStepIndex(null);
     setInsertingStepText('');
@@ -503,7 +660,8 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
     if (typeof updatedSteps[editingStepIndex] === 'object') {
       updatedSteps[editingStepIndex] = {
         ...updatedSteps[editingStepIndex],
-        command: editingStepText
+        command: editingStepText,
+        description: editingStepText 
       };
     } else {
       updatedSteps[editingStepIndex] = editingStepText;
@@ -520,7 +678,16 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
 
   const handleDeleteStep = (index) => {
     const updatedSteps = extractedSteps.filter((_, i) => i !== index);
-    setExtractedSteps(updatedSteps);
+    
+    // Reindex object-type steps
+    const reindexedSteps = updatedSteps.map((step, newIndex) => {
+      if (typeof step === 'object') {
+        return { ...step, step: newIndex + 1 };
+      }
+      return step;
+    });
+    
+    setExtractedSteps(reindexedSteps);
   };
 
   const handleClearSteps = () => {
@@ -758,84 +925,100 @@ const handleOtpCheckboxChange = (e) => {
                     <div className="max-h-64 md:max-h-80 overflow-y-auto space-y-3">
                       {extractedSteps.map((step, index) => (
                         <div key={index}>
-                          {/* Existing Step */}
-                          <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
-                            <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                              {typeof step === 'object' ? step.step : index + 1}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              {editingStepIndex === index ? (
-                                <div className="space-y-2">
-                                  <textarea
-                                    value={editingStepText}
-                                    onChange={(e) => setEditingStepText(e.target.value)}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-none"
-                                    rows="2"
-                                  />
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={handleSaveEdit}
-                                      className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <p className="text-sm md:text-base text-gray-800 break-words">
-                                    {typeof step === 'object' ? step.command : step}
-                                  </p>
-                                  {typeof step === 'object' && step.action && (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        {step.action}
-                                      </span>
-                                      {step.target && (
-                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          Target: {step.target}
-                                        </span>
-                                      )}
-                                      {step.value && (
-                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                          Value: {step.value}
-                                        </span>
-                                      )}
+                          <div className="group">
+                            {/* Existing Step */}
+                            <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                              <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
+                                {typeof step === 'object' ? step.step : index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {editingStepIndex === index ? (
+                                  <div className="space-y-2">
+                                    <textarea
+                                      value={editingStepText}
+                                      onChange={(e) => setEditingStepText(e.target.value)}
+                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-none"
+                                      rows="2"
+                                    />
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={handleSaveEdit}
+                                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={handleCancelEdit}
+                                        className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
                                     </div>
-                                  )}
-                                </>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-sm md:text-base text-gray-800 break-words">
+                                      {typeof step === 'object' ? (step.command || step.description) : step}
+                                    </p>
+                                    {typeof step === 'object' && step.action && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                          {step.action}
+                                        </span>
+                                        {step.target && (
+                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            Target: {step.target}
+                                          </span>
+                                        )}
+                                        {step.value && (
+                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Value: {step.value}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              {editingStepIndex !== index && (
+                                <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <button
+                                    onClick={() => handleEditStep(index)}
+                                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Edit step"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteStep(index)}
+                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                    title="Delete step"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                  </button>
+                                </div>
                               )}
                             </div>
-                            {editingStepIndex !== index && (
-                              <div className="flex-shrink-0 flex gap-1">
+
+                            {/* Add Step Button */}
+                            {insertingStepIndex !== index && (
+                              <div className="flex justify-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button
-                                  onClick={() => handleEditStep(index)}
-                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                                  title="Edit step"
+                                  onClick={() => handleInsertStep(index)}
+                                  className="group flex items-center justify-center w-8 h-8 bg-white border-2 border-dashed border-gray-300 rounded-full hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+                                  title={`Add step after step ${index + 1}`}
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteStep(index)}
-                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                  title="Delete step"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                  <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                   </svg>
                                 </button>
                               </div>
                             )}
                           </div>
-
                           {/* Insert Step Form */}
                           {insertingStepIndex === index && (
                             <div className="mt-2 p-3 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50">
@@ -869,21 +1052,6 @@ const handleOtpCheckboxChange = (e) => {
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-
-                          {/* Add Step Button */}
-                          {insertingStepIndex !== index && (
-                            <div className="flex justify-center mt-2">
-                              <button
-                                onClick={() => handleInsertStep(index)}
-                                className="group flex items-center justify-center w-8 h-8 bg-white border-2 border-dashed border-gray-300 rounded-full hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
-                                title={`Add step after step ${index + 1}`}
-                              >
-                                <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                </svg>
-                              </button>
                             </div>
                           )}
                         </div>
