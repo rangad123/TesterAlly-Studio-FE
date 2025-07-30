@@ -299,31 +299,57 @@ useEffect(() => {
     setIsProcessing(true);
   
     try {
-        const stepDescription = stepObj.description;
-        
-        const words = stepDescription.trim().split(' ');
-        const actionType = (words[0].toLowerCase() === 'scroll' || words[0].toLowerCase() === 'swipe') && words.length > 1
-          ? (words[0].toLowerCase() === 'swipe' && words[1] && words[1].toLowerCase() === 'long' && words.length > 2
-              ? words.slice(0, 3).join(' ').toLowerCase()
-              : words.slice(0, 2).join(' ').toLowerCase())
-          : words[0].toLowerCase();
+        const stepDescription = stepObj.description.trim();
+        const words = stepDescription.split(' ');
+        let actionType = words[0].toLowerCase();
+
+        // --- SCROLL HANDLING ---
+        if (actionType === 'scroll' && words.length >= 2) {
+          const second = words[1]?.toLowerCase();  // up/down
+          const third = words[2]?.toLowerCase();   // a (optional)
+          const fourth = words[3]?.toLowerCase();  // bit/lot/fast (optional)
+
+          if ((second === 'up' || second === 'down') && third === 'a' && ['bit', 'lot'].includes(fourth)) {
+            actionType = `scroll ${second} a ${fourth}`;
+          } else if ((second === 'up' || second === 'down') && ['bit', 'lot', 'fast'].includes(third)) {
+            actionType = `scroll ${second} ${third}`;
+          } else {
+            actionType = `scroll ${second}`;
+          }
+        }
+
+        // --- SWIPE HANDLING ---
+        else if (actionType === 'swipe' && words.length >= 2) {
+          const second = words[1]?.toLowerCase();  // long/left/right
+          const third = words[2]?.toLowerCase();   // left/right (if long)
+
+          if (second === 'long' && ['left', 'right'].includes(third)) {
+            actionType = words.slice(0, 3).join(' ').toLowerCase();  // swipe long left
+          } else if (['left', 'right'].includes(second)) {
+            actionType = words.slice(0, 2).join(' ').toLowerCase();  // swipe left
+          }
+        }
 
         words[0] = actionType;
   
         let updatedStepDescription = stepDescription;
-    
-        if (actionType === 'scroll up') {
-          updatedStepDescription = "scroll up";
-          console.log("Converting 'scrollup' to 'scroll_up page'");
-        } else if (actionType === 'scroll down') {
-          updatedStepDescription = "scroll down";
-          console.log("Converting 'scrolldown' to 'scroll_down page'");
-        } else {
-          words[0] = actionType;
-          updatedStepDescription = words.join(' ');
-        }
 
-        console.log("Updated Step Description:", updatedStepDescription); 
+        const validScrollSwipeCommands = [
+          "scroll up",
+          "scroll down",
+          "scroll up a bit",
+          "scroll down a bit",
+          "scroll up a lot",
+          "scroll down a lot",
+          "scroll down fast",
+          "scroll up fast",
+          "swipe left",
+          "swipe right",
+          "swipe long left",
+          "swipe long right"
+        ];
+
+        console.log("Updated Step Description:", updatedStepDescription);
         
         // const stepIndex = testSteps.length;
         if (actionType === 'open') {
@@ -340,10 +366,22 @@ useEffect(() => {
           setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
         } else if (actionType === 'wait') {
           setLoadingMessage(`Step ${stepIndex + 1}: Waiting, please be patient...`);
-        } else if (actionType === 'scroll up') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up, please wait...`);
-        } else if (actionType === 'scroll down') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down, please wait...`);
+        } else if (actionType === 'scroll up fast') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up fast, please wait...`);
+        } else if (actionType === 'scroll up a bit') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up a bit, please wait...`);
+        } else if (actionType === 'scroll up a lot') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up a lot, please wait...`);
+        } else if (actionType === 'scroll down fast') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down fast, please wait...`);
+        } else if (actionType === 'scroll down a bit') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down a bit, please wait...`);
+        } else if (actionType === 'scroll down a lot') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down a lot, please wait...`);
+        } else if (actionType === 'scroll left') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling left, please wait...`);
+        } else if (actionType === 'scroll right') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling right, please wait...`);
         } else if (actionType === 'swipe left') {
           setLoadingMessage(`Step ${stepIndex + 1}: Swiping left, please wait...`);
         } else if (actionType === 'swipe right') {
@@ -574,7 +612,7 @@ useEffect(() => {
               debug_images: data.coordinates?.debug_images || {},
           };
         } 
-        else if (actionType === 'scroll up' || actionType === 'scroll down' || actionType === 'swipe left' || actionType === 'swipe right' || actionType === 'swipe long right' || actionType === 'swipe long left') {
+        else if (validScrollSwipeCommands.includes(actionType)) {
         
           let modifiedCommand = actionType;
 
@@ -1436,7 +1474,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
             } else {
               console.error(`❌ No element selected for Step ${nextIndex + 1} with multiple matches.`);
             }
-          });
+          }, data.screenshot || data.omniparser_data?.screenshot);
         } else {
           console.log(`🎯 Auto-selecting single matching element for Step ${nextIndex + 1}:`, validationResult.matches[0]);
 
@@ -2259,7 +2297,24 @@ const WaitModal = ({ isOpen, onClose, onConfirm }) => {
   );
 };
 
-const handleMultipleMatches = (matches, stepDescription, callback) => {
+const generateDisplayLabel = (currentMatch, allMatches) => {
+  const baseName = currentMatch.displayName || currentMatch.name || currentMatch.text || 'Unknown Element';
+
+  // Count occurrences of this baseName
+  const duplicateCount = allMatches.filter(m =>
+    (m.displayName || m.name || m.text || 'Unknown Element') === baseName
+  ).length;
+
+  if (duplicateCount > 1) {
+    const y = currentMatch.coordinates?.[1] ?? 'N/A';
+    const x = currentMatch.coordinates?.[0] ?? 'N/A';
+    return `${baseName} (Position: X=${x}, Y=${y})`;
+  }
+
+  return baseName;
+};
+
+const handleMultipleMatches = (matches, stepDescription, callback, screenshot) => {
   if (matches.length === 1) {
     // Single match - proceed automatically
     callback(matches[0]);
@@ -2269,10 +2324,16 @@ const handleMultipleMatches = (matches, stepDescription, callback) => {
   // Multiple matches - show modal for user to choose
   const matchOptions = matches.map((match, index) => ({
     index: index,
-    display: `${match.displayName || match.name || match.text || 'Unknown Element'}`,
+    display: generateDisplayLabel(match, matches),
     type: match.type || 'Unknown',
     element: match,
     coordinates: match.coordinates || { x: 0, y: 0, width: 0, height: 0 }
+  }));
+  
+  // ✅ Store screenshot in editStepModal state
+  setEditStepModal(prev => ({
+    ...prev,
+    currentScreenshot: screenshot
   }));
   
   setModalData({
@@ -2383,9 +2444,62 @@ const getElementContext = (element) => {
   return "";
 };
 
-const ElementSelectionModal = () => {
+const ElementSelectionModal = ({currentScreenshot}) => {
   const [selectedElement, setSelectedElement] = useState(null);
   
+  const [showPositionControls, setShowPositionControls] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  
+  // Position adjustment constants
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+  
+  // Add ref for screenshot container
+  const screenshotContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (showPositionControls && screenshotContainerRef.current) {
+      const container = screenshotContainerRef.current;
+      
+      // Get current position - handle both data structures
+      let currentPos = adjustedPosition;
+      
+      if (!currentPos) {
+        // Try selectedSuggestion first (from error modal), then selectedElement (from element modal)
+        const targetElement = selectedSuggestion || selectedElement;
+        
+        if (targetElement) {
+          currentPos = targetElement.click_point || 
+                      targetElement.element?.click_point || 
+                      targetElement.element?.coordinates ||
+                      targetElement.coordinates ||
+                      [0, 0];
+        } else {
+          currentPos = [0, 0];
+        }
+      }
+      
+      // Ensure currentPos is a valid array
+      if (!Array.isArray(currentPos) || currentPos.length < 2) {
+        currentPos = [0, 0];
+      }
+      
+      // Center the view on the current position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [showPositionControls, selectedSuggestion, selectedElement, adjustedPosition]);
+    
   const handleElementSelect = (element) => {
     setSelectedElement(element);
   };
@@ -2412,156 +2526,545 @@ const ElementSelectionModal = () => {
       stepDescription: '',
       callback: null
     });
+    // Reset position adjustment states
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+    if (!selectedSuggestion) return;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    let newPos = [...currentPos];
+    
+    switch (direction) {
+      case 'up':
+        newPos[1] -= step;
+        break;
+      case 'down':
+        newPos[1] += step;
+        break;
+      case 'left':
+        newPos[0] -= step;
+        break;
+      case 'right':
+        newPos[0] += step;
+        break;
+      default:
+        return;
+    }
+    
+    newPos[0] = Math.max(0, newPos[0]);
+    newPos[1] = Math.max(0, newPos[1]);
+    
+    setAdjustedPosition(newPos);
+    
+    // Scroll container to keep crosshair visible
+    setTimeout(() => {
+      if (screenshotContainerRef.current) {
+        const container = screenshotContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const targetX = newPos[0] - containerRect.width / 2;
+        const targetY = newPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }
+    }, 0);
+  };
+
+  const handleAdjustClick = (match, index) => {
+    setSelectedSuggestion(match);
+    setAdjustedPosition(null);
+    setShowPositionControls(true);
+  };
+
+  const handleConfirmAdjustment = () => {
+    if (selectedSuggestion) {
+      const finalPosition = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+      
+      // Update the element with new coordinates
+      const updatedElement = {
+        ...selectedSuggestion.element,
+        click_point: finalPosition,
+        coordinates: finalPosition,
+        isAdjusted: true, 
+        originalPosition: selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates 
+      };
+
+      // Update the matches array
+      const updatedMatches = modalData.matches.map(match => 
+        match.index === selectedSuggestion.index 
+          ? { ...match, element: updatedElement }
+          : match
+      );
+      
+      setModalData(prev => ({ ...prev, matches: updatedMatches }));
+      
+      // Auto-select the adjusted element
+      setSelectedElement({ ...selectedSuggestion, element: updatedElement });
+      
+      // Close position controls
+      setShowPositionControls(false);
+      setSelectedSuggestion(null);
+      setAdjustedPosition(null);
+    }
+  };
+
+  const handleCancelAdjustment = () => {
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const resetPosition = () => {
+    setAdjustedPosition(null);
+  };
+
+  const PositionControls = () => {
+    if (!selectedSuggestion) return null;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    const originalPos = selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    const hasAdjustment = adjustedPosition && 
+      (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                  <p className="text-sm text-blue-600">
+                    Element: {selectedSuggestion.display}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCancelAdjustment}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex h-[calc(600px-140px)]">
+            {/* Screenshot Panel */}
+            <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+              <div className="relative inline-block min-w-full min-h-full">
+                {currentScreenshot ? (
+                  <img 
+                    src={currentScreenshot} 
+                    alt="Page Screenshot" 
+                    className="max-w-none"
+                    style={{ cursor: 'crosshair' }}
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const scaleX = e.target.naturalWidth / rect.width;
+                      const scaleY = e.target.naturalHeight / rect.height;
+                      const x = (e.clientX - rect.left) * scaleX;
+                      const y = (e.clientY - rect.top) * scaleY;
+                      setAdjustedPosition([Math.round(x), Math.round(y)]);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📸</div>
+                      <p>Screenshot not available</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Original Position Indicator */}
+                <div 
+                  className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${originalPos[0]}px`, 
+                    top: `${originalPos[1]}px` 
+                  }}
+                >
+                  <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Original Position
+                  </div>
+                </div>
+                
+                {/* Current/Adjusted Position Indicator */}
+                <div 
+                  className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ 
+                    left: `${currentPos[0]}px`, 
+                    top: `${currentPos[1]}px` 
+                  }}
+                >
+                  {/* Crosshair */}
+                  <div className="absolute inset-0">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                    <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                  </div>
+                  
+                  {/* Center dot */}
+                  <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                  
+                  {/* Label */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Panel */}
+            <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                {/* Position Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current:</span>
+                      <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original:</span>
+                      <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                    </div>
+                    {hasAdjustment && (
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600">Offset:</span>
+                        <span className="font-mono text-green-600">
+                          x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Directional Controls */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Up Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move up (fine)"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('up')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move up"
+                      >
+                        ⬆
+                      </button>
+                    </div>
+                    
+                    {/* Left and Right Arrows */}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move left (fine)"
+                        >
+                          ⬅
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('left')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move left"
+                        >
+                          ⬅
+                        </button>
+                      </div>
+                      
+                      <div className="mx-2 text-center">
+                        <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                          🎯
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">Target</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('right')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move right"
+                        >
+                          ➡
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move right (fine)"
+                        >
+                          ➡
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Down Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('down')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move down"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move down (fine)"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {hasAdjustment && (
+                    <button
+                      onClick={resetPosition}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                    >
+                      🔄 Reset to Original
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleConfirmAdjustment}
+                    className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    ✓ Use This Position
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelAdjustment}
+                    className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Quick Instructions */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Click directly on the screenshot</li>
+                    <li>• Use arrow buttons for precise control</li>
+                    <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                    <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
   
   if (!showElementModal) return null;
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
-        {/* Modal Header */}
-        <div className="bg-blue-600 text-white px-6 py-4">
-          <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
-          <p className="text-blue-100 text-sm mt-1">
-            Select the correct element for: "{modalData.stepDescription}"
-          </p>
-        </div>
-        
-        {/* Modal Body */}
-        <div className="p-6 max-h-96 overflow-y-auto">
-          <div className="space-y-3">
-            {modalData.matches.map((match, index) => {
-              const positionDesc = getPositionDescription(match.element, modalData.matches);
-              const sizeDesc = getSizeDescription(match.element);
-              const contextDesc = getElementContext(match.element);
-              
-              return (
-                <div
-                  key={index}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                    selectedElement?.index === match.index
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                  }`}
-                  onClick={() => handleElementSelect(match)}
-                >
-                  <div className="flex items-start space-x-3">
-                    {/* Element Icon */}
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
-                      match.type === 'button' ? 'bg-green-500' :
-                      match.type === 'input' ? 'bg-blue-500' :
-                      match.type === 'link' ? 'bg-purple-500' :
-                      'bg-gray-500'
-                    }`}>
-                      {match.type === 'button' ? '🔘' :
-                       match.type === 'input' ? '📝' :
-                       match.type === 'link' ? '🔗' :
-                       '🔲'}
-                    </div>
-                    
-                    {/* Element Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900 truncate text-base">
-                          {match.display}
-                        </h3>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          match.type === 'button' ? 'bg-green-100 text-green-800' :
-                          match.type === 'input' ? 'bg-blue-100 text-blue-800' :
-                          match.type === 'link' ? 'bg-purple-100 text-purple-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {match.type}
-                        </span>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
+          {/* Modal Header */}
+          <div className="bg-blue-600 text-white px-6 py-4">
+            <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
+            <p className="text-blue-100 text-sm mt-1">
+              Select the correct element for: "{modalData.stepDescription}"
+            </p>
+          </div>
+          
+          {/* Modal Body */}
+          <div className="p-6 max-h-96 overflow-y-auto">
+            <div className="space-y-3">
+              {modalData.matches.map((match, index) => {
+                const positionDesc = getPositionDescription(match.element, modalData.matches);
+                const sizeDesc = getSizeDescription(match.element);
+                const contextDesc = getElementContext(match.element);
+                
+                return (
+                  <div
+                    key={index}
+                    className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                      selectedElement?.index === match.index
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : match.element.isAdjusted
+                        ? 'border-green-200 hover:border-green-300 hover:shadow-sm bg-green-25'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                    onClick={() => handleElementSelect(match)}
+                  >
+                    <div className="flex items-start space-x-3">
+                      {/* Element Icon */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
+                        match.type === 'button' ? 'bg-green-500' :
+                        match.type === 'input' ? 'bg-blue-500' :
+                        match.type === 'link' ? 'bg-purple-500' :
+                        'bg-gray-500'
+                      }`}>
+                        {match.type === 'button' ? '🔘' :
+                         match.type === 'input' ? '📝' :
+                         match.type === 'link' ? '🔗' :
+                         '🔲'}
                       </div>
                       
-                      {/* User-friendly position description */}
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-600">📍 Location:</span>
-                          <span className="text-sm text-gray-800">{positionDesc}</span>
+                      {/* Element Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-semibold text-gray-900 truncate text-base">
+                            {match.display}
+                          </h3>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            match.type === 'button' ? 'bg-green-100 text-green-800' :
+                            match.type === 'input' ? 'bg-blue-100 text-blue-800' :
+                            match.type === 'link' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {match.type}
+                          </span>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-600">📏 Size:</span>
-                          <span className="text-sm text-gray-800">{sizeDesc}</span>
-                        </div>
-                        
-                        {contextDesc && (
+                        {/* User-friendly position description */}
+                        <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-600">💬 Context:</span>
-                            <span className="text-sm text-gray-800">{contextDesc}</span>
+                            <span className="text-sm font-medium text-gray-600">📍 Location:</span>
+                            <span className="text-sm text-gray-800">{positionDesc}</span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-600">📏 Size:</span>
+                            <span className="text-sm text-gray-800">{sizeDesc}</span>
+                          </div>
+                          
+                          {contextDesc && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-600">💬 Context:</span>
+                              <span className="text-sm text-gray-800">{contextDesc}</span>
+                            </div>
+                          )}
+
+                          {/* Position adjustment indicator */}
+                          {match.element.isAdjusted && (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className="text-sm font-medium text-green-600">🎯 Position:</span>
+                              <span className="text-sm text-green-700 font-medium">Manually Adjusted</span>
+                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                Custom Position
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Match score indicator if available */}
+                        {match.element.matchScore && (
+                          <div className="mt-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500">Match confidence:</span>
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-green-500 h-2 rounded-full" 
+                                  style={{ width: `${match.element.matchScore}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+                            </div>
                           </div>
                         )}
                       </div>
-                      
-                      {/* Match score indicator if available */}
-                      {match.element.matchScore && (
-                        <div className="mt-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs text-gray-500">Match confidence:</span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${match.element.matchScore}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+
+                      <div className="flex flex-col items-end space-y-2">
+                        {/* UPDATED ADJUST BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdjustClick(match, index);
+                          }}
+                          className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 transition-colors"
+                          title="Fine-tune position"
+                        >
+                          🎯 Adjust
+                        </button>
+                        
+                        {/* Selection indicator */}
+                        {selectedElement?.index === match.index && (
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Selection indicator */}
-                    {selectedElement?.index === match.index && (
-                      <div className="flex-shrink-0">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {/* Helpful tip */}
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start space-x-2">
-              <span className="text-yellow-600">💡</span>
-              <p className="text-sm text-yellow-800">
-                <strong>Tip:</strong> Look at the location and context to identify the correct element. 
-                Elements are described by their position on the screen and their purpose.
-              </p>
+                );
+              })}
+            </div>
+            
+            {/* Helpful tip */}
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <span className="text-yellow-600">💡</span>
+                <p className="text-sm text-yellow-800">
+                  <strong>Tip:</strong> Look at the location and context to identify the correct element. 
+                  Use the "🎯 Adjust" button to fine-tune the click position if needed.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* Modal Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedElement}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
-              selectedElement
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            Confirm Selection
-          </button>
+          
+          {/* Modal Footer */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!selectedElement}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
+                selectedElement
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Confirm Selection
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Position Controls Modal */}
+      {showPositionControls && <PositionControls />}
+    </>
   );
 };
 
@@ -2686,7 +3189,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
       } else {
         console.error(`❌ No element selected for OTP step with multiple matches.`);
       }
-    });
+    }, currentPageData.screenshot || currentPageData.omniparser_data?.screenshot);
   } else {
     // Single match - auto-select
     console.log(`🎯 Auto-selecting single matching element for OTP step:`, validationResult.matches[0]);
@@ -3224,7 +3727,19 @@ const EditStepModal = ({
         }
       );      
       
-      setSuggestions(suggestedElements);
+      // Add manual positioning option at the top
+      const manualOption = {
+        id: 'manual-adjust',
+        name: 'Manual Adjustment',
+        displayName: 'Manual Adjustment',
+        type: 'manual',
+        click_point: lastClickCoordinates || [100, 100], 
+        text: 'Click here to manually set the exact position',
+        isManualOption: true
+      };
+
+      const allSuggestions = [manualOption, ...suggestedElements];
+      setSuggestions(allSuggestions);
       setShowSuggestions(suggestedElements.length > 0);
       
     } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
@@ -3972,6 +4487,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                             key={`modal-${suggestion.id}-${index}`}
                             className={`modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
                               suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                              suggestion.isManualOption ? 'bg-blue-100 border-l-4 border-blue-600' : 
                               suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
                               suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
                               suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
@@ -4002,6 +4518,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                           >
                             <div className="flex justify-between items-center">
                               <span className="font-medium">
+                                {suggestion.isManualOption && '🎯 '}
                                 {suggestion.displayName || suggestion.name}
                                 {suggestion.usageInfo && (
                                   <span className={`ml-2 text-xs font-semibold ${
@@ -4576,7 +5093,11 @@ const calculateDirectionalOffset = (coordinates, direction) => {
               </div>
             </div>
 
-            <ElementSelectionModal />
+            <ElementSelectionModal  
+              currentScreenshot={
+                editStepModal.currentScreenshot 
+              }
+            />
             <OtpReplacementModal
               isOpen={otpReplacementModal.isOpen}
               onClose={() => setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null })}
