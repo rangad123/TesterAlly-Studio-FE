@@ -307,99 +307,6 @@ useEffect(() => {
   }
 }, [location.state, stepsProcessed, senderEmail]);
 
-//   useEffect(() => {
-
-//     if (stepsProcessed) {
-//       console.log("🛑 Skipping suggestion logic because prompt steps are already loaded");
-//       return;
-//     }
-
-//     if (!newStep) {
-//         setShowSuggestions(false);
-//         return;
-//     }
-
-//     if (selectedElement && newStep.includes(selectedElement.displayName || selectedElement.name)) {
-//       return;
-//     }
-
-//     const inputText = newStep.trim().toLowerCase();
-//     const words = inputText.split(' ');
-//     const firstWord = words[0];
-    
-//     // Check if the command is a click or type command
-//     if (['click', 'type', 'verify', 'get'].includes(firstWord)) {
-//         setCommandType(firstWord);
-
-//         if (firstWord === 'wait') {
-//             setShowSuggestions(false);
-//             return;
-//         }
-        
-//         if (!elementData || !elementData.elements || elementData.elements.length === 0) {
-//             setSuggestions([]);
-//             setShowSuggestions(false);
-//             return;
-//         }
-        
-//         let searchTerm = '';
-        
-//         // Extract search term based on command type
-//         if (firstWord === 'click' && words.length > 1) {
-//             // For click commands, everything after "click" is the search term
-//             searchTerm = words.slice(1).join(' ').toLowerCase();
-//         } else if (firstWord === 'type') {
-//             // For type commands, extract what comes after "in "
-//             const inIndex = inputText.indexOf(' in ');
-//             if (inIndex !== -1) {
-//                 searchTerm = inputText.substring(inIndex + 4).trim();
-//             }
-//         }else if (firstWord === 'verify' && words.length > 1) {
-//           // For verify commands, everything after "verify" is the search term
-//           searchTerm = words.slice(1).join(' ').toLowerCase();
-//         }else if (firstWord === 'get' && words.length > 1) {
-//           searchTerm = words.slice(1).join(' ').toLowerCase();
-//         }
-        
-//         // Get last click coordinates from executed steps
-//         const lastClickCoordinates = testSteps.length > 0 ? 
-//             getLastClickCoordinates(testSteps) : null;
-        
-//         // Use our enhanced algorithm to get suggestions with proper state
-//         const suggestedElements = getSuggestedElements(
-//             elementData.elements,
-//             searchTerm,
-//             firstWord,
-//             { 
-//                 previouslySelectedElements, 
-//                 lastClickCoordinates 
-//             }
-//         );      
-        
-//         setSuggestions(suggestedElements);
-//         setShowSuggestions(suggestedElements.length > 0);
-        
-//     } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
-//       setCommandType('scroll');
-//       setShowSuggestions(false);
-//     } else if (firstWord === 'open' || (words.includes('go') && words.includes('to'))) { 
-//         setCommandType('open');
-//         setShowSuggestions(false);
-//     } else {
-//         setCommandType('');
-//         setShowSuggestions(false);
-//     }
-// }, [newStep, elementData, previouslySelectedElements, testSteps, selectedElement, stepsProcessed]);
-
-// useEffect(() => {
-//   if (showSuggestions && suggestions.length > 0) {
-//     const dropdownElement = document.querySelector('.suggestions-dropdown');
-//     if (dropdownElement) {
-//       dropdownElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-//     }
-//   }
-// }, [showSuggestions, suggestions.length]);
-
 const getLastClickCoordinates = (steps) => {
   // Loop backwards through steps to find the last successful click action
   for (let i = steps.length - 1; i >= 0; i--) {
@@ -413,211 +320,6 @@ const getLastClickCoordinates = (steps) => {
   }
   return null;
 };
-
-// const handlePhoneNumberClick = async (contact) => {
-//   setContactSelected(true);
-  
-//   setNewStep(prev => {
-//     const trimmed = prev.trim();
-    
-//     // If there's already a contact in the step, replace it completely
-//     if (otpVerificationState.enteredContact) {
-//       // Remove the old contact completely and add new one
-//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
-      
-//       if (withoutOldContact.endsWith('type')) {
-//         return withoutOldContact + ' ' + contact;
-//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-//         return withoutOldContact + ' in ' + contact;
-//       }
-//       return withoutOldContact + ' ' + contact;
-//     }
-    
-//     // First time selecting contact
-//     if (trimmed.endsWith('type')) {
-//       return prev + ' ' + contact;
-//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-//       return prev + ' in ' + contact;
-//     }
-//     return prev + ' ' + contact;
-//   });
-  
-//   try {
-//     const response = await fetch('http://localhost:8000/api/get_time/', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' }
-//     });
-    
-//     if (response.ok) {
-//       const data = await response.json();
-//       const timeData = {
-//         ...data,
-//         phoneNumber: contact,
-//         timestamp: Date.now()
-//       };
-      
-//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
-      
-//       setOtpVerificationState(prev => ({
-//         ...prev,
-//         contactEntered: true,
-//         waitingForOtp: true,
-//         enteredContact: contact,
-//         enteredContactInboxId: contact,
-//         sessionTime: timeData,
-//         otpReceiver: 'phone'
-//       }));
-            
-//       console.log('OTP Session Time stored:', timeData);
-//     }
-//   } catch (error) {
-//     console.error('Error calling get_time API:', error);
-//   }
-
-//   // setContactSelected(false);
-// };
-
-// const handleEmailClick = async () => {
-//   // Check if OTP verification is enabled and validate email match
-//   if (requiresOtp && testData?.email) {
-//     const userEnteredEmail = newStep.match(/\S+@\S+\.\S+/);
-    
-//     if (userEnteredEmail && userEnteredEmail[0] !== testData.email) {
-//       alert(`For OTP verification, please use your configured email: ${testData.email}`);
-//       return;
-//     }
-//   }
-  
-//   // Show email confirmation modal
-//   setEmailConfirmationModal({
-//     isOpen: true,
-//     userEmail: testData?.email || '',
-//     email_app_password: testData?.email_app_password || '',
-//     otpReceiver: '',
-//     isEditing: false,
-//     showPassword: false,
-//   });
-// };
-
-// const checkTextInElementData = (textToVerify) => {
-//   if (!elementData || !elementData.elements) return null;
-  
-//   const searchText = textToVerify.toLowerCase();
-//   const matchingElements = elementData.elements.filter(element => {
-//     // Check if element has text content that includes the search text
-//     return element.text && element.text.toLowerCase().includes(searchText);
-//   });
-  
-//   return matchingElements.length > 0 ? matchingElements : null;
-// };
-
-// const handleEmailConfirmation = async () => {
-//   const { userEmail, email_app_password, otpReceiver } = emailConfirmationModal;
-  
-//   setEmailModalError('');
-
-//   // Validate email
-//   if (!userEmail.trim()) {
-//     setEmailModalError('Please enter your email address');
-//     return;
-//   }
-  
-//   // Validate password
-//   if (!email_app_password?.trim()) {
-//     setEmailModalError('Please enter your password');
-//     return;
-//   }
-  
-//   // Validate email format
-//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//   if (!emailRegex.test(userEmail)) {
-//     setEmailModalError('Please enter a valid email address');
-//     return;
-//   }
-
-//   if (!otpReceiver) {
-//     setEmailModalError('Please select where you will receive the OTP');
-//     return;
-//   }
-  
-//   // Save email to test data if it's new or changed
-//   if (userEmail !== testData?.email || email_app_password !== testData?.email_app_password) {
-//     const saved = await saveTestDataEmail(userEmail, email_app_password);
-//     if (!saved) {
-//       alert('Failed to save email. Please try again.');
-//       return;
-//     }
-//   }
-  
-//   setEmailConfirmationModal({ 
-//     isOpen: false, 
-//     userEmail: '', 
-//     email_app_password: '',  
-//     otpReceiver: '',
-//     isEditing: false 
-//   });
-  
-//   // Original email click logic
-//   // setContactSelected(true);
-  
-//   setNewStep(prev => {
-//     const trimmed = prev.trim();
-    
-//     if (otpVerificationState.enteredContact) {
-//       const withoutOldContact = prev.replace(otpVerificationState.enteredContact, '').replace(/\s+/g, ' ').trim();
-      
-//       if (withoutOldContact.endsWith('type')) {
-//         return withoutOldContact + ' ' + userEmail;
-//       } else if (withoutOldContact.includes('type') && !withoutOldContact.includes(' in ')) {
-//         return withoutOldContact + ' in ' + userEmail;
-//       }
-//       return withoutOldContact + ' ' + userEmail;
-//     }
-    
-//     if (trimmed.endsWith('type')) {
-//       return prev + ' ' + userEmail;
-//     } else if (trimmed.includes('type ') && !trimmed.includes(' in ')) {
-//       return prev + ' in ' + userEmail;
-//     }
-//     return prev + ' ' + userEmail;
-//   });
-  
-
-//   try {
-//     const response = await fetch('http://localhost:8000/api/get_time/', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' }
-//     });
-    
-//     if (response.ok) {
-//       const data = await response.json();
-//       const timeData = {
-//         ...data,
-//         phoneNumber: userEmail, 
-//         actualUserEmail: userEmail, 
-//         timestamp: Date.now()
-//       };
-      
-//       sessionStorage.setItem('otpSessionTime', JSON.stringify(timeData));
-      
-//       setOtpVerificationState(prev => ({
-//         ...prev,
-//         contactEntered: true,
-//         waitingForOtp: true,
-//         enteredContact: userEmail, 
-//         enteredContactInboxId: userEmail, 
-//         sessionTime: timeData,
-//         otpReceiver: emailConfirmationModal.otpReceiver
-//       }));
-            
-//       console.log('OTP Session Time stored:', timeData);
-//     }
-//   } catch (error) {
-//     console.error('Error calling get_time API:', error);
-//   }
-
-//   // setContactSelected(false);
-// };
 
 const updateOtpSessionTime = async (overrides = {}) => {
   const contactEntered = overrides.contactEntered ?? otpVerificationState.contactEntered;
@@ -789,266 +491,6 @@ const extractKeyTerms = (searchTerm) => {
     .map(word => word.trim());
 };
 
-//   const addTestStep = async () => {
-//     if (!newStep.trim() || isProcessing) return;
-    
-//     setShowSuggestions(false);
-    
-//     const words = newStep.trim().split(' ');
-//     let actionType = words[0].toLowerCase();
-//     const fullInput = newStep.trim().toLowerCase();
-
-//     if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
-//       actionType = 'scrolldown';
-//     } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
-//       actionType = 'scrollup';
-//     } 
-
-//     console.log("🔍 DEBUG - actionType after normalize:", actionType);
-
-//     const allowedCommands = ['click', 'type', 'verify', 'open', 'scroll_up', 'scroll_down', 'scrollup', 'scrolldown', 'get', 'wait'];
-//     if (!allowedCommands.includes(actionType)) {
-//       alert("Unknown command. Please use: click, type, verify, open, scroll, get, or wait.");
-//       return;
-//     }
-
-    
-//     // If it's a wait command but no configuration has been done yet, show the wait modal
-//     if (actionType === 'wait' && !newStep.includes('seconds') && !newStep.includes('until')) {
-//       setWaitModalOpen(true);
-//       return;
-//     }
-    
-//     // Existing verification logic
-//     if (actionType === 'verify') {
-//       const textToVerify = words.slice(1).join(' ');
-      
-//       // Always try to find matching elements by text, even if an element is selected
-//       const matchingElements = checkTextInElementData(textToVerify);
-      
-//       if (matchingElements && matchingElements.length > 0) {
-//         // Always open confirmation modal for verify commands
-//         setVerificationModal({
-//           isOpen: true,
-//           textToVerify,
-//           matchingElements,
-//           selectedElement: selectedElement || matchingElements[0]
-//         });
-//         return;
-//       } else {
-//         alert("Text not found on the current page. Please try a different text or command.");
-//         return;
-//       }
-//     }
-    
-//     // For commands that require element selection
-//     if ((actionType === 'click' || actionType === 'type' || actionType === 'verify') && !selectedElement) {
-//       alert("Please select an element from the suggestions before adding this step.");
-//       return;
-//     }
-
-//     let finalStepText = newStep;
-
-//     if (requiresOtp && actionType === 'type') {
-//       const emailInStep = newStep.match(/\S+@\S+\.\S+/);
-      
-//       if (emailInStep && testData?.email && emailInStep[0] !== testData.email) {
-//         alert(`For OTP verification, please use your configured email: ${testData.email}`);
-//         return;
-//       }
-//     }
-  
-//     // Call get_time before executing any step if phone number is entered
-//     if (otpVerificationState.contactEntered) {
-//       await updateOtpSessionTime();
-//     }
-    
-//     let isOtpStep = false;
-//     let isPhoneNumberStep = false;
-//     let isEmailStep = false;
-
-//     if (otpVerificationState.waitingForOtp && otpVerificationState.enteredContact) {
-//       // Check if user selected OTP receiver in email modal (only available in email flow)
-//       if (otpVerificationState.otpReceiver) {
-//         // Email flow - use user's selection from modal
-//         isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone';
-//         isEmailStep = otpVerificationState.otpReceiver === 'email';
-//       } else {
-//         // Phone number flow - use contact type detection
-//         const isEmail = /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact);
-//         isPhoneNumberStep = !isEmail;
-//         isEmailStep = isEmail;
-//       }
-//     }
-
-//     // Check Android connection if OTP verification is enabled for phone numbers
-//     if (requiresOtp && (isPhoneNumberStep || isEmailStep)) {
-//       console.log('🔍 Checking Android device connection before executing step...');
-//       const isConnected = await checkAndroidConnection();
-      
-//       if (!isConnected) {
-//         console.log('❌ Android device not connected');
-//         showDeviceConnectionModal();
-//         return; 
-//       }
-      
-//       console.log('✅ Android device connected, proceeding with step execution');
-//     }
-
-//     console.log("🚀 Contact detected:", otpVerificationState.enteredContact);
-//     console.log("📞 Is phone number step?", isPhoneNumberStep);
-
-//     // if (otpVerificationState.waitingForOtp && actionType === 'type') {
-//     //   // Check if user is entering OTP (4-8 digits)
-//     //   const match = newStep.match(/\b\d{4,8}\b/);
-//     //   if (match) {
-//     //     isOtpStep = true;
-//     //     finalStepText = newStep;
-//     //     console.log('Detected OTP input:', match[0]);
-//     //   }
-//     // }
-
-//     if (otpVerificationState.waitingForOtp && actionType === 'type') {
-//       const match = newStep.match(/\b\d{4,8}\b/);
-//       if (match) {
-//         isOtpStep = true;
-
-//         isPhoneNumberStep = otpVerificationState.otpReceiver === 'phone' || (!otpVerificationState.otpReceiver && !/\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
-//         isEmailStep = otpVerificationState.otpReceiver === 'email' || (!otpVerificationState.otpReceiver && /\S+@\S+\.\S+/.test(otpVerificationState.enteredContact));
-//         finalStepText = newStep;
-//       }
-//     }
-
-//     const isActualOtpStep = requiresOtp && isOtpStepConfirmed && actionType === 'type';
-//     const isOtpRelatedStep = requiresOtp && !isActualOtpStep && actionType === 'type';
-
-//     const newStepObj = {
-//       id: Date.now(),
-//       description: finalStepText,
-//       status: 'pending',
-//       duration: '00:00',
-//       screenshot: null,
-//       selectedElement: selectedElement,
-//       verificationType: selectedElement?.verificationType || 'text',
-//       waitRequestData: stepWaitData || null,
-//       requiresOtp: requiresOtp, 
-//       otpType: requiresOtp ? (otpVerificationState.otpReceiver || 'phone') : null,
-//       isActualOtpStep: isActualOtpStep,
-//       isOtpRelatedStep: isOtpRelatedStep,
-//       otpSessionData: isOtpStep ? otpVerificationState.sessionTime : null,
-//       isPhoneNumberStep: isPhoneNumberStep,
-//       isEmailStep: isEmailStep 
-//     };
-//     console.log("New step object:", newStepObj)
-
-//     setSelectedElement(null);
-//     setStepWaitData(null);
-    
-//     setTestSteps(prev => [...prev, newStepObj]);
-//     setNewStep('');
-
-//     const executionResult = await executeStep(newStepObj);
-
-//     if (executionResult === undefined) {
-//       setTestSteps(prev => prev.filter(step => step.id !== newStepObj.id));
-//       return;
-//     }
-
-//     setTestSteps(prev => prev.map(step => 
-//       step.id === newStepObj.id ? {
-//         ...step,
-//         ...executionResult,
-//         elementClicked: actionType === 'click' ? newStepObj.selectedElement : undefined,
-//         elementVerified: actionType === 'verify' ? newStepObj.selectedElement : undefined,
-//         waitCondition: executionResult.waitCondition,
-//         waitText: executionResult.waitText,
-//         waitTimeout: executionResult.waitTimeout
-//       } : step
-//     ));
-    
-//     // After successful execution, update the previouslySelectedElements
-//     if (executionResult.status === 'complete' && newStepObj.selectedElement?.click_point) {
-//       setLastClickCoordinates(newStepObj.selectedElement.click_point);
-//       const element = newStepObj.selectedElement;
-
-//       if (element.click_point) {
-//         const x = Math.round(element.click_point[0]);
-//         const y = Math.round(element.click_point[1]);
-//         const exactCoordinateKey = `${element.name.toLowerCase()}_${x}_${y}`;
-
-//         console.log('Generated key for element:', exactCoordinateKey);
-        
-//         setPreviouslySelectedElements(prev => {
-//           const updatedPrev = {};
-//           Object.keys(prev).forEach(key => {
-//             updatedPrev[key] = {
-//               ...prev[key],
-//               lastExecutedElement: false 
-//             };
-//           });
-          
-//           return {
-//             ...updatedPrev,
-//             [exactCoordinateKey]: {
-//               lastSelected: Date.now(),
-//               count: (prev[exactCoordinateKey]?.count || 0) + 1,
-//               element: element,
-//               lastExecutedElement: true,
-//               coordinates: [x, y]
-//             }
-//           };
-//         });
-//       }
-//     }
-    
-//     // IMPORTANT: Call get_otp after successful execution when waiting for OTP
-//     if (executionResult.status === 'complete' && otpVerificationState.waitingForOtp) {
-//       await callGetOtpAfterExecution(newStepObj.id, newStepObj.isPhoneNumberStep, newStepObj.isEmailStep);
-//     }
-    
-//     setNewStep('');
-//     // if (newStepObj.otpSessionData) {
-//     //   setRequiresOtp(false);
-//     // }
-//     // ✅ Clear OTP state after actual OTP entry
-//     if (executionResult.status === 'complete' && newStepObj.isActualOtpStep) {
-//       console.log('🔄 Clearing OTP verification state after successful OTP entry');
-//       setRequiresOtp(false);
-//       setIsOtpStepConfirmed(false);
-
-//       setOtpVerificationState(prev => ({
-//         ...prev,
-//         waitingForOtp: false,
-//         contactEntered: false,
-//         enteredContact: '',
-//         otpReceiver: ''
-//       }));
-//     }
-          
-//     setTimeout(() => {
-//       if (previewRef.current) {
-//         previewRef.current.scrollTo({
-//           top: previewRef.current.scrollHeight,
-//           behavior: 'smooth'
-//         });
-//       }
-//       if (stepsRef.current) {
-//         stepsRef.current.scrollTo({
-//           top: stepsRef.current.scrollHeight,
-//           behavior: 'smooth'
-//         });
-//       }
-//     }, 100);
-//   };
-
-// useEffect(() => {
-//   if (pendingWaitStep && newStep.includes('wait')) {
-//     addTestStep();
-//     setPendingWaitStep(false); 
-//   }
-//   // eslint-disable-next-line react-hooks/exhaustive-deps
-// }, [newStep, pendingWaitStep]);
-
 useEffect(() => {
   console.log("📊 currentGeneratedStepIndex changed to:", currentGeneratedStepIndex);
 }, [currentGeneratedStepIndex]);
@@ -1084,11 +526,12 @@ useEffect(() => {
         }
 
         console.log("Updated Step Description:", updatedStepDescription); 
+        stepObj.description = updatedStepDescription;
         
         // const stepIndex = testSteps.length;
 
-        if (fullCommand === 'scroll up' || fullCommand === 'scroll down') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${fullCommand === 'scroll up' ? 'up' : 'down'}, please wait...`);
+        if (fullCommand.startsWith('scroll up') || fullCommand.startsWith('scroll down')) {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${fullCommand.startsWith('scroll up') ? 'up' : 'down'}, please wait...`);
         } else if (actionType === 'open') {
           setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
         } else if (actionType === 'click') {
@@ -1987,7 +1430,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
             } else {
               console.error(`❌ No element selected for Step ${nextIndex + 1} with multiple matches.`);
             }
-          });
+          }, data.screenshot || data.omniparser_data?.screenshot);
         } else {
           console.log(`🎯 Auto-selecting single matching element for Step ${nextIndex + 1}:`, validationResult.matches[0]);
 
@@ -2532,633 +1975,6 @@ const VerificationConfirmation = ({ isOpen, onClose, onConfirm, textToVerify, ma
   );
 };
 
-//   const handleSuggestionClick = (suggestion) => {
-//     // Flag to indicate a suggestion was just selected
-//     // This will help prevent the useEffect from reopening the dropdown
-//     const handleSelection = () => {
-//       // Store the selected element ID in previouslySelectedElements
-//       setPreviouslySelectedElements(prev => ({
-//         ...prev,
-//         [suggestion.id]: {
-//           timestamp: Date.now(),
-//           element: suggestion
-//         }
-//       }));
-//     };
-    
-//     let updatedStep = '';
-    
-//     if (commandType === 'click') {
-//       updatedStep = `click ${suggestion.displayName || suggestion.name}`;
-//     } else if (commandType === 'type') {
-//       // Get the text the user has already typed (if any)
-//       let userText = '';
-      
-//       if (newStep.toLowerCase().startsWith('type ')) {
-//         const inIndex = newStep.toLowerCase().indexOf(' in ');
-//         if (inIndex !== -1) {
-//           // If " in " exists, extract text between "type " and " in "
-//           userText = newStep.substring(5, inIndex).trim();
-//         } else {
-//           // If " in " doesn't exist, extract all text after "type "
-//           userText = newStep.substring(5).trim();
-//         }
-//       }
-      
-//       // Use the user's text if available, otherwise use placeholder
-//       if (userText) {
-//         updatedStep = `type ${userText} in ${suggestion.displayName || suggestion.name}`;
-//       } else {
-//         updatedStep = `type  in ${suggestion.displayName || suggestion.name}`;
-//       }
-//     } else if (commandType === 'verify') {
-//       updatedStep = `verify ${suggestion.displayName || suggestion.name}`;
-  
-//       // Close suggestions dropdown
-//       setShowSuggestions(false);
-//       handleSelection();
-      
-//       // Set verification modal data
-//       const textToVerify = suggestion.displayName || suggestion.name;
-//       const matchingElements = [suggestion]; 
-      
-//       // Need to update these states together with minimal delay to avoid re-renders
-//       setNewStep(updatedStep);
-//       setSelectedElement(suggestion);
-      
-//       // Show verification modal
-//       setVerificationModal({
-//         isOpen: true,
-//         textToVerify,
-//         matchingElements,
-//         selectedElement: suggestion
-//       });
-      
-//       return;  
-//     } else if (commandType === 'get') {
-//       updatedStep = `get ${suggestion.displayName || suggestion.name}`;
-      
-//       // Close suggestions dropdown
-//       setShowSuggestions(false);
-//       handleSelection();
-      
-//       // Update step in one batch to minimize effect triggers
-//       setNewStep(updatedStep);
-//       setSelectedElement(suggestion);
-      
-//       return;
-//     }
-    
-//     // Immediately close suggestions dropdown and disable its reopening
-//     setShowSuggestions(false);
-//     handleSelection();
-    
-//     // Batching state updates to minimize effect re-runs
-//     setNewStep(updatedStep);
-//     setSelectedElement(suggestion);
-    
-//     // Focus input after state updates
-//     setTimeout(() => {
-//       if (inputRef.current) {
-//         inputRef.current.focus();
-//         if (commandType === 'type' && updatedStep.includes(' in ')) {
-//           // Position cursor after "type " but before " in " for user to enter text
-//           const typeIndex = updatedStep.indexOf('type ') + 5;
-          
-//           // If there's no text between "type " and " in ", set cursor right after "type "
-//           if (updatedStep.substring(typeIndex, updatedStep.indexOf(' in ')).trim() === '') {
-//             inputRef.current.setSelectionRange(typeIndex, typeIndex);
-//           } else {
-//             // If there's already text, position cursor at the end of the command
-//             const length = updatedStep.length;
-//             inputRef.current.setSelectionRange(length, length);
-//           }
-//         } else {
-//           const length = updatedStep.length;
-//           inputRef.current.setSelectionRange(length, length);
-//         }
-//       }
-//     }, 0);
-//   };
-
-// const SuggestionsDropdown = () => {
-//   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-//   const [adjustedPosition, setAdjustedPosition] = useState(null);
-//   const [showPositionControls, setShowPositionControls] = useState(false);
-  
-//   // Position adjustment increments (in pixels)
-//   const POSITION_STEP = 10;
-//   const FINE_STEP = 5;
-
-//   if (!showSuggestions) return null;
-
-//   const shouldShowNoDataMessage =
-//     suggestions.length === 0 &&
-//     newStep?.trim() !== '' &&
-//     ['click', 'type', 'verify', 'get'].some(cmd => newStep.startsWith(cmd));
-  
-//   if (shouldShowNoDataMessage) {
-//     return (
-//       <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 animate-fadeIn suggestions-dropdown">
-//         <div className="p-4 text-center">
-//           <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-//             <AlertCircle className="w-5 h-5 mr-2" />
-//             No element data available
-//           </div>
-//           <p className="text-sm text-gray-700 mb-3">
-//             Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-//           </p>
-//           <p className="text-xs text-gray-600 mb-3">
-//             💡 Tip: If elements aren't detected properly, you can use the position adjustment controls to fine-tune the click location.
-//           </p>
-//           <button 
-//             onClick={() => setShowSuggestions(false)}
-//             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-//           >
-//             Dismiss
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
-//     if (!selectedSuggestion) return;
-    
-//     const currentPos = adjustedPosition || selectedSuggestion.click_point;
-//     let newPos = [...currentPos];
-    
-//     switch (direction) {
-//       case 'up':
-//         newPos[1] -= step;
-//         break;
-//       case 'down':
-//         newPos[1] += step;
-//         break;
-//       case 'left':
-//         newPos[0] -= step;
-//         break;
-//       case 'right':
-//         newPos[0] += step;
-//         break;
-//       default:
-//         return;
-//     }
-    
-//     // Ensure position doesn't go negative
-//     newPos[0] = Math.max(0, newPos[0]);
-//     newPos[1] = Math.max(0, newPos[1]);
-    
-//     setAdjustedPosition(newPos);
-//   };
-
-//   const handleSuggestionSelect = (suggestion) => {
-//     setSelectedSuggestion(suggestion);
-//     setAdjustedPosition(null);
-//     setShowPositionControls(true);
-//   };
-
-//   const handleConfirmSelection = () => {
-//     if (selectedSuggestion) {
-//       const finalPosition = adjustedPosition || selectedSuggestion.click_point;
-//       const updatedSuggestion = {
-//         ...selectedSuggestion,
-//         click_point: finalPosition
-//       };
-//       handleSuggestionClick(updatedSuggestion);
-//       setShowPositionControls(false);
-//       setSelectedSuggestion(null);
-//       setAdjustedPosition(null);
-//     }
-//   };
-
-//   const handleCancelSelection = () => {
-//     setShowPositionControls(false);
-//     setSelectedSuggestion(null);
-//     setAdjustedPosition(null);
-//   };
-
-//   const resetPosition = () => {
-//     setAdjustedPosition(null);
-//   };
-
-//   const PositionControls = () => {
-//     if (!selectedSuggestion) return null;
-    
-//     const currentPos = adjustedPosition || selectedSuggestion.click_point;
-//     const originalPos = selectedSuggestion.click_point;
-//     const hasAdjustment = adjustedPosition && 
-//       (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
-
-//     return (
-//       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
-//         <div className="flex items-center justify-between mb-3">
-//           <h5 className="font-medium text-blue-800 flex items-center">
-//             🎯 Fine-tune Position
-//           </h5>
-//           <div className="flex gap-2">
-//             {hasAdjustment && (
-//               <button
-//                 onClick={resetPosition}
-//                 className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
-//               >
-//                 Reset
-//               </button>
-//             )}
-//             <button
-//               onClick={handleCancelSelection}
-//               className="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 rounded text-red-600 transition-colors"
-//             >
-//               Cancel
-//             </button>
-//           </div>
-//         </div>
-        
-//         <div className="text-sm text-gray-700 mb-3">
-//           <div className="font-medium mb-1">Selected: {selectedSuggestion.displayName || selectedSuggestion.name}</div>
-//           <div className="text-xs text-gray-600">
-//             Current: x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}
-//             {hasAdjustment && (
-//               <span className="ml-2 text-blue-600">
-//                 (adjusted by x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]})
-//               </span>
-//             )}
-//           </div>
-//         </div>
-
-//         {/* Directional Controls */}
-//         <div className="flex flex-col items-center gap-2 mb-4">
-//           {/* Up Arrow */}
-//           <div className="flex gap-1">
-//             <button
-//               onClick={() => handlePositionAdjustment('up', FINE_STEP)}
-//               className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-//               title="Move up (fine)"
-//             >
-//               ⬆
-//             </button>
-//             <button
-//               onClick={() => handlePositionAdjustment('up')}
-//               className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-//               title="Move up"
-//             >
-//               ⬆
-//             </button>
-//           </div>
-          
-//           {/* Left and Right Arrows */}
-//           <div className="flex gap-2 items-center">
-//             <div className="flex gap-1">
-//               <button
-//                 onClick={() => handlePositionAdjustment('left', FINE_STEP)}
-//                 className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-//                 title="Move left (fine)"
-//               >
-//                 ⬅
-//               </button>
-//               <button
-//                 onClick={() => handlePositionAdjustment('left')}
-//                 className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-//                 title="Move left"
-//               >
-//                 ⬅
-//               </button>
-//             </div>
-            
-//             <div className="mx-2 text-center">
-//               <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
-//                 🎯
-//               </div>
-//               <div className="text-xs text-gray-600 mt-1">Target</div>
-//             </div>
-            
-//             <div className="flex gap-1">
-//               <button
-//                 onClick={() => handlePositionAdjustment('right')}
-//                 className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-//                 title="Move right"
-//               >
-//                 ➡
-//               </button>
-//               <button
-//                 onClick={() => handlePositionAdjustment('right', FINE_STEP)}
-//                 className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-//                 title="Move right (fine)"
-//               >
-//                 ➡
-//               </button>
-//             </div>
-//           </div>
-          
-//           {/* Down Arrow */}
-//           <div className="flex gap-1">
-//             <button
-//               onClick={() => handlePositionAdjustment('down')}
-//               className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
-//               title="Move down"
-//             >
-//               ⬇
-//             </button>
-//             <button
-//               onClick={() => handlePositionAdjustment('down', FINE_STEP)}
-//               className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
-//               title="Move down (fine)"
-//             >
-//               ⬇
-//             </button>
-//           </div>
-//         </div>
-
-//         {/* Legend */}
-//         <div className="text-xs text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-//           <div className="font-medium mb-1">Controls:</div>
-//           <div>• Bold arrows: Move {POSITION_STEP}px</div>
-//           <div>• Light arrows: Move {FINE_STEP}px (fine adjustment)</div>
-//         </div>
-
-//         {/* Confirm Button */}
-//         <button
-//           onClick={handleConfirmSelection}
-//           className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
-//         >
-//           ✓ Use This Position
-//         </button>
-//       </div>
-//     );
-//   };
-  
-//   return (
-//     <div className="absolute z-10 w-full bg-white shadow-xl rounded-md border border-gray-200 mt-12 max-h-96 overflow-y-auto animate-fadeIn suggestions-dropdown">
-//       <div className="sticky top-0 bg-purple-50 p-3 border-b border-purple-100">
-//         <h4 className="font-medium text-purple-800 flex items-center">
-//           {commandType === 'click' ? (
-//             <>
-//               <span className="mr-2">🖱️</span> Click on an element:
-//             </>
-//           ) : commandType === 'type' ? (
-//             <>
-//               <span className="mr-2">⌨️</span> Select where to type:
-//             </>
-//           ) : commandType === 'verify' ? (
-//             <>
-//               <span className="mr-2">✓</span> Verify text on page:
-//             </>
-//           ) : commandType === 'get' ? (
-//             <>
-//               <span className="mr-2">📄</span> Get text from page:
-//             </>
-//           ) : null}
-//         </h4>
-
-//         {commandType === 'type' && requiresOtp && (
-//           <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-md">
-//             <label className="flex items-center gap-2 text-sm text-orange-700 cursor-pointer">
-//               <input
-//                 type="checkbox"
-//                 checked={isOtpStepConfirmed}
-//                 onChange={(e) => setIsOtpStepConfirmed(e.target.checked)}
-//                 className="accent-orange-500"
-//               />
-//               ✅ Confirm this is OTP input step
-//             </label>
-//             <div className="text-xs text-gray-600 mt-1">
-//               Check this if you're entering the OTP code (will replace digits with &lt;otp&gt;)
-//             </div>
-//           </div>
-//         )}
-        
-//         {commandType === 'type' && (
-//           <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-//             <label className="flex items-center gap-2 text-sm text-blue-700 cursor-pointer">
-//               <input
-//                 type="checkbox"
-//                 checked={requiresOtp}
-//                 onChange={toggleOtpCheckbox}
-//                 className="accent-blue-500"
-//               />
-//               OTP Verification
-//             </label>
-            
-//             {/* Show contact selection only when OTP is checked and no contact selected */}
-//             {requiresOtp && !otpVerificationState.contactEntered && (
-//               <div className="mt-3 p-3 bg-white border border-blue-300 rounded-md">
-//                 <span className="text-sm font-medium text-gray-700 block mb-2">
-//                   Select Contact Method:
-//                 </span>
-
-//                 {/* ✅ Loading state */}
-//                 {isTestDataLoading ? (
-//                   <div className="text-blue-500 text-sm flex items-center gap-2">
-//                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-//                       <circle className="opacity-25" cx="12" cy="12" r="10"
-//                               stroke="currentColor" strokeWidth="4"></circle>
-//                       <path className="opacity-75" fill="currentColor"
-//                             d="M4 12a8 8 0 018-8v8H4z"></path>
-//                     </svg>
-//                     Loading test data...
-//                   </div>
-//                 ) : testData?.phone || testData?.email ? (
-//                   <div className="flex gap-2 flex-wrap">
-//                     {testData.phone_number && (
-//                       <button
-//                         onClick={() => handlePhoneNumberClick(testData.phone_number)}
-//                         className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 border border-green-300 rounded-md text-green-700 transition-colors"
-//                       >
-//                         📱 Phone: {testData.phone_number}
-//                       </button>
-//                     )}
-//                     {testData.email && (
-//                       <button
-//                         onClick={() => handleEmailClick()}
-//                         className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-md text-blue-700 transition-colors"
-//                       >
-//                         📧 Email: {testData.email || 'Click to add email'}
-//                       </button>
-//                     )}
-//                   </div>
-//                 ) : (
-//                   <div className="flex flex-col gap-2 items-start">
-//                     <div className="text-sm text-red-600">
-//                       ⚠ No contact method found.
-//                     </div>
-//                     <button
-//                       onClick={() => setAddTestDataModalOpen(true)}
-//                       className="px-3 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 transition"
-//                     >
-//                       Add Test Data
-//                     </button>
-//                   </div>
-//                 )}
-
-//                 <div className="mt-2 text-xs text-gray-600">
-//                   Click on a contact method to proceed
-//                 </div>
-//               </div>
-//             )}       
-
-//             {/* Show selected contact and allow changing */}
-//             {requiresOtp && contactSelected && otpVerificationState.contactEntered && (
-//               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-//                 <div className="flex items-center justify-between">
-//                   <div className="text-sm text-green-700">
-//                     ✅ Selected: {otpVerificationState.enteredContact}
-//                   </div>
-//                   <button
-//                     onClick={() => {
-//                       setContactSelected(false);
-//                       setOtpVerificationState(prev => ({
-//                         ...prev,
-//                         contactEntered: false,
-//                         enteredContact: ''
-//                       }));
-//                     }}
-//                     className="text-xs text-blue-600 hover:text-blue-800 underline"
-//                   >
-//                     Change Contact
-//                   </button>
-//                 </div>
-//               </div>
-//             )}
-//           </div>
-//         )}
-
-//         {!showPositionControls && (
-//           <p className="text-xs text-gray-600 mt-2">
-//             Found {suggestions.length} matching elements
-//             {suggestions.some(s => s.isDuplicate) && 
-//               " (highlighted items have duplicate names)"}
-//             {lastClickCoordinates && " (ordered by proximity to last click)"}
-//             <br />
-//             💡 Click on an element to fine-tune its position if needed
-//           </p>
-//         )}
-//       </div>
-
-//       {/* Position Controls */}
-//       {showPositionControls && <PositionControls />}
-
-//       {shouldShowNoDataMessage && (
-//         <div className="p-4 text-center border-t border-gray-200">
-//           <div className="text-red-600 font-medium mb-2 flex items-center justify-center">
-//             <AlertCircle className="w-5 h-5 mr-2" />
-//             No element data available
-//           </div>
-//           <p className="text-sm text-gray-700">
-//             Please check your network connection and try again. The AgentExtractModel may not be responding or providing coordinate data.
-//           </p>
-//           <button 
-//             onClick={() => setShowSuggestions(false)}
-//             className="mt-3 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors text-sm"
-//           >
-//             Dismiss
-//           </button>
-//         </div>
-//       )}
-
-//       {/* Suggestions List */}
-//       {!showPositionControls && (
-//         <ul className="divide-y divide-gray-100">
-//           {(!requiresOtp || (requiresOtp && otpVerificationState.contactEntered)) &&
-//             suggestions.map((suggestion, index) => (
-//               <li 
-//                 key={`${suggestion.id}-${index}`}
-//                 className={`suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
-//                   suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
-//                   suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
-//                   suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
-//                   suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
-//                   suggestion.proximityToLastClick === 'very-close' ? 'bg-blue-50 border-l-2 border-blue-300' :
-//                   suggestion.proximityToLastClick === 'close' ? 'bg-blue-50 border-l-1 border-blue-200' :
-//                   suggestion.isDuplicate ? 'border-l-4 border-yellow-400' : ''
-//                 }`}
-//                 tabIndex={0}
-//                 onClick={() => handleSuggestionClick(suggestion)}
-//                 onKeyDown={(e) => {
-//                   if (e.key === 'Enter') {
-//                     handleSuggestionSelect(suggestion);
-//                   } else if (e.key === 'ArrowDown' && index < suggestions.length - 1) {
-//                     e.preventDefault();
-//                     document.querySelectorAll('.suggestion-item')[index + 1].focus();
-//                   } else if (e.key === 'ArrowUp') {
-//                     e.preventDefault();
-//                     if (index > 0) {
-//                       document.querySelectorAll('.suggestion-item')[index - 1].focus();
-//                     } else {
-//                       inputRef.current.focus();
-//                     }
-//                   } else if (e.key === 'Escape') {
-//                     setShowSuggestions(false);
-//                     inputRef.current.focus();
-//                   }
-//                 }}
-//               >
-//                 <div className="flex justify-between items-center">
-//                   <span className="font-medium">
-//                     {suggestion.displayName || suggestion.name}
-//                     {suggestion.usageInfo && (
-//                       <span className={`ml-2 text-xs font-semibold ${
-//                         suggestion.usageInfo === 'Last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-//                         suggestion.usageInfo === 'Likely last executed element' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded-full' :
-//                         suggestion.usageInfo === 'Near last click' ? 'text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full' :
-//                         'text-green-600'
-//                       }`}>
-//                         ({suggestion.usageInfo})
-//                       </span>
-//                     )}
-//                   </span>
-//                   <div className="flex items-center gap-2">
-//                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-//                     onClick={(e) => {
-//                       e.stopPropagation();
-//                       handleSuggestionSelect(suggestion);
-//                     }}
-//                     >
-//                       🎯 Adjust
-//                     </span>
-//                     <span className={`text-xs px-2 py-1 rounded-full ${
-//                       suggestion.type === 'button' || suggestion.tag === 'button' 
-//                           ? 'bg-blue-100 text-blue-700' 
-//                           : suggestion.type === 'input' || suggestion.tag === 'input'
-//                           ? 'bg-green-100 text-green-700'
-//                           : suggestion.type === 'link' || suggestion.tag === 'a'
-//                           ? 'bg-purple-100 text-purple-700'
-//                           : suggestion.type === 'text'
-//                           ? 'bg-gray-100 text-gray-700'
-//                           : 'bg-gray-100 text-gray-700'
-//                     }`}>
-//                       {suggestion.type || suggestion.tag || "Element"}
-//                     </span>
-//                   </div>
-//                 </div>
-                
-//                 <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
-//                   <span>Position: x:{Math.round(suggestion.click_point[0])}, y:{Math.round(suggestion.click_point[1])}</span>
-//                   {suggestion.isDuplicate && !suggestion.usageInfo && (
-//                     <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-//                       Multiple matches
-//                     </span>
-//                   )}
-//                   {suggestion.proximityToLastClick === 'very-close' && !suggestion.usageInfo && (
-//                     <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-//                       Near last click
-//                     </span>
-//                   )}
-//                 </div>
-                
-//                 {/* Extra details to help distinguish elements */}
-//                 {suggestion.text && (
-//                   <div className="text-xs text-gray-500 mt-1 truncate">
-//                     Text: "{suggestion.text.substring(0, 30)}{suggestion.text.length > 30 ? '...' : ''}"
-//                   </div>
-//                 )}
-//               </li>
-//             ))}
-//         </ul>
-//       )}
-//     </div>
-//   );
-// };
-
 const InstructionModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
@@ -3409,7 +2225,7 @@ const generateDisplayLabel = (currentMatch, allMatches) => {
   return baseName;
 };
 
-const handleMultipleMatches = (matches, stepDescription, callback) => {
+const handleMultipleMatches = (matches, stepDescription, callback, screenshot) => {
   if (matches.length === 1) {
     // Single match - proceed automatically
     callback(matches[0]);
@@ -3423,6 +2239,12 @@ const handleMultipleMatches = (matches, stepDescription, callback) => {
     type: match.type || 'Unknown',
     element: match,
     coordinates: match.coordinates || { x: 0, y: 0, width: 0, height: 0 }
+  }));
+  
+  // ✅ Store screenshot in editStepModal state
+  setEditStepModal(prev => ({
+    ...prev,
+    currentScreenshot: screenshot
   }));
   
   setModalData({
@@ -3533,9 +2355,62 @@ const getElementContext = (element) => {
   return "";
 };
 
-const ElementSelectionModal = () => {
+const ElementSelectionModal = ({currentScreenshot}) => {
   const [selectedElement, setSelectedElement] = useState(null);
   
+  const [showPositionControls, setShowPositionControls] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+  
+  // Position adjustment constants
+  const POSITION_STEP = 10;
+  const FINE_STEP = 5;
+  
+  // Add ref for screenshot container
+  const screenshotContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (showPositionControls && screenshotContainerRef.current) {
+      const container = screenshotContainerRef.current;
+      
+      // Get current position - handle both data structures
+      let currentPos = adjustedPosition;
+      
+      if (!currentPos) {
+        // Try selectedSuggestion first (from error modal), then selectedElement (from element modal)
+        const targetElement = selectedSuggestion || selectedElement;
+        
+        if (targetElement) {
+          currentPos = targetElement.click_point || 
+                      targetElement.element?.click_point || 
+                      targetElement.element?.coordinates ||
+                      targetElement.coordinates ||
+                      [0, 0];
+        } else {
+          currentPos = [0, 0];
+        }
+      }
+      
+      // Ensure currentPos is a valid array
+      if (!Array.isArray(currentPos) || currentPos.length < 2) {
+        currentPos = [0, 0];
+      }
+      
+      // Center the view on the current position
+      setTimeout(() => {
+        const containerRect = container.getBoundingClientRect();
+        const targetX = currentPos[0] - containerRect.width / 2;
+        const targetY = currentPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [showPositionControls, selectedSuggestion, selectedElement, adjustedPosition]);
+    
   const handleElementSelect = (element) => {
     setSelectedElement(element);
   };
@@ -3562,156 +2437,545 @@ const ElementSelectionModal = () => {
       stepDescription: '',
       callback: null
     });
+    // Reset position adjustment states
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const handlePositionAdjustment = (direction, step = POSITION_STEP) => {
+    if (!selectedSuggestion) return;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    let newPos = [...currentPos];
+    
+    switch (direction) {
+      case 'up':
+        newPos[1] -= step;
+        break;
+      case 'down':
+        newPos[1] += step;
+        break;
+      case 'left':
+        newPos[0] -= step;
+        break;
+      case 'right':
+        newPos[0] += step;
+        break;
+      default:
+        return;
+    }
+    
+    newPos[0] = Math.max(0, newPos[0]);
+    newPos[1] = Math.max(0, newPos[1]);
+    
+    setAdjustedPosition(newPos);
+    
+    // Scroll container to keep crosshair visible
+    setTimeout(() => {
+      if (screenshotContainerRef.current) {
+        const container = screenshotContainerRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const targetX = newPos[0] - containerRect.width / 2;
+        const targetY = newPos[1] - containerRect.height / 2;
+        
+        container.scrollTo({
+          left: Math.max(0, targetX),
+          top: Math.max(0, targetY),
+          behavior: 'smooth'
+        });
+      }
+    }, 0);
+  };
+
+  const handleAdjustClick = (match, index) => {
+    setSelectedSuggestion(match);
+    setAdjustedPosition(null);
+    setShowPositionControls(true);
+  };
+
+  const handleConfirmAdjustment = () => {
+    if (selectedSuggestion) {
+      const finalPosition = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+      
+      // Update the element with new coordinates
+      const updatedElement = {
+        ...selectedSuggestion.element,
+        click_point: finalPosition,
+        coordinates: finalPosition,
+        isAdjusted: true, 
+        originalPosition: selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates 
+      };
+
+      // Update the matches array
+      const updatedMatches = modalData.matches.map(match => 
+        match.index === selectedSuggestion.index 
+          ? { ...match, element: updatedElement }
+          : match
+      );
+      
+      setModalData(prev => ({ ...prev, matches: updatedMatches }));
+      
+      // Auto-select the adjusted element
+      setSelectedElement({ ...selectedSuggestion, element: updatedElement });
+      
+      // Close position controls
+      setShowPositionControls(false);
+      setSelectedSuggestion(null);
+      setAdjustedPosition(null);
+    }
+  };
+
+  const handleCancelAdjustment = () => {
+    setShowPositionControls(false);
+    setSelectedSuggestion(null);
+    setAdjustedPosition(null);
+  };
+
+  const resetPosition = () => {
+    setAdjustedPosition(null);
+  };
+
+  const PositionControls = () => {
+    if (!selectedSuggestion) return null;
+    
+    const currentPos = adjustedPosition || selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    const originalPos = selectedSuggestion.element.click_point || selectedSuggestion.element.coordinates;
+    const hasAdjustment = adjustedPosition && 
+      (adjustedPosition[0] !== originalPos[0] || adjustedPosition[1] !== originalPos[1]);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]">
+        <div className="bg-white rounded-lg shadow-2xl w-[900px] h-[600px] overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                  🎯
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">Fine-tune Click Position</h3>
+                  <p className="text-sm text-blue-600">
+                    Element: {selectedSuggestion.display}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleCancelAdjustment}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex h-[calc(600px-140px)]">
+            {/* Screenshot Panel */}
+            <div ref={screenshotContainerRef} className="flex-1 relative bg-gray-100 overflow-auto">
+              <div className="relative inline-block min-w-full min-h-full">
+                {currentScreenshot ? (
+                  <img 
+                    src={currentScreenshot} 
+                    alt="Page Screenshot" 
+                    className="max-w-none"
+                    style={{ cursor: 'crosshair' }}
+                    onClick={(e) => {
+                      const rect = e.target.getBoundingClientRect();
+                      const scaleX = e.target.naturalWidth / rect.width;
+                      const scaleY = e.target.naturalHeight / rect.height;
+                      const x = (e.clientX - rect.left) * scaleX;
+                      const y = (e.clientY - rect.top) * scaleY;
+                      setAdjustedPosition([Math.round(x), Math.round(y)]);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📸</div>
+                      <p>Screenshot not available</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Original Position Indicator */}
+                <div 
+                  className="absolute w-6 h-6 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                  style={{ 
+                    left: `${originalPos[0]}px`, 
+                    top: `${originalPos[1]}px` 
+                  }}
+                >
+                  <div className="w-full h-full bg-red-500 bg-opacity-70 rounded-full border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
+                  <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Original Position
+                  </div>
+                </div>
+                
+                {/* Current/Adjusted Position Indicator */}
+                <div 
+                  className="absolute w-8 h-8 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 z-10"
+                  style={{ 
+                    left: `${currentPos[0]}px`, 
+                    top: `${currentPos[1]}px` 
+                  }}
+                >
+                  {/* Crosshair */}
+                  <div className="absolute inset-0">
+                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-green-500 transform -translate-y-1/2"></div>
+                    <div className="absolute left-1/2 top-0 h-full w-0.5 bg-green-500 transform -translate-x-1/2"></div>
+                  </div>
+                  
+                  {/* Center dot */}
+                  <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-green-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+                  
+                  {/* Label */}
+                  <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Click Here ({Math.round(currentPos[0])}, {Math.round(currentPos[1])})
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Panel */}
+            <div className="w-72 bg-white border-l border-gray-200 p-4 overflow-y-auto flex-shrink-0">
+              <div className="space-y-6">
+                {/* Position Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Position Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Current:</span>
+                      <span className="font-mono">x:{Math.round(currentPos[0])}, y:{Math.round(currentPos[1])}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Original:</span>
+                      <span className="font-mono text-red-600">x:{Math.round(originalPos[0])}, y:{Math.round(originalPos[1])}</span>
+                    </div>
+                    {hasAdjustment && (
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-gray-600">Offset:</span>
+                        <span className="font-mono text-green-600">
+                          x:{adjustedPosition[0] - originalPos[0]}, y:{adjustedPosition[1] - originalPos[1]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Directional Controls */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-800 mb-4 text-center">Directional Controls</h4>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Up Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('up', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move up (fine)"
+                      >
+                        ⬆
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('up')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move up"
+                      >
+                        ⬆
+                      </button>
+                    </div>
+                    
+                    {/* Left and Right Arrows */}
+                    <div className="flex gap-2 items-center">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('left', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move left (fine)"
+                        >
+                          ⬅
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('left')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move left"
+                        >
+                          ⬅
+                        </button>
+                      </div>
+                      
+                      <div className="mx-2 text-center">
+                        <div className="w-12 h-12 bg-blue-200 border-2 border-blue-400 rounded-full flex items-center justify-center text-blue-800">
+                          🎯
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">Target</div>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handlePositionAdjustment('right')}
+                          className="w-6 h-8 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                          title="Move right"
+                        >
+                          ➡
+                        </button>
+                        <button
+                          onClick={() => handlePositionAdjustment('right', FINE_STEP)}
+                          className="w-6 h-8 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                          title="Move right (fine)"
+                        >
+                          ➡
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Down Arrow */}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handlePositionAdjustment('down')}
+                        className="w-8 h-6 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded text-blue-700 flex items-center justify-center transition-colors font-bold"
+                        title="Move down"
+                      >
+                        ⬇
+                      </button>
+                      <button
+                        onClick={() => handlePositionAdjustment('down', FINE_STEP)}
+                        className="w-8 h-6 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-600 flex items-center justify-center transition-colors text-xs"
+                        title="Move down (fine)"
+                      >
+                        ⬇
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {hasAdjustment && (
+                    <button
+                      onClick={resetPosition}
+                      className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors font-medium"
+                    >
+                      🔄 Reset to Original
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleConfirmAdjustment}
+                    className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors font-medium"
+                  >
+                    ✓ Use This Position
+                  </button>
+                  
+                  <button
+                    onClick={handleCancelAdjustment}
+                    className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-md transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Quick Instructions */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">How to Adjust</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Click directly on the screenshot</li>
+                    <li>• Use arrow buttons for precise control</li>
+                    <li>• Bold arrows: {POSITION_STEP}px steps</li>
+                    <li>• Light arrows: {FINE_STEP}px fine steps</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
   
   if (!showElementModal) return null;
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
-        {/* Modal Header */}
-        <div className="bg-blue-600 text-white px-6 py-4">
-          <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
-          <p className="text-blue-100 text-sm mt-1">
-            Select the correct element for: "{modalData.stepDescription}"
-          </p>
-        </div>
-        
-        {/* Modal Body */}
-        <div className="p-6 max-h-96 overflow-y-auto">
-          <div className="space-y-3">
-            {modalData.matches.map((match, index) => {
-              const positionDesc = getPositionDescription(match.element, modalData.matches);
-              const sizeDesc = getSizeDescription(match.element);
-              const contextDesc = getElementContext(match.element);
-              
-              return (
-                <div
-                  key={index}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                    selectedElement?.index === match.index
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                  }`}
-                  onClick={() => handleElementSelect(match)}
-                >
-                  <div className="flex items-start space-x-3">
-                    {/* Element Icon */}
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
-                      match.type === 'button' ? 'bg-green-500' :
-                      match.type === 'input' ? 'bg-blue-500' :
-                      match.type === 'link' ? 'bg-purple-500' :
-                      'bg-gray-500'
-                    }`}>
-                      {match.type === 'button' ? '🔘' :
-                       match.type === 'input' ? '📝' :
-                       match.type === 'link' ? '🔗' :
-                       '🔲'}
-                    </div>
-                    
-                    {/* Element Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <h3 className="font-semibold text-gray-900 truncate text-base">
-                          {match.display}
-                        </h3>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          match.type === 'button' ? 'bg-green-100 text-green-800' :
-                          match.type === 'input' ? 'bg-blue-100 text-blue-800' :
-                          match.type === 'link' ? 'bg-purple-100 text-purple-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {match.type}
-                        </span>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden">
+          {/* Modal Header */}
+          <div className="bg-blue-600 text-white px-6 py-4">
+            <h2 className="text-lg font-semibold">Multiple Elements Found</h2>
+            <p className="text-blue-100 text-sm mt-1">
+              Select the correct element for: "{modalData.stepDescription}"
+            </p>
+          </div>
+          
+          {/* Modal Body */}
+          <div className="p-6 max-h-96 overflow-y-auto">
+            <div className="space-y-3">
+              {modalData.matches.map((match, index) => {
+                const positionDesc = getPositionDescription(match.element, modalData.matches);
+                const sizeDesc = getSizeDescription(match.element);
+                const contextDesc = getElementContext(match.element);
+                
+                return (
+                  <div
+                    key={index}
+                    className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                      selectedElement?.index === match.index
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : match.element.isAdjusted
+                        ? 'border-green-200 hover:border-green-300 hover:shadow-sm bg-green-25'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    }`}
+                    onClick={() => handleElementSelect(match)}
+                  >
+                    <div className="flex items-start space-x-3">
+                      {/* Element Icon */}
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${
+                        match.type === 'button' ? 'bg-green-500' :
+                        match.type === 'input' ? 'bg-blue-500' :
+                        match.type === 'link' ? 'bg-purple-500' :
+                        'bg-gray-500'
+                      }`}>
+                        {match.type === 'button' ? '🔘' :
+                         match.type === 'input' ? '📝' :
+                         match.type === 'link' ? '🔗' :
+                         '🔲'}
                       </div>
                       
-                      {/* User-friendly position description */}
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-600">📍 Location:</span>
-                          <span className="text-sm text-gray-800">{positionDesc}</span>
+                      {/* Element Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-semibold text-gray-900 truncate text-base">
+                            {match.display}
+                          </h3>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            match.type === 'button' ? 'bg-green-100 text-green-800' :
+                            match.type === 'input' ? 'bg-blue-100 text-blue-800' :
+                            match.type === 'link' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {match.type}
+                          </span>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-600">📏 Size:</span>
-                          <span className="text-sm text-gray-800">{sizeDesc}</span>
-                        </div>
-                        
-                        {contextDesc && (
+                        {/* User-friendly position description */}
+                        <div className="space-y-1">
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-600">💬 Context:</span>
-                            <span className="text-sm text-gray-800">{contextDesc}</span>
+                            <span className="text-sm font-medium text-gray-600">📍 Location:</span>
+                            <span className="text-sm text-gray-800">{positionDesc}</span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-600">📏 Size:</span>
+                            <span className="text-sm text-gray-800">{sizeDesc}</span>
+                          </div>
+                          
+                          {contextDesc && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium text-gray-600">💬 Context:</span>
+                              <span className="text-sm text-gray-800">{contextDesc}</span>
+                            </div>
+                          )}
+
+                          {/* Position adjustment indicator */}
+                          {match.element.isAdjusted && (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className="text-sm font-medium text-green-600">🎯 Position:</span>
+                              <span className="text-sm text-green-700 font-medium">Manually Adjusted</span>
+                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                Custom Position
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Match score indicator if available */}
+                        {match.element.matchScore && (
+                          <div className="mt-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500">Match confidence:</span>
+                              <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-green-500 h-2 rounded-full" 
+                                  style={{ width: `${match.element.matchScore}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+                            </div>
                           </div>
                         )}
                       </div>
-                      
-                      {/* Match score indicator if available */}
-                      {match.element.matchScore && (
-                        <div className="mt-2">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs text-gray-500">Match confidence:</span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${match.element.matchScore}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-600">{match.element.matchScore}%</span>
+
+                      <div className="flex flex-col items-end space-y-2">
+                        {/* UPDATED ADJUST BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAdjustClick(match, index);
+                          }}
+                          className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 transition-colors"
+                          title="Fine-tune position"
+                        >
+                          🎯 Adjust
+                        </button>
+                        
+                        {/* Selection indicator */}
+                        {selectedElement?.index === match.index && (
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Selection indicator */}
-                    {selectedElement?.index === match.index && (
-                      <div className="flex-shrink-0">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {/* Helpful tip */}
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start space-x-2">
-              <span className="text-yellow-600">💡</span>
-              <p className="text-sm text-yellow-800">
-                <strong>Tip:</strong> Look at the location and context to identify the correct element. 
-                Elements are described by their position on the screen and their purpose.
-              </p>
+                );
+              })}
+            </div>
+            
+            {/* Helpful tip */}
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <span className="text-yellow-600">💡</span>
+                <p className="text-sm text-yellow-800">
+                  <strong>Tip:</strong> Look at the location and context to identify the correct element. 
+                  Use the "🎯 Adjust" button to fine-tune the click position if needed.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        
-        {/* Modal Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedElement}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
-              selectedElement
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            Confirm Selection
-          </button>
+          
+          {/* Modal Footer */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!selectedElement}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
+                selectedElement
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Confirm Selection
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Position Controls Modal */}
+      {showPositionControls && <PositionControls />}
+    </>
   );
 };
 
@@ -3837,7 +3101,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
       } else {
         console.error(`❌ No element selected for OTP step with multiple matches.`);
       }
-    });
+    }, currentPageData.screenshot || currentPageData.omniparser_data?.screenshot);
   } else {
     // Single match - auto-select
     console.log(`🎯 Auto-selecting single matching element for OTP step:`, validationResult.matches[0]);
@@ -4388,7 +3652,19 @@ const EditStepModal = ({
         }
       );      
       
-      setSuggestions(suggestedElements);
+      // Add manual positioning option at the top
+      const manualOption = {
+        id: 'manual-adjust',
+        name: 'Manual Adjustment',
+        displayName: 'Manual Adjustment',
+        type: 'manual',
+        click_point: lastClickCoordinates || [100, 100], 
+        text: 'Click here to manually set the exact position',
+        isManualOption: true
+      };
+
+      const allSuggestions = [manualOption, ...suggestedElements];
+      setSuggestions(allSuggestions);
       setShowSuggestions(suggestedElements.length > 0);
       
     } else if (['scrollup', 'scrolldown', 'scroll_up', 'scroll_down'].includes(firstWord)) { 
@@ -5065,6 +4341,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                             key={`modal-${suggestion.id}-${index}`}
                             className={`modal-suggestion-item p-3 hover:bg-purple-50 cursor-pointer focus:bg-purple-100 focus:outline-none transition-colors duration-150 ${
                               suggestion.usageInfo === 'Last executed element' ? 'bg-green-100 border-l-4 border-green-500' : 
+                              suggestion.isManualOption ? 'bg-blue-100 border-l-4 border-blue-600' :
                               suggestion.usageInfo === 'Likely last executed element' ? 'bg-green-50 border-l-4 border-green-400' :
                               suggestion.usageInfo === 'Near last click' ? 'bg-blue-50 border-l-4 border-blue-300' :
                               suggestion.usageInfo ? 'bg-green-50 border-l-4 border-green-300' : 
@@ -5095,6 +4372,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                           >
                             <div className="flex justify-between items-center">
                               <span className="font-medium">
+                                {suggestion.isManualOption && '🎯 '}
                                 {suggestion.displayName || suggestion.name}
                                 {suggestion.usageInfo && (
                                   <span className={`ml-2 text-xs font-semibold ${
@@ -5714,7 +4992,11 @@ const calculateDirectionalOffset = (coordinates, direction) => {
           </div>
         )} */}
 
-        <ElementSelectionModal />
+        <ElementSelectionModal  
+          currentScreenshot={
+            editStepModal.currentScreenshot 
+          }
+        />
         <OtpReplacementModal
           isOpen={otpReplacementModal.isOpen}
           onClose={() => setOtpReplacementModal({ isOpen: false, step: null, fetchedOtp: '', stepIndex: null })}

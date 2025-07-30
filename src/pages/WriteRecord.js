@@ -1042,31 +1042,39 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
     try {
         const stepDescription = stepObj.description;
-        
+        const fullCommand = stepDescription.trim().toLowerCase();
+
         const words = stepDescription.trim().split(' ');
         let actionType = words[0].toLowerCase();
-        const fullInput = stepDescription.trim().toLowerCase();
+        // const fullInput = stepDescription.trim().toLowerCase();
 
-        if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
-          actionType = 'scrolldown';
-        } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
-          actionType = 'scrollup';
-        } 
+        // if (fullInput.startsWith('scroll down') || fullInput.startsWith('scroll_down') || fullInput.startsWith('scrolldown')) {
+        //   actionType = 'scrolldown';
+        // } else if (fullInput.startsWith('scroll up') || fullInput.startsWith('scroll_up') || fullInput.startsWith('scrollup')) {
+        //   actionType = 'scrollup';
+        // } 
 
         let updatedStepDescription = stepDescription;
     
-        if (actionType === 'scrollup') {
+        if (fullCommand.startsWith('scroll up')) {
           updatedStepDescription = "scroll_up page";
-          console.log("Converting 'scrollup' to 'scroll_up page'");
-        } else if (actionType === 'scrolldown') {
+          console.log("Converting 'scroll up...' to 'scroll_up page'");
+        } else if (fullCommand.startsWith('scroll down')) {
           updatedStepDescription = "scroll_down page";
-          console.log("Converting 'scrolldown' to 'scroll_down page'");
+          console.log("Converting 'scroll down...' to 'scroll_down page'");
+        } else if (fullCommand.startsWith('scrollup')) {
+          updatedStepDescription = "scroll_up page";
+          console.log("Converting 'scrollup...' to 'scroll_up page'");
+        } else if (fullCommand.startsWith('scrolldown')) {
+          updatedStepDescription = "scroll_down page";
+          console.log("Converting 'scrolldown...' to 'scroll_down page'");
         } else {
           words[0] = actionType;
           updatedStepDescription = words.join(' ');
         }
 
         console.log("Updated Step Description:", updatedStepDescription); 
+        stepObj.description = updatedStepDescription;
         
         const stepIndex = testSteps.length;
         if (actionType === 'scrollup' || actionType === 'scrolldown') {
@@ -1300,7 +1308,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               debug_images: data.coordinates?.debug_images || {},
           };
         } 
-        else if (actionType === 'scrollup' || actionType === 'scrolldown') {
+        else if (fullCommand.startsWith('scroll up') || fullCommand.startsWith('scroll down')) {
           const requestBody = { 
             command: updatedStepDescription, 
             user_id: user_id

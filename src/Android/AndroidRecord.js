@@ -1302,26 +1302,53 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         const stepDescription = stepObj.description;
         
         const words = stepDescription.trim().split(' ');
-        const actionType = (words[0].toLowerCase() === 'scroll' || words[0].toLowerCase() === 'swipe') && words.length > 1
-          ? (words[0].toLowerCase() === 'swipe' && words[1] && words[1].toLowerCase() === 'long' && words.length > 2
-              ? words.slice(0, 3).join(' ').toLowerCase()
-              : words.slice(0, 2).join(' ').toLowerCase())
-          : words[0].toLowerCase();
+        let actionType = words[0].toLowerCase();
+
+        // --- SCROLL HANDLING ---
+        if (actionType === 'scroll' && words.length >= 2) {
+          const second = words[1]?.toLowerCase();  // up/down
+          const third = words[2]?.toLowerCase();   // a (optional)
+          const fourth = words[3]?.toLowerCase();  // bit/lot/fast (optional)
+
+          if ((second === 'up' || second === 'down') && third === 'a' && ['bit', 'lot'].includes(fourth)) {
+            actionType = `scroll ${second} a ${fourth}`;
+          } else if ((second === 'up' || second === 'down') && ['bit', 'lot', 'fast'].includes(third)) {
+            actionType = `scroll ${second} ${third}`;
+          } else {
+            actionType = `scroll ${second}`;
+          }
+        }
+
+        // --- SWIPE HANDLING ---
+        else if (actionType === 'swipe' && words.length >= 2) {
+          const second = words[1]?.toLowerCase();  // long/left/right
+          const third = words[2]?.toLowerCase();   // left/right (if long)
+
+          if (second === 'long' && ['left', 'right'].includes(third)) {
+            actionType = words.slice(0, 3).join(' ').toLowerCase();  // swipe long left
+          } else if (['left', 'right'].includes(second)) {
+            actionType = words.slice(0, 2).join(' ').toLowerCase();  // swipe left
+          }
+        }
 
         words[0] = actionType;
   
         let updatedStepDescription = stepDescription;
     
-        // if (actionType === 'scroll up') {
-        //   updatedStepDescription = "scroll up";
-        //   console.log("Converting 'scroll up' to 'scroll up page'");
-        // } else if (actionType === 'scroll down') {
-        //   updatedStepDescription = "scroll down";
-        //   console.log("Converting 'scroll down' to 'scroll down page'");
-        // } else {
-        //   words[0] = actionType;
-        //   updatedStepDescription = words.join(' ');
-        // }
+        const validScrollSwipeCommands = [
+          "scroll up",
+          "scroll down",
+          "scroll up a bit",
+          "scroll down a bit",
+          "scroll up a lot",
+          "scroll down a lot",
+          "scroll down fast",
+          "scroll up fast",
+          "swipe left",
+          "swipe right",
+          "swipe long left",
+          "swipe long right"
+        ];
 
         console.log("Updated Step Description:", updatedStepDescription); 
         
@@ -1340,10 +1367,22 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
         } else if (actionType === 'wait') {
           setLoadingMessage(`Step ${stepIndex + 1}: Waiting, please be patient...`);
-        } else if (actionType === 'scroll up') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up, please wait...`);
-        } else if (actionType === 'scroll down') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down, please wait...`);
+        } else if (actionType === 'scroll up fast') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up fast, please wait...`);
+        } else if (actionType === 'scroll up a bit') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up a bit, please wait...`);
+        } else if (actionType === 'scroll up a lot') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling up a lot, please wait...`);
+        } else if (actionType === 'scroll down fast') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down fast, please wait...`);
+        } else if (actionType === 'scroll down a bit') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down a bit, please wait...`);
+        } else if (actionType === 'scroll down a lot') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling down a lot, please wait...`);
+        } else if (actionType === 'scroll left') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling left, please wait...`);
+        } else if (actionType === 'scroll right') {
+          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling right, please wait...`);
         } else if (actionType === 'swipe left') {
           setLoadingMessage(`Step ${stepIndex + 1}: Swiping left, please wait...`);
         } else if (actionType === 'swipe right') {
@@ -2182,11 +2221,11 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               debug_images: data.coordinates?.debug_images || {},
           };
         } 
-        else if (actionType.startsWith('scroll') || actionType.startsWith('swipe')) {
+        else if (validScrollSwipeCommands.includes(actionType)) {
           let modifiedCommand = actionType;
 
           let requestBody = {
-            command: stepDescription
+            command: modifiedCommand
           };
 
           console.log('Sending scroll/swipe command:', {
