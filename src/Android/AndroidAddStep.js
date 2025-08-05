@@ -1610,16 +1610,18 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
             {/* Add the adjust button and direct click option */}
             <div className="flex items-center gap-2">
-              <span 
-                className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentSetEditValue(() => setEditValue); 
-                  handleSuggestionSelect(element);
-                }}
-              >
-                🎯 Adjust
-              </span>
+              {(commandType === 'click' || commandType === 'type') && (
+                <span 
+                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentSetEditValue(() => setEditValue); 
+                    handleSuggestionSelect(element);
+                  }}
+                >
+                  🎯 Adjust
+                </span>
+              )}
               <span className={`text-xs px-2 py-1 rounded-full ${
                 element.type === 'button' ? 'bg-blue-100 text-blue-700' : 
                 element.type === 'input' ? 'bg-green-100 text-green-700' :
@@ -2336,15 +2338,17 @@ const renderEditSuggestions = (stepNumber, setEditValue) => {
 
                       {/* Add the adjust button and direct click option */}
                       <div className="flex items-center gap-2">
-                        <span 
-                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSuggestionSelect(element);
-                          }}
-                        >
-                          🎯 Adjust
-                        </span>
+                        {(commandType === 'click' || commandType === 'type') && (
+                          <span 
+                            className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSuggestionSelect(element);
+                            }}
+                          >
+                            🎯 Adjust
+                          </span>
+                        )}
                         <span className={`text-xs px-2 py-1 rounded-full ${
                           element.type === 'button' ? 'bg-blue-100 text-blue-700' : 
                           element.type === 'input' ? 'bg-green-100 text-green-700' :

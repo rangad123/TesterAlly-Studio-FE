@@ -207,8 +207,8 @@ const Sidebar = () => {
 
   const isAnyOptionActive = currentPath === "/test-suites" || currentPath === "/test-cases"
   || currentPath === "/create-requirement"
-  || currentPath === "/project-members" || currentPath === "/project-details" 
-  || currentPath === "/requirement-details" || currentPath === "/requirement-type"
+  || currentPath === "/project-members" || currentPath === "/project-details" || currentPath === "/test-scenario"
+  || currentPath === "/requirement-details" || currentPath === "/requirement-type" || currentPath === "/reports"
   || currentPath === "/testcase-Priorities" || currentPath === "/testcases-type" || currentPath === "/test-data";
 
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, Plus, Clock, X, Loader, WifiOff, MonitorSmartphone, Smartphone, Tag } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, AlertTriangle, Wifi, RefreshCw, X, Loader, WifiOff, MonitorSmartphone, Smartphone, Tag } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSuggestedElements } from '../pages/elementSuggestionUtils';
 import { HelpCircle, Link, MousePointer, Info, AlertCircle } from 'lucide-react';
@@ -14,13 +14,13 @@ const AndroidPrompt = () => {
   const [newStep, setNewStep] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [elementData, setElementData] = useState(null);
-  const [testCaseInfo, ] = useState({
-    testcase_name: 'test-1',
-    testcase_type: 'Non-functional',
-    testcase_priority: 'Minor',
-    projectId: 'GitHub-1',
-    project_type: 'Mobile Application',
-    platform:'Android'
+  const [testCaseInfo, setTestCaseInfo] = useState({
+    testcase_name: '',
+    testcase_type: '',
+    testcase_priority: '',
+    projectId: '',
+    project_type: '',
+    platform: ''
   });
 
   const [verificationModal, setVerificationModal] = useState({
@@ -100,6 +100,18 @@ const AndroidPrompt = () => {
   const [waitStepIndex, setWaitStepIndex] = useState(null);
   const [waitStepData, setWaitStepData] = useState(null);
 
+  const [invalidCommandModal, setInvalidCommandModal] = useState({
+    isOpen: false,
+    commandError: null,
+    stepIndex: null
+  });
+
+  const [networkErrorModal, setNetworkErrorModal] = useState({
+    isOpen: false,
+    stepIndex: null,
+    stepData: null
+  });
+
   const previewRef = useRef(null);
   const stepsRef = useRef(null);
   const inputRef = useRef(null);
@@ -133,17 +145,17 @@ const AndroidPrompt = () => {
     return () => window.removeEventListener("projectChanged", handleProjectChange);
   }, [navigate]);
 
-//   useEffect(() => {
-//     const info = location.state?.testCaseInfo;
-//     console.log("info:", info);
+  useEffect(() => {
+    const info = location.state?.testScenarioInfo;
+    console.log("Scenario info:", info);
 
-//     if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
-//       alert("Test case data is incomplete or missing.");
-//       navigate("/test-cases/create-testcases");
-//     } else {
-//       setTestCaseInfo(info);  
-//     }
-//   }, [location, navigate]);
+    if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
+      alert("Test scenario data is incomplete or missing.");
+      navigate("/test-scenario");
+    } else {
+      setTestCaseInfo(info);  
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     if (elementData) {
@@ -221,6 +233,8 @@ useEffect(() => {
 }, []);
 
   const checkConnectionStatus = async () => {
+    setConnectionLoading(true);
+
     try {
       const response = await fetch("http://localhost:8000/android/connection/", {
         method: "POST",
@@ -235,6 +249,8 @@ useEffect(() => {
     } catch (error) {
       console.error("Error checking connection status:", error);
       return false;
+    } finally {
+      setConnectionLoading(false); 
     }
   };
 
@@ -324,6 +340,36 @@ const checkDeviceConnection = useCallback(async () => {
     connectionProcessingRef.current = false; // Reset processing flag
   }
 }, []);
+
+const LoadingModal = ({ isOpen }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
+        <div className="mb-4 flex justify-center">
+          <Smartphone className="w-8 h-8 text-purple-600 animate-pulse" />
+        </div>
+        
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          Setting Up Device
+        </h3>
+        
+        <p className="text-gray-600 mb-4">
+          Please wait while we connect and set up your device...
+        </p>
+        
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="bg-purple-600 h-2 rounded-full animate-pulse"></div>
+        </div>
+        
+        <p className="text-sm text-gray-500 mt-3">
+          This may take a few moments
+        </p>
+      </div>
+    </div>
+  );
+}; 
 
 useEffect(() => {
   if (!testCaseInfo || !testCaseInfo.platform || deviceConnectionRef.current) return;
@@ -605,7 +651,8 @@ useEffect(() => {
 
   const executeStep = async (stepObj, stepIndex) => {
     setIsProcessing(true);
-  
+    let loadingTimer;
+
     try {
         const stepDescription = stepObj.description;
         
@@ -702,6 +749,10 @@ useEffect(() => {
           setLoadingMessage(`Step ${stepIndex + 1}: Swiping long left, please wait...`);
         }
 
+        loadingTimer = setTimeout(() => {
+          setLoadingMessage(`Step ${stepIndex + 1}: Please wait, this is taking more time due to poor network connection. Please wait some more time...`);
+        }, 50000);
+
         if (actionType === 'wait') {
 
           const hasElementData = elementData && elementData.elements && elementData.elements.length > 0;
@@ -756,6 +807,7 @@ useEffect(() => {
         }
 
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const start = performance.now();
             const response = await fetch('http://localhost:8000/android/command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -770,6 +822,23 @@ useEffect(() => {
 
             const data = await response.json();
             console.log("Response:", data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
 
             // Single declaration of androidElementData
             // let androidElementData = {};
@@ -936,7 +1005,7 @@ useEffect(() => {
             
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.action_result?.message || "App launched successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response.element,
@@ -969,6 +1038,7 @@ useEffect(() => {
                 selectedElement: selectedElement,
                 click_point: selectedElement.click_point
             });
+            const start = performance.now();
 
             // Use the same endpoint as open command
             const response = await fetch('http://localhost:8000/android/command/', {
@@ -985,6 +1055,24 @@ useEffect(() => {
 
             const data = await response.json();
             console.log(`${actionType} response:`, data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
 
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -1150,7 +1238,7 @@ useEffect(() => {
 
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.action_result?.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response.element,
@@ -1169,6 +1257,7 @@ useEffect(() => {
               command: stepDescription,
               requestBody: requestBody
           });
+          const start = performance.now();
 
           // Use the same endpoint as other commands
           const response = await fetch('http://localhost:8000/android/command/', {
@@ -1185,6 +1274,24 @@ useEffect(() => {
 
           const data = await response.json();
           console.log("Search response:", data);
+
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
 
           // Process screen elements same as other commands
           // let androidElementData = {};
@@ -1350,7 +1457,7 @@ useEffect(() => {
 
           return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.action_result?.message || 'Search command executed successfully',
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -1373,6 +1480,7 @@ useEffect(() => {
               click_y: selectedElement.click_point[1],
               verification_type: verificationType
           };
+          const start = performance.now();
   
           console.log(`Sending coordinates for verify step:`, requestBody);
   
@@ -1388,6 +1496,24 @@ useEffect(() => {
   
           const data = await response.json();
           console.log(`Verify response:`, data);
+
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
   
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -1557,7 +1683,7 @@ useEffect(() => {
           return {
 //              status: verificationPassed ? 'complete' : 'error',
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -1582,6 +1708,7 @@ useEffect(() => {
               modifiedCommand: modifiedCommand,
               requestBody: requestBody
           });
+          const start = performance.now();
 
           const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
@@ -1595,6 +1722,24 @@ useEffect(() => {
 
           const data = await response.json();
           console.log(`${actionType} response:`, data);
+
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
 
           // Process screen elements same as other commands
           // let androidElementData = {};
@@ -1752,7 +1897,7 @@ useEffect(() => {
 
           return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.action_result?.message || `${actionType} command executed successfully`,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -1776,6 +1921,7 @@ useEffect(() => {
             };
 
             console.log(`Sending coordinates for get step:`, requestBody);
+            const start = performance.now();
 
             const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
@@ -1789,6 +1935,24 @@ useEffect(() => {
 
             const data = await response.json();
             console.log(`Get response:`, data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
+
+            if (data.omniparser_response && data.omniparser_response.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_response.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
 
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -1955,7 +2119,7 @@ useEffect(() => {
 
             return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -1974,9 +2138,300 @@ useEffect(() => {
             error: error.message
         };
     } finally {
+      clearTimeout(loadingTimer);
         setIsProcessing(false);
         setLoadingMessage('');
     }
+  };
+
+  const handleNetworkRetry = async () => {
+    const { stepIndex, stepData } = networkErrorModal;
+    
+    setNetworkErrorModal({ isOpen: false, stepIndex: null, stepData: null });
+    
+    console.log(`🔄 Retrying Step ${stepIndex + 1}:`, stepData);
+    
+    // ✅ DON'T remove the step - keep it in UI and update its status to "retrying"
+    setTestSteps(prev => prev.map(step => 
+      step.id === stepData.id 
+        ? { ...step, status: 'retrying', error: null } 
+        : step
+    ));
+    
+    // Re-execute the failed step
+    const retryResult = await executeStep(stepData, stepIndex);
+    
+    if (retryResult && retryResult.status === 'complete') {
+      // ✅ Update the existing step with successful result
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, ...retryResult, status: 'complete' } 
+          : step
+      ));
+      setCurrentGeneratedStepIndex(stepIndex);
+      handleNextStep(retryResult, stepIndex);
+    } else if (retryResult && retryResult.isNetworkError) {
+      // ✅ Update step status to show network error again
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, status: 'network_error', error: 'Network timeout' } 
+          : step
+      ));
+      
+      // Show network error modal again if retry fails
+      setNetworkErrorModal({
+        isOpen: true,
+        stepIndex: stepIndex,
+        stepData: stepData
+      });
+    } else {
+      // ✅ Update step status to show execution error
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, status: 'error', error: retryResult?.error || 'Step execution failed after retry' } 
+          : step
+      ));
+      
+      // Show regular error modal if it's a different error
+      openEditModal(
+        stepData,
+        retryResult?.error || 'Step execution failed after retry',
+        null,
+        stepIndex,
+        retryResult?.screenshot 
+      );
+    }
+  };
+
+  const handleNetworkCancel = () => {
+    setNetworkErrorModal({ isOpen: false, stepIndex: null, stepData: null });
+    console.log("🚫 User cancelled execution due to network error");
+  };
+
+  const NetworkErrorModal = ({ 
+    isOpen, 
+    onRetry, 
+    onCancel, 
+    stepNumber, 
+    stepDescription 
+  }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Network Connection Issue
+              </h3>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Wifi className="w-5 h-5 text-gray-400" />
+              <p className="text-gray-600">
+                Step {stepNumber}: <span className="font-medium">{stepDescription}</span>
+              </p>
+            </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-red-800 text-sm">
+                The operation timed out due to network connectivity issues. This can happen when:
+              </p>
+              <ul className="text-red-700 text-sm mt-2 ml-4 list-disc">
+                <li>Internet connection is slow or unstable</li>
+                <li>Server is temporarily unresponsive</li>
+                <li>Page is taking longer to load than expected</li>
+              </ul>
+            </div>
+
+            <p className="text-gray-700 text-sm mb-6">
+              Please check your network connection and try again. The step will be re-executed from where it failed.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <button
+              onClick={onCancel}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              <span>Cancel Execution</span>
+            </button>
+            
+            <button
+              onClick={onRetry}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry Step</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const validateCommand = (description) => {
+    const allowedCommands = ['click', 'open', 'type', 'verify', 'select', 'get', 'search', 'wait'];
+    
+    const scrollOptions = [
+      "scroll up",
+      "scroll up a bit", 
+      "scroll up a lot",
+      "scroll up fast",
+      "scroll down",
+      "scroll down a bit",
+      "scroll down a lot", 
+      "scroll down fast",
+      "scroll left",
+      "scroll right"
+    ];
+    
+    const swipeOptions = [
+      "swipe left",
+      "swipe right",
+      "swipe long left", 
+      "swipe long right"
+    ];
+    
+    const command = description.trim().toLowerCase();
+    
+    // Check basic commands
+    for (const allowedCmd of allowedCommands) {
+      if (command.startsWith(allowedCmd)) {
+        return { isValid: true };
+      }
+    }
+    
+    // Check scroll options
+    for (const scrollCmd of scrollOptions) {
+      if (command === scrollCmd || command.startsWith(scrollCmd + ' ')) {
+        return { isValid: true };
+      }
+    }
+    
+    // Check swipe options  
+    for (const swipeCmd of swipeOptions) {
+      if (command === swipeCmd || command.startsWith(swipeCmd + ' ')) {
+        return { isValid: true };
+      }
+    }
+    
+    return { 
+      isValid: false, 
+      error: `"${description}" is not a valid command`,
+      allowedCommands: [...allowedCommands, ...scrollOptions, ...swipeOptions]
+    };
+  };
+
+  const InvalidCommandModal = ({ isOpen, onClose, onSkip, commandError, stepIndex }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="bg-purple-600 text-white px-6 py-4 rounded-t-lg">
+            <h3 className="text-lg font-semibold flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Invalid Command
+            </h3>
+          </div>
+          
+          {/* Content */}
+          <div className="p-6">
+            <div className="mb-4">
+              <p className="text-gray-700 mb-2">
+                <span className="font-medium">Step {stepIndex + 1}:</span> {commandError?.error}
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-700 text-sm">
+                  This command is not supported and cannot be executed.
+                </p>
+              </div>
+            </div>
+            
+            {/* Allowed Commands */}
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-900 mb-3">Allowed Commands:</h4>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-1 gap-1 text-sm">
+                  {commandError?.allowedCommands?.map((cmd, index) => (
+                    <div key={index} className="text-gray-600 font-mono bg-white px-2 py-1 rounded border">
+                      {cmd}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSkip}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Skip Step
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handleSkipInvalidStep = () => {
+    const { stepIndex } = invalidCommandModal;
+    
+    console.log(`⏭️ Skipping invalid step ${stepIndex + 1}`);
+    
+    // Close modal
+    setInvalidCommandModal({
+      isOpen: false,
+      commandError: null,
+      stepIndex: null
+    });
+    
+    // Skip to next step
+    setCurrentGeneratedStepIndex(stepIndex);
+    
+    // Continue with next step if available
+    if (stepIndex + 1 < generatedSteps.length) {
+      handleNextStep(null, stepIndex);
+    } else {
+      console.log("🎉 All steps processed (some skipped)");
+    }
+  };
+
+  const handleCancelInvalidStep = () => {
+    console.log("❌ User cancelled invalid step execution");
+    
+    setInvalidCommandModal({
+      isOpen: false,
+      commandError: null,
+      stepIndex: null
+    });
+    
   };
 
 const validateStepAgainstResponse = (step, omniparserData) => {
@@ -2224,6 +2679,22 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
     if (nextIndex < generatedSteps.length) {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
+
+      // 🚨 VALIDATE COMMAND BEFORE EXECUTION
+      const validation = validateCommand(nextStep.description);
+      
+      if (!validation.isValid) {
+        console.error(`❌ Invalid command for Step ${nextIndex + 1}:`, validation.error);
+        
+        // Show invalid command modal
+        setInvalidCommandModal({
+          isOpen: true,
+          commandError: validation,
+          stepIndex: nextIndex
+        });
+        
+        return; 
+      }
 
       // 🚀 HANDLE OPEN COMMANDS DIRECTLY (NO VALIDATION NEEDED)
       if (nextStep.description.trim().toLowerCase().startsWith("open")) {
@@ -2576,6 +3047,14 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
 
                 setCurrentGeneratedStepIndex(nextIndex);
                 handleNextStep(nextExecutionResult, nextIndex);
+              } else if (nextExecutionResult && nextExecutionResult.isNetworkError) {
+                console.error(`🌐 Network error for Step ${nextIndex + 1}`);
+                
+                setNetworkErrorModal({
+                  isOpen: true,
+                  stepIndex: nextIndex,
+                  stepData: stepWithElement
+                });
               } else {
                 console.error(`❌ Step ${nextIndex + 1} (multiple match) failed to execute properly.`);
                 // Open edit modal for execution errors
@@ -2691,6 +3170,14 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
 
             setCurrentGeneratedStepIndex(nextIndex);
             handleNextStep(nextExecutionResult, nextIndex);
+          } else if (nextExecutionResult && nextExecutionResult.isNetworkError) {
+            console.error(`🌐 Network error for Step ${nextIndex + 1}`);
+            
+            setNetworkErrorModal({
+              isOpen: true,
+              stepIndex: nextIndex,
+              stepData: stepWithElement
+            });
           } else {
             console.error(`❌ Step ${nextIndex + 1} (single match) failed to execute properly.`);
             // Open edit modal for execution errors
@@ -2793,6 +3280,14 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     handleNextStep(executionResult);
     
     console.log("✅ First step executed successfully");
+  } else if (executionResult && executionResult.isNetworkError) {
+    console.error("🌐 Network error for first step");
+    
+    setNetworkErrorModal({
+      isOpen: true,
+      stepIndex: 0,
+      stepData: firstStep
+    });
   } else {
     console.error("❌ First step execution failed");
   }
@@ -2963,7 +3458,7 @@ const createTestCase = async () => {
       }
       
       let stepDescription = step.description;
-      if (/(\b\d{4,8}\b)/.test(step.description)) {
+      if (step.isActualOtpStep && /\b\d{4,8}\b/.test(step.description)) {
         stepDescription = step.description.replace(/\b\d{4,8}\b/, "<otp>");
       }
       
@@ -2978,17 +3473,23 @@ const createTestCase = async () => {
       // ✅ Check if this step uses OTP
       // const usesOtp = step.description.includes('{{OTP}}');
       
-      return {
+      const stepData = {
         step_number: index + 1,
         step_description: stepDescription,
         teststep_result: teststep_result,
         step_coordinates: coordinates,
         expected_result: step.expectedResult || "",
         actual_result: "",
-        requires_otp: step.requiresOtp || false,
-        otp_type: step.otpType || null,
         ...(stepDescription?.toLowerCase().startsWith("wait") && step.waitRequestData ? { wait_config: step.waitRequestData } : {})
       };
+
+      // Only add OTP fields if this step actually uses OTP
+      if (step.isActualOtpStep || step.isOtpRelatedStep) {
+        stepData.requires_otp = true;
+        stepData.otp_type = step.otpType;
+      }
+
+      return stepData;
     });
 
     // Create steps payload matching the working API structure
@@ -3060,14 +3561,42 @@ const createTestCase = async () => {
   };
 
 const LoadingIndicator = ({ message }) => (
-  <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow-md border-l-4 border-purple-500 mb-4 transition-all duration-300">
-    <div className="mr-3 relative">
-      <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+  <div className="flex items-center justify-center p-4 bg-gradient-to-br from-white via-purple-50 to-indigo-50 rounded-xl shadow-md border border-purple-100 mb-3 transition-all duration-300 hover:shadow-lg">
+    <div className="mr-4 relative flex-shrink-0">
+      {/* Outer spinning ring with gradient */}
+      <div className="w-8 h-8 border-2 border-purple-300 border-t-purple-600 border-r-indigo-500 rounded-full animate-spin"></div>
+      {/* Inner pulsing dot */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+        <div className="w-3 h-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full animate-pulse"></div>
       </div>
     </div>
-    <span className="text-gray-700 font-medium text-lg">{message}</span>
+    
+    <div className="flex-1">
+      <span className="text-gray-800 font-medium text-lg leading-relaxed block">
+        {message}
+      </span>
+      <div className="mt-2 flex items-center space-x-3">
+        <div className="flex items-center space-x-1">
+          <span className="text-sm text-purple-600 font-medium">Processing</span>
+          <div className="flex space-x-0.5">
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
+          </div>
+        </div>
+        <span className="text-sm text-indigo-600 font-medium">
+          Keep tab active
+        </span>
+      </div>
+    </div>
+    
+    <div className="ml-4 flex-shrink-0">
+      <div className="flex space-x-1.5">
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+      </div>
+    </div>
   </div>
 );
 
@@ -5742,15 +6271,16 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                                 )}
                               </span>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSuggestionSelect(suggestion);
-                                  }}
-                                  >
-                                  🎯 Adjust
-                                </span>
-
+                                {(commandType === 'click' || commandType === 'type') && (
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSuggestionSelect(suggestion);
+                                    }}
+                                    >
+                                    🎯 Adjust
+                                  </span>
+                                )}
                                 <span className={`text-xs px-2 py-1 rounded-full ${
                                   suggestion.type === 'button' || suggestion.tag === 'button' 
                                       ? 'bg-blue-100 text-blue-700' 
@@ -6373,7 +6903,21 @@ const calculateDirectionalOffset = (coordinates, direction) => {
               // isTestDataLoading={isTestDataLoading}
               currentScreenshot={editStepModal.currentScreenshot}
             />
-
+            <InvalidCommandModal
+              isOpen={invalidCommandModal.isOpen}
+              onClose={handleCancelInvalidStep}
+              onSkip={handleSkipInvalidStep}
+              commandError={invalidCommandModal.commandError}
+              stepIndex={invalidCommandModal.stepIndex}
+            />
+            <LoadingModal isOpen={connectionLoading} />
+            <NetworkErrorModal
+              isOpen={networkErrorModal.isOpen}
+              onRetry={handleNetworkRetry}
+              onCancel={handleNetworkCancel}
+              stepNumber={networkErrorModal.stepIndex ? networkErrorModal.stepIndex + 1 : 0}
+              stepDescription={networkErrorModal.stepData?.description || ''}
+            />
           </div>
         </div>
       </div>

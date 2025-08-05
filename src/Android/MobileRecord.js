@@ -683,6 +683,7 @@ const saveTestDataEmail = async (email, password) => {
         }
   
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const start = performance.now();
             const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -698,6 +699,13 @@ const saveTestDataEmail = async (email, password) => {
   
             const data = await response.json();
             console.log("Response:", data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             if (data.omniparser_response && data.omniparser_response.elements) {
               setElementData(data.omniparser_response);
@@ -717,7 +725,7 @@ const saveTestDataEmail = async (email, password) => {
             
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.action_result.message || "Page loaded successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response,
@@ -753,6 +761,7 @@ const saveTestDataEmail = async (email, password) => {
                 click_y: selectedElement.click_point[1],
                 requestBody
             });
+            const start = performance.now();
   
             const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
                 method: 'POST',
@@ -768,6 +777,12 @@ const saveTestDataEmail = async (email, password) => {
   
             const data = await response.json();
             console.log(`${actionType} response:`, data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             if (data.omniparser_response && data.omniparser_response.elements) {
                 setElementData(data.omniparser_response);
@@ -781,7 +796,7 @@ const saveTestDataEmail = async (email, password) => {
   
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response || elementData,
@@ -807,6 +822,7 @@ const saveTestDataEmail = async (email, password) => {
           };
   
           console.log(`Sending coordinates for verify step:`, requestBody);
+          const start = performance.now();
   
           const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
@@ -820,6 +836,13 @@ const saveTestDataEmail = async (email, password) => {
   
           const data = await response.json();
           console.log(`Verify response:`, data);
+
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             if (data.omniparser_response && data.omniparser_response.elements) {
                 setElementData(data.omniparser_response);
@@ -836,7 +859,7 @@ const saveTestDataEmail = async (email, password) => {
           return {
 //              status: verificationPassed ? 'complete' : 'error',
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status,
               screenshot: screenshotUrl,
               coordinates:  data.omniparser_response || elementData,
@@ -860,6 +883,7 @@ const saveTestDataEmail = async (email, password) => {
               modifiedCommand: modifiedCommand,
               requestBody: requestBody
           });
+          const start = performance.now();
 
           const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
@@ -874,6 +898,13 @@ const saveTestDataEmail = async (email, password) => {
           const data = await response.json();
           console.log(`${actionType} response:`, data);
 
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
           
             if (data.omniparser_response && data.omniparser_response.elements) {
                 setElementData(data.omniparser_response);
@@ -886,7 +917,7 @@ const saveTestDataEmail = async (email, password) => {
 
           return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.action_result?.message || `${actionType} command executed successfully`,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response || elementData,
@@ -910,6 +941,7 @@ const saveTestDataEmail = async (email, password) => {
             };
 
             console.log(`Sending coordinates for get step:`, requestBody);
+            const start = performance.now();
 
             const response = await fetch('http://127.0.0.1:8000/android/parser_check/', {
               method: 'POST',
@@ -924,6 +956,13 @@ const saveTestDataEmail = async (email, password) => {
             const data = await response.json();
             console.log(`Get response:`, data);
 
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
             if (data.omniparser_response && data.omniparser_response.elements) {
                 setElementData(data.omniparser_response);
                 sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_response));
@@ -935,7 +974,7 @@ const saveTestDataEmail = async (email, password) => {
 
             return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response || elementData,
@@ -2751,14 +2790,16 @@ const SuggestionsDropdown = ({ omniparserData, lastScreenshot: currentScreenshot
                   )}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSuggestionSelect(suggestion);
-                    }}
-                    >
-                      🎯 Adjust
-                  </span>
+                  {(commandType === 'click' || commandType === 'type') && (
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSuggestionSelect(suggestion);
+                      }}
+                      >
+                        🎯 Adjust
+                    </span>
+                  )}
                   <span className={`text-xs px-2 py-1 rounded-full ${
                     suggestion.type === 'button' || suggestion.tag === 'button' 
                         ? 'bg-blue-100 text-blue-700' 

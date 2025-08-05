@@ -1447,6 +1447,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         }
 
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const start = performance.now();
             const response = await fetch('http://localhost:8000/android/command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1461,6 +1462,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             const data = await response.json();
             console.log("Response:", data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
             // Single declaration of androidElementData
             // let androidElementData = {};
@@ -1627,7 +1634,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.action_result?.message || "App launched successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response.element,
@@ -1660,6 +1667,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                 selectedElement: selectedElement,
                 click_point: selectedElement.click_point
             });
+            const start = performance.now();
 
             // Use the same endpoint as open command
             const response = await fetch('http://localhost:8000/android/command/', {
@@ -1676,6 +1684,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             const data = await response.json();
             console.log(`${actionType} response:`, data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -1841,7 +1855,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.action_result?.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_response.element,
@@ -1860,6 +1874,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               command: stepDescription,
               requestBody: requestBody
           });
+          const start = performance.now();
 
           // Use the same endpoint as other commands
           const response = await fetch('http://localhost:8000/android/command/', {
@@ -1876,6 +1891,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
           const data = await response.json();
           console.log("Search response:", data);
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
           // Process screen elements same as other commands
           // let androidElementData = {};
@@ -2041,7 +2062,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
           return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.action_result?.message || 'Search command executed successfully',
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -2066,6 +2087,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           };
   
           console.log(`Sending coordinates for verify step:`, requestBody);
+          const start = performance.now();
   
           const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
@@ -2079,6 +2101,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
           const data = await response.json();
           console.log(`Verify response:`, data);
+
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -2248,7 +2277,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           return {
 //              status: verificationPassed ? 'complete' : 'error',
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -2272,6 +2301,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
               modifiedCommand: modifiedCommand,
               requestBody: requestBody
           });
+          const start = performance.now();
 
           const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
@@ -2285,6 +2315,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
           const data = await response.json();
           console.log(`${actionType} response:`, data);
+          const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
           // Process screen elements same as other commands
           // let androidElementData = {};
@@ -2442,7 +2478,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
           return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.action_result?.message || `${actionType} command executed successfully`,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,
@@ -2466,6 +2502,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             };
 
             console.log(`Sending coordinates for get step:`, requestBody);
+            const start = performance.now();
 
             const response = await fetch('http://localhost:8000/android/command/', {
               method: 'POST',
@@ -2479,6 +2516,12 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             const data = await response.json();
             console.log(`Get response:`, data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
             // Process screen elements same as open command
             // let androidElementData = {};
@@ -2645,7 +2688,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
               coordinates: data.omniparser_response.element,

@@ -28,6 +28,162 @@ function TestSenario() {
     detectedSteps: []
   });
 
+const [scenarioName, setScenarioName] = useState('');
+const [scenarioType, setScenarioType] = useState('');
+const [scenarioPriority, setScenarioPriority] = useState('');
+const [scenarioErrors, setScenarioErrors] = useState({ name: "", type: "", priority: "" });
+
+const [scenarioTypes, setScenarioTypes] = useState([]);
+const [scenarioPriorities, setScenarioPriorities] = useState([]);
+
+const [promptHistory, setPromptHistory] = useState([]);
+const [showHistory, setShowHistory] = useState(false);
+
+useEffect(() => {
+  const fetchScenarioTypes = async () => {
+    if (!projectData?.project_name) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/testcase-types/?project_name=${projectData.project_name}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch scenario types");
+      }
+
+      const data = await response.json();
+      console.log("Fetched Scenario Types:", data);
+      setScenarioTypes(data); 
+    } catch (error) {
+      console.error("Error fetching scenario types:", error);
+      setScenarioTypes([]);
+    }
+  };
+
+  fetchScenarioTypes();
+}, [projectData]);
+
+useEffect(() => {
+  const fetchScenarioPriorities = async () => {
+    if (!projectData?.project_name) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/testcase-priorities/?project_name=${projectData.project_name}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch scenario priorities");
+      }
+
+      const data = await response.json();
+      console.log("Fetched Scenario Priorities:", data);
+      setScenarioPriorities(data); 
+    } catch (error) {
+      console.error("Error fetching scenario priorities:", error);
+      setScenarioPriorities([]);
+    }
+  };
+
+  fetchScenarioPriorities();
+}, [projectData]);
+
+const validateScenarioFields = () => {
+  const newErrors = {};
+  let isValid = true;
+
+  if (!scenarioName.trim()) {
+    newErrors.name = "Scenario name is required!";
+    isValid = false;
+  }
+
+  if (!scenarioType.trim()) {
+    newErrors.type = "Scenario type is required!";
+    isValid = false;
+  }
+
+  if (!scenarioPriority.trim()) {
+    newErrors.priority = "Scenario priority is required!";
+    isValid = false;
+  }
+
+  setScenarioErrors(newErrors);
+  return isValid;
+};
+
+const savePromptToHistory = (promptText, steps) => {
+  const historyItem = {
+    id: Date.now(),
+    prompt: promptText,
+    steps: steps,
+    timestamp: new Date().toLocaleString(),
+    scenarioDetails: {
+      name: scenarioName,
+      type: scenarioType,
+      priority: scenarioPriority
+    }
+  };
+
+  // Get existing history from sessionStorage
+  const existingHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
+  
+  // Add new item to beginning and keep only last 3
+  const updatedHistory = [historyItem, ...existingHistory].slice(0, 3);
+  
+  // Save to sessionStorage and state
+  sessionStorage.setItem('promptHistory', JSON.stringify(updatedHistory));
+  setPromptHistory(updatedHistory);
+  
+  console.log("💾 Prompt saved to history:", historyItem);
+};
+
+const loadPromptFromHistory = (historyItem) => {
+  setPromptText(historyItem.prompt);
+  setExtractedSteps(historyItem.steps);
+  setShowExtractedSteps(true);
+  
+  // Also restore scenario details if they exist
+  if (historyItem.scenarioDetails) {
+    setScenarioName(historyItem.scenarioDetails.name || '');
+    setScenarioType(historyItem.scenarioDetails.type || '');
+    setScenarioPriority(historyItem.scenarioDetails.priority || '');
+  }
+  
+  setShowHistory(false);
+  console.log("📋 Prompt loaded from history:", historyItem);
+};
+
+const clearPromptHistory = () => {
+  sessionStorage.removeItem('promptHistory');
+  setPromptHistory([]);
+  setShowHistory(false);
+  console.log("🗑️ Prompt history cleared");
+};
+
+const loadHistoryFromStorage = () => {
+  const savedHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
+  setPromptHistory(savedHistory);
+};
+
+useEffect(() => {
+  loadHistoryFromStorage();
+}, []);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -76,6 +232,10 @@ function TestSenario() {
   }, [needsOtpVerification, projectData?.id]);
 
   const extractStepsFromPrompt = async () => {
+    if (!validateScenarioFields()) {
+      return;
+    }
+
     if (!promptText.trim()) {
       alert("Please enter a prompt first.");
       return;
@@ -83,11 +243,11 @@ function TestSenario() {
 
     setIsExtracting(true);
     try {
-        console.log("📦 Sending Request Payload:", {
-            prompt: promptText,
-            project_type: projectData?.project_type,
-            platform:projectData?.platform,
-        });
+      console.log("📦 Sending Request Payload:", {
+        prompt: promptText,
+        project_type: projectData?.project_type,
+        platform: projectData?.platform,
+      });
 
       const response = await fetch('http://127.0.0.1:8000/api/extract-steps/', {
         method: 'POST',
@@ -95,9 +255,9 @@ function TestSenario() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            prompt: promptText,
-            project_type: projectData?.project_type,
-            platform:projectData?.platform,
+          prompt: promptText,
+          project_type: projectData?.project_type,
+          platform: projectData?.platform,
         })
       });
 
@@ -108,8 +268,15 @@ function TestSenario() {
       const data = await response.json();
       console.log("✅ Extracted steps response:", data);
 
-      setExtractedSteps(data.steps || []);
+      const newSteps = data.steps || [];
+      setExtractedSteps(newSteps);
       setShowExtractedSteps(true);
+
+      // ✅ FIX: Use newSteps instead of extractedSteps
+      if (newSteps.length > 0) {
+        savePromptToHistory(promptText, newSteps);
+      }
+
     } catch (error) {
       console.error('Error extracting steps:', error);
       alert('Failed to extract steps. Please try again.');
@@ -336,7 +503,15 @@ const isLikelyOtpStep = (step) => {
     const navigationState = {
       generatedSteps: extractedSteps,
       autoExecuteFirst: true,
-      needsOtpVerification: needsOtpVerification
+      needsOtpVerification: needsOtpVerification,
+      testScenarioInfo: {
+        testcase_name: scenarioName.trim(),
+        testcase_type: scenarioType,
+        testcase_priority: scenarioPriority,
+        projectId: projectData?.project_name,
+        project_type: projectData?.project_type,
+        platform: projectData?.platform
+      }
     };
 
     console.log("🎯 Navigation State:", navigationState);
@@ -422,7 +597,15 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
     generatedSteps: stepsWithOtpFlags,
     autoExecuteFirst: true,
     needsOtpVerification: true,
-    senderEmail: otpConfirmationModal.contactType === 'email' ? testData?.email : null
+    senderEmail: otpConfirmationModal.contactType === 'email' ? testData?.email : null,
+    testScenarioInfo: {
+      testcase_name: scenarioName.trim(),
+      testcase_type: scenarioType,
+      testcase_priority: scenarioPriority,
+      projectId: projectData?.project_name,
+      project_type: projectData?.project_type,
+      platform: projectData?.platform
+    }
   };
 
   console.log("🎯 Steps with user-confirmed OTP flags:", stepsWithOtpFlags);
@@ -712,33 +895,115 @@ const handleOtpCheckboxChange = (e) => {
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
         <div className="min-h-screen p-4 md:p-6">
-        <div className="max-w-7xl mx-auto">
-            {/* Header */}
+          <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                        AI-Powered Test Scenario Creation
-                    </h1>
-                    <p className="text-gray-600 text-sm md:text-base">
-                        Enter your test requirements and let AI generate detailed test steps for you
-                    </p>
-                    </div>
-                    
-                    {/* Project Info - Top Right */}
-                    {projectData && (
-                    <div className="text-right bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
-                        <div className="text-sm text-gray-700 mb-1">
-                        <span className="text-gray-500">Type:</span> 
-                        <span className="font-medium text-blue-700 ml-1">{projectData.project_type}</span>
-                        </div>
-                        <div className="text-sm text-gray-700">
-                        <span className="text-gray-500">Platform:</span> 
-                        <span className="font-medium text-green-700 ml-1">{projectData.platform}</span>
-                        </div>
-                    </div>
-                    )}
+              <div className="flex justify-between items-start">
+                  <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                      AI-Powered Test Scenario Creation
+                  </h1>
+                  <p className="text-gray-600 text-sm md:text-base">
+                      Enter your test requirements and let AI generate detailed test steps for you
+                  </p>
+                  </div>
+                  
+                  {/* Project Info - Top Right */}
+                  {projectData && (
+                  <div className="text-right bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+                      <div className="text-sm text-gray-700 mb-1">
+                      <span className="text-gray-500">Type:</span> 
+                      <span className="font-medium text-blue-700 ml-1">{projectData.project_type}</span>
+                      </div>
+                      <div className="text-sm text-gray-700">
+                      <span className="text-gray-500">Platform:</span> 
+                      <span className="font-medium text-green-700 ml-1">{projectData.platform}</span>
+                      </div>
+                  </div>
+                  )}
+              </div>
+            </div>
+
+            {/* Test Scenario Details - ADD THIS NEW SECTION */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Test Scenario Details</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Scenario Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Scenario Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={scenarioName}
+                    onChange={(e) => {
+                      setScenarioName(e.target.value);
+                      setScenarioErrors((prev) => ({ ...prev, name: "" }));
+                    }}
+                    placeholder="Enter scenario name"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+                      scenarioErrors.name ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {scenarioErrors.name && (
+                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.name}</span>
+                  )}
                 </div>
+
+                {/* Scenario Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={scenarioType}
+                    onChange={(e) => {
+                      setScenarioType(e.target.value);
+                      setScenarioErrors((prev) => ({ ...prev, type: "" }));
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+                      scenarioErrors.type ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select Type</option>
+                    {scenarioTypes.map((type) => (
+                      <option key={type.id} value={type.name}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                  {scenarioErrors.type && (
+                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.type}</span>
+                  )}
+                </div>
+
+                {/* Scenario Priority */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Priority <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={scenarioPriority}
+                    onChange={(e) => {
+                      setScenarioPriority(e.target.value);
+                      setScenarioErrors((prev) => ({ ...prev, priority: "" }));
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
+                      scenarioErrors.priority ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select Priority</option>
+                    {scenarioPriorities.map((priority) => (
+                      <option key={priority.id} value={priority.priority_level}>
+                        {priority.priority_level}
+                      </option>
+                    ))}
+                  </select>
+                  {scenarioErrors.priority && (
+                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.priority}</span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Main Content */}
@@ -792,7 +1057,7 @@ const handleOtpCheckboxChange = (e) => {
                     className="w-full h-40 md:h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent resize-none text-sm md:text-base"
                     disabled={isExtracting}
                 />
-                <div className="flex justify-end mt-2">
+                  <div className="flex justify-end mt-2">
                     <button
                       onClick={generatePromptFromAssistant}
                       disabled={isGeneratingPrompt}
@@ -839,6 +1104,66 @@ const handleOtpCheckboxChange = (e) => {
                         ? "Generating..."
                         : "Prompt Assistant"}
                     </button>
+
+                    {/* ✅ ADD THIS HISTORY DROPDOWN RIGHT HERE */}
+                    <div className="relative ml-3">
+                      <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        disabled={promptHistory.length === 0}
+                        className="text-blue-600 text-sm flex items-center hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        History ({promptHistory.length})
+                      </button>
+
+                      {/* History Dropdown */}
+                      {showHistory && promptHistory.length > 0 && (
+                        <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                          {/* Header */}
+                          <div className="flex items-center justify-between p-3 border-b border-gray-100">
+                            <span className="font-medium text-gray-900 text-sm">Recent Prompts</span>
+                            <button
+                              onClick={clearPromptHistory}
+                              className="text-red-600 text-xs hover:underline"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+
+                          {/* History Items */}
+                          <div className="py-2">
+                            {promptHistory.map((item, index) => (
+                              <div
+                                key={item.id}
+                                onClick={() => loadPromptFromHistory(item)}
+                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-gray-500 mb-1">{item.timestamp}</div>
+                                    <div className="text-sm text-gray-900 truncate mb-1">
+                                      {item.prompt.substring(0, 60)}...
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">
+                                        {item.steps.length} steps
+                                      </span>
+                                      {item.scenarioDetails?.name && (
+                                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                                          {item.scenarioDetails.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
             </div>
@@ -1083,7 +1408,7 @@ const handleOtpCheckboxChange = (e) => {
                 </div>
             </div>
             </div>
-        </div>
+          </div>
         </div>
 
         {/* ✅ NEW: OTP Confirmation Modal */}

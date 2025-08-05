@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle, XCircle, Plus, Clock, X, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, Clock, AlertTriangle, Wifi, RefreshCw, X, Loader } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSuggestedElements } from './elementSuggestionUtils';
 import { HelpCircle, Link, MousePointer, Info, AlertCircle } from 'lucide-react';
@@ -14,13 +14,13 @@ const DesktopPrompt = () => {
   const [newStep, setNewStep] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [elementData, setElementData] = useState(null);
-  const [testCaseInfo, ] = useState({
-    testcase_name: 'test-1',
-    testcase_type: 'Non-functional',
-    testcase_priority: 'Minor',
-    projectId: 'GitHub-2',
-    project_type: 'Web Application',
-    platform: 'Laptop/PC'
+  const [testCaseInfo, setTestCaseInfo] = useState({
+    testcase_name: '',
+    testcase_type: '',
+    testcase_priority: '',
+    projectId: '',
+    project_type: '',
+    platform: ''
   });
 
   const [verificationModal, setVerificationModal] = useState({
@@ -30,13 +30,9 @@ const DesktopPrompt = () => {
     selectedElement: null
   });
 
-  // const [showSuggestions, setShowSuggestions] = useState(false);
-  // const [suggestions, setSuggestions] = useState([]);
-  // const [commandType, setCommandType] = useState('');
   const [loadingMessage, setLoadingMessage] = useState('');
   const [createTestCaseLoading, setCreateTestCaseLoading] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
-  // const [selectedElement, setSelectedElement] = useState(null);
   const [previouslySelectedElements, setPreviouslySelectedElements] = useState({});
   const [lastClickCoordinates, setLastClickCoordinates] = useState(null);
   const [secondaryVerification, setSecondaryVerification] = useState({
@@ -45,11 +41,7 @@ const DesktopPrompt = () => {
   });
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   const [waitModalOpen, setWaitModalOpen] = useState(false);
-  // const [stepWaitData, setStepWaitData] = useState(null);
-  // const [pendingWaitStep, setPendingWaitStep] = useState(false);
 
-  // const [requiresOtp, setRequiresOtp] = useState(false);
-  // const [contactSelected, setContactSelected] = useState(false);
   const [otpVerificationState, setOtpVerificationState] = useState({
     isEnabled: false,
     phoneNumberEntered: false,
@@ -57,119 +49,10 @@ const DesktopPrompt = () => {
     enteredPhoneNumber: '',
     sessionTime: null
   });
-  // const [isOtpStepConfirmed, setIsOtpStepConfirmed] = useState(false);
-  // const toggleOtpCheckbox = () => {
-  //   setRequiresOtp(prev => {
-  //     const newValue = !prev;
-  //     if (newValue) {
-  //       // When enabling OTP, show contact options but DON'T auto-select
-  //       setContactSelected(false); // ❌ Change this to false
-  //     } else {
-  //       // When disabling OTP, reset everything
-  //       setContactSelected(false);
-  //       setIsOtpStepConfirmed(false); // ✅ Add this line
-  //       setOtpVerificationState(prev => ({
-  //         ...prev,
-  //         contactEntered: false,
-  //         waitingForOtp: false,
-  //         enteredContact: '',
-  //         sessionTime: null,
-  //         otpReceiver: '' // ✅ Add this line
-  //       }));
-  //     }
-  //     return newValue;
-  //   });
-  // };
+
   const [testData, setTestData] = useState(null);
-  // const [isTestDataLoading, setIsTestDataLoading] = useState(false);
   const [otpCheckLoadingStepId, setOtpCheckLoadingStepId] = useState(null);
-  // const [emailModalError, setEmailModalError] = useState('');
-  // const [showSenderEmailField, setShowSenderEmailField] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
-  // const [emailConfirmationModal, setEmailConfirmationModal] = useState({
-  //   isOpen: false,
-  //   userEmail: '',
-  //   email_app_password: '',
-  //   otpReceiver: '',
-  //   isEditing: false,
-  //   showPassword: false, 
-  // });
-
-  // const [addTestDataModalOpen, setAddTestDataModalOpen] = useState(false);
-  // const [testDataPhone, setTestDataPhone] = useState('');
-  // const [testDataEmail, setTestDataEmail] = useState('');
-  // const [testDataPassword, setTestDataPassword] = useState('');
-  // const [isConfirming, setIsConfirming] = useState(false);
-
-  // const saveTestDataEmail = async (email, password) => {
-  //   const userId = localStorage.getItem("userId");
-  //   const projectKey = `selectedProject_${userId}`;
-  //   const selectedProject = JSON.parse(localStorage.getItem(projectKey));
-    
-  //   if (!selectedProject?.id) {
-  //     alert('No project selected');
-  //     return false;
-  //   }
-
-  //   const payload = {
-  //     url: testData?.url || null,
-  //     email: email.trim(),
-  //     email_app_password: password.trim(),
-  //     phone_number: testData?.phone_number || null,
-  //     region: testData?.region || null
-  //   };
-
-  //   console.log("Saving email payload:", payload);
-
-  //   try {
-  //     const response = await fetch(`http://127.0.0.1:8000/api/testdata/${selectedProject.id}/`, {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify(payload),
-  //     });
-      
-  //     if (response.ok) {
-  //       const data = await response.json();
-  //       console.log("Email saved successfully:", data);
-
-  //       setTestData(prev => ({ ...prev, email: email }));
-  //       return true;
-  //     }
-  //     return false;
-  //   } catch (error) {
-  //     console.error('Error saving test data email:', error);
-  //     return false;
-  //   }
-  // };
-
-  // const handleSaveTestData = async () => {
-  //   if (testDataEmail && !testDataPassword) {
-  //     alert('App password is required for email');
-  //     return;
-  //   }
-
-  //   if (testDataEmail) {
-  //     const emailSaved = await saveTestDataEmail(testDataEmail, testDataPassword);
-  //     if (!emailSaved) {
-  //       alert('Failed to save email');
-  //       return;
-  //     }
-  //   }
-
-  //   if (testDataPhone) {
-  //     console.log('Saving phone number:', testDataPhone);
-  //     setTestData(prev => ({
-  //       ...prev,
-  //       phone_number: testDataPhone
-  //     }));
-  //   }
-
-  //   setAddTestDataModalOpen(false);
-  //   // setTestDataPhone('');
-  //   // setTestDataEmail('');
-  //   // setTestDataPassword('');
-  // };
-
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   
   const [stepsProcessed, setStepsProcessed] = useState(false);
@@ -201,6 +84,20 @@ const DesktopPrompt = () => {
     suggestions: [],
     currentEditText: ''
   });
+
+  const [invalidCommandModal, setInvalidCommandModal] = useState({
+    isOpen: false,
+    commandError: null,
+    stepIndex: null
+  });
+
+  const [networkErrorModal, setNetworkErrorModal] = useState({
+    isOpen: false,
+    stepIndex: null,
+    stepData: null
+  });
+
+  const [elementsLoadingModal, setElementsLoadingModal] = useState(false);
 
   const showDeviceConnectionModal = () => {
     setShowDeviceModal(true);
@@ -239,17 +136,17 @@ const DesktopPrompt = () => {
     return () => window.removeEventListener("projectChanged", handleProjectChange);
   }, [navigate]);
 
-  // useEffect(() => {
-  //   const info = location.state?.testCaseInfo;
-  //   console.log("info:", info);
+  useEffect(() => {
+    const info = location.state?.testScenarioInfo;
+    console.log("Scenario info:", info);
 
-  //   if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
-  //     alert("Test case data is incomplete or missing.");
-  //     navigate("/test-cases/create-testcases");
-  //   } else {
-  //     setTestCaseInfo(info);  
-  //   }
-  // }, [location, navigate]);
+    if (!info || !info.testcase_name || !info.testcase_type || !info.testcase_priority) {
+      alert("Test scenario data is incomplete or missing.");
+      navigate("/test-scenario");
+    } else {
+      setTestCaseInfo(info);  
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     if (elementData) {
@@ -495,9 +392,131 @@ useEffect(() => {
   console.log("📊 currentGeneratedStepIndex changed to:", currentGeneratedStepIndex);
 }, [currentGeneratedStepIndex]);
 
+const checkProcessingStatus = async (processId) => {
+  const response = await fetch(`http://127.0.0.1:8000/automation/check_processing_status/?process_id=${processId}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to check processing status');
+  }
+  
+  return await response.json();
+};
+
+const fetchOmniparserDataInBackground = async (processId, screenshotUrl = null) => {
+  try {
+    // Show loading modal immediately
+    setElementsLoadingModal(true);
+    
+    console.log("🔄 Starting omniparser processing loop for process:", processId);
+    
+    // Keep calling until status is "completed"
+    while (true) {
+      try {
+        console.log("📡 Calling processing status API...");
+        
+        const statusData = await checkProcessingStatus(processId);
+        console.log("📊 Processing Status Response:", statusData);
+        
+        // SUCCESS - Processing completed
+        if (statusData.status === 'completed' && statusData.omniparser_data && statusData.omniparser_data.elements) {
+          console.log("✅ Omniparser processing completed successfully!");
+          
+          // Update element data
+          setElementData(statusData.omniparser_data);
+          sessionStorage.setItem('latestElementData', JSON.stringify(statusData.omniparser_data));
+          
+          // Close modal
+          setElementsLoadingModal(false);
+          
+          return { success: true, data: statusData.omniparser_data };
+        }
+        
+        // FAILED - Call direct omniparser API
+        if (statusData.status === 'failed' || statusData.status === 'error' || 
+            (statusData.omniparser_data && statusData.omniparser_data.error)) {
+          
+          console.log("❌ Processing failed, calling direct omniparser API");
+          
+          const directResult = await callDirectOmniparserApi(screenshotUrl);
+          setElementsLoadingModal(false);
+          
+          if (directResult.success) {
+            setElementData(directResult.data);
+            sessionStorage.setItem('latestElementData', JSON.stringify(directResult.data));
+          }
+          
+          return directResult;
+        }
+        
+        // STILL PROCESSING - Continue loop
+        if (statusData.status === 'processing') {
+          console.log("⏳ Status: processing - calling again in 3 seconds...");
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+          continue; // Continue the loop
+        }
+        
+        // UNKNOWN STATUS - Continue loop with longer wait
+        console.log("⚠️ Unknown status:", statusData.status, "- retrying in 5 seconds...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        continue;
+        
+      } catch (error) {
+        console.error("❌ Error calling processing status API:", error);
+        
+        // If API call fails, try direct omniparser as fallback
+        console.log("🔄 API call failed, trying direct omniparser API");
+        const directResult = await callDirectOmniparserApi(screenshotUrl);
+        setElementsLoadingModal(false);
+        return directResult;
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Critical error in background processing:', error);
+    setElementsLoadingModal(false);
+    return { success: false, error: error.message };
+  }
+};
+
+const callDirectOmniparserApi = async (screenshotUrl) => {
+  try {
+    console.log("🔄 Calling direct omniparser API with screenshot:", screenshotUrl);
+    
+    const response = await fetch('http://127.0.0.1:8000/automation/omni_desk/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        screenshot: screenshotUrl,
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Direct omniparser API request failed');
+    }
+    
+    const data = await response.json();
+    console.log("📊 Direct omniparser API response:", data);
+    
+    if (data.omniparser_data && data.omniparser_data.elements) {
+      return { success: true, data: data.omniparser_data };
+    } else {
+      return { success: false, error: "No elements found in direct API response" };
+    }
+    
+  } catch (error) {
+    console.error('❌ Direct omniparser API error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
   const executeStep = async (stepObj, stepIndex) => {
     setIsProcessing(true);
-  
+    const startTime = performance.now();
+    let loadingTimer;
+
     try {
         const stepDescription = stepObj.description;
         const fullCommand = stepDescription.trim().toLowerCase();
@@ -530,23 +549,27 @@ useEffect(() => {
         
         // const stepIndex = testSteps.length;
 
-        if (fullCommand.startsWith('scroll up') || fullCommand.startsWith('scroll down')) {
-          setLoadingMessage(`Step ${stepIndex + 1}: Scrolling ${fullCommand.startsWith('scroll up') ? 'up' : 'down'}, please wait...`);
-        } else if (actionType === 'open') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Opening page, please wait...`);
-        } else if (actionType === 'click') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Executing click, please wait...`);
-        } else if (actionType === 'type') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Typing text, please wait...`);
-        } else if (actionType === 'verify') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Verifying element, please wait...`);
-        } else if (actionType === 'get') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Getting element, please wait...`);
-        } else if (actionType === 'wait') {
-          setLoadingMessage(`Step ${stepIndex + 1}: Waiting, please be patient...`);
-        } else {
-          setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`);
+        if (fullCommand.startsWith('scroll up') || fullCommand.startsWith('scroll down')) { 
+          setLoadingMessage(`Step ${stepIndex + 1}: ${fullCommand.startsWith('scroll up') ? 'Scrolling up' : 'Scrolling down'} the page, please wait...`); 
+        } else if (actionType === 'open') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Opening and loading the page, please wait...`); 
+        } else if (actionType === 'click') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Clicking element and processing, please wait...`); 
+        } else if (actionType === 'type') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Typing text and validating input, please wait...`); 
+        } else if (actionType === 'verify') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Verifying element existence and properties, please wait...`); 
+        } else if (actionType === 'get') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Locating and retrieving element, please wait...`); 
+        } else if (actionType === 'wait') { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Processing wait command, please wait...`); 
+        } else { 
+          setLoadingMessage(`Step ${stepIndex + 1}: Executing command, please wait...`); 
         }
+
+        loadingTimer = setTimeout(() => {
+          setLoadingMessage(`Step ${stepIndex + 1}: Please wait, this is taking more time due to poor network connection. Please wait some more time...`);
+        }, 50000);
 
         if (actionType === 'wait') {
 
@@ -567,6 +590,7 @@ useEffect(() => {
           };
           
           console.log("Wait Request Data:", waitRequestData);
+          const start = performance.now();
             
           const response = await fetch('http://127.0.0.1:8000/automation/wait/', {
               method: 'POST',
@@ -583,23 +607,71 @@ useEffect(() => {
           
           const data = await response.json();
           console.log("Wait Response:", data);
+
+          const end = performance.now();
+          const durationInSeconds = Math.floor((end - start) / 1000);
+
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
           
+          if (data.process_id) {
+            console.log("🆔 Process ID received:", data.process_id);
+            
+            const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
+            
+            const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+
+            return {
+              status: 'complete',
+              duration: formattedDuration,
+              message: data.status || "Page loaded successfully",
+              screenshot: screenshotUrl,
+              coordinates: null,  
+              omniparserPromise: omniparserPromise, 
+              processId: data.process_id
+            };
+          } else {
+            // Handle the old way if no process_id (fallback)
+            if (data.omniparser_data && data.omniparser_data.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_data.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
+
+          if (data.omniparser_data && data.omniparser_data.elements) {
+            setElementData(data.omniparser_data);
+            sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            // setSuggestions(data.omniparser_data.elements);
+            
+          } else {
+            // setSuggestions([]); 
+          }
+
           const screenshotUrl = data.screenshot
               ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=Wait_Completed`;
+              : `/api/placeholder/800/300?text=No_Screenshot`;
 
-            console.log("Screenshot URL:", screenshotUrl);
-              
+          console.log("Screenshot URL:", screenshotUrl);
+          
           return {
-              status: data.status === 'success' ? 'complete' : 'error',
-              duration: waitRequestData.timeout ? `00:${Math.floor(waitRequestData.timeout / 1000).toString().padStart(2, '0')}` : '00:05',
-              message: data.message || "Wait completed successfully",
+              status: 'complete',
+              duration: formattedDuration,
+              message: data.status || "Page loaded successfully",
               screenshot: screenshotUrl,
-              coordinates: elementData || null,
+              coordinates: data.omniparser_data,
           };
         }
+      }
   
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const start = performance.now();
+
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -612,9 +684,44 @@ useEffect(() => {
             if (!response.ok) {
                 throw new Error('Failed to execute navigation command');
             }
-  
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              
             const data = await response.json();
             console.log("Response:", data);
+
+            if (data.process_id) {
+              console.log("🆔 Process ID received:", data.process_id);
+              
+              const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
+              
+              const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+
+              return {
+                status: 'complete',
+                duration: formattedDuration,
+                message: data.status || "Page loaded successfully",
+                screenshot: screenshotUrl,
+                coordinates: null,  
+                omniparserPromise: omniparserPromise, 
+                processId: data.process_id
+              };
+            } else {
+              // Handle the old way if no process_id (fallback)
+              if (data.omniparser_data && data.omniparser_data.error) {
+                return {
+                  status: 'network_error',
+                  duration: '00:00',
+                  error: data.omniparser_data.error,
+                  isNetworkError: true,
+                  screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+                };
+              }
   
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
@@ -633,17 +740,18 @@ useEffect(() => {
             
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.status || "Page loaded successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_data,
                 debug_images: data.omniparser_data?.debug_images || {}, 
             };
-  
+          }
         } 
         else if (actionType === 'click' || actionType === 'type' || actionType === 'select') {
             
             const selectedElement = stepObj.selectedElement;
+            
             
             if (!selectedElement) {
                 throw new Error(`No element selected for this action. Please select an element from the suggestions.`);
@@ -669,6 +777,8 @@ useEffect(() => {
                 click_y: selectedElement.click_point[1],
                 requestBody
             });
+
+            const start = performance.now();
   
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
                 method: 'POST',
@@ -684,28 +794,66 @@ useEffect(() => {
   
             const data = await response.json();
             console.log(`${actionType} response:`, data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            if (data.process_id) {
+              console.log("🆔 Process ID received:", data.process_id);
+              
+              const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
+              
+              const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+
+              return {
+                status: 'complete',
+                duration: formattedDuration,
+                message: data.status || "Page loaded successfully",
+                screenshot: screenshotUrl,
+                coordinates: null,  
+                omniparserPromise: omniparserPromise, 
+                processId: data.process_id
+              };
+            } else {
+              // Handle the old way if no process_id (fallback)
+              if (data.omniparser_data && data.omniparser_data.error) {
+                return {
+                  status: 'network_error',
+                  duration: '00:00',
+                  error: data.omniparser_data.error,
+                  isNetworkError: true,
+                  screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+                };
+              }
   
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
               sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-
+              // setSuggestions(data.omniparser_data.elements);
+              
+            } else {
+              // setSuggestions([]); 
             }
   
             const screenshotUrl = data.screenshot
                 ? `http://127.0.0.1:8000${data.screenshot}`
                 : `/api/placeholder/800/300?text=No_Screenshot`;
   
-  
+            console.log("Screenshot URL:", screenshotUrl);
+            
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-                message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
+                duration: formattedDuration,
+                message: data.status || "Page loaded successfully",
                 screenshot: screenshotUrl,
-                coordinates: data.omniparser_data || elementData,
-                elementAction: selectedElement,
-                requestBody,
-                debug_images: data.coordinates?.debug_images || {},
+                coordinates: data.omniparser_data,
+                debug_images: data.omniparser_data?.debug_images || {}, 
             };
+          }
         } 
         else if (actionType === 'verify') {
           const selectedElement = stepObj.selectedElement;
@@ -714,7 +862,7 @@ useEffect(() => {
               throw new Error(`No element selected for verification. Please select an element from the suggestions.`);
           }
           const verificationType = stepObj.verificationType || 'text';
-  
+
           let requestBody = {
               command: stepDescription, 
               user_id: user_id,
@@ -722,47 +870,87 @@ useEffect(() => {
               click_y: selectedElement.click_point[1],
               verification_type: verificationType
           };
-  
+
           console.log(`Sending coordinates for verify step:`, requestBody);
-  
+          const start = performance.now();
+
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(requestBody), 
           });
-  
+
           if (!response.ok) {
               throw new Error(`Failed to execute verify command`);
           }
-  
+
           const data = await response.json();
           console.log(`Verify response:`, data);
-  
-          if (data.omniparser_data && data.omniparser_data.elements) {
-              setElementData(data.omniparser_data);
-              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-          }
-  
-          const screenshotUrl = data.screenshot
-              ? `http://127.0.0.1:8000${data.screenshot}`
-              : `/api/placeholder/800/300?text=No_Screenshot`;
-  
-//              const verificationPassed = c.verify_result === "pass";
-  
-          return {
-//              status: verificationPassed ? 'complete' : 'error',
+          const end = performance.now();
+          const durationInSeconds = Math.floor((end - start) / 1000);
+
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+          // ✅ NEW PROCESS ID FLOW
+          if (data.process_id) {
+            console.log("🆔 Process ID received for verify:", data.process_id);
+
+            const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
+            
+            // 🚀 Start background processing immediately (ASYNC - don't wait)
+            const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+            
+            // 📸 Return immediately with screenshot
+            return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-              message: data.status,
+              duration: formattedDuration,
+              message: data.status || "Verification completed successfully",
               screenshot: screenshotUrl,
-              coordinates: data.coordinates,
+              coordinates: null, // Will be updated by omniparser
               verificationType: verificationType,
-//              verificationResult: verificationPassed ? 'passed' : 'failed',
               verifiedText: data.copied_text || "",
               elementVerified: selectedElement,
               requestBody,
-              debug_images: data.coordinates?.debug_images || {},
-          };
+              debug_images: {},
+              omniparserPromise: omniparserPromise,
+              processId: data.process_id
+            };
+          } else {
+            // ✅ FALLBACK - OLD FLOW
+            if (data.omniparser_data && data.omniparser_data.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_data.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
+
+            if (data.omniparser_data && data.omniparser_data.elements) {
+                setElementData(data.omniparser_data);
+                sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            }
+
+            const screenshotUrl = data.screenshot
+                ? `http://127.0.0.1:8000${data.screenshot}`
+                : `/api/placeholder/800/300?text=No_Screenshot`;
+
+            return {
+                status: 'complete',
+                duration: formattedDuration,
+                message: data.status,
+                screenshot: screenshotUrl,
+                coordinates: data.coordinates,
+                verificationType: verificationType,
+                verifiedText: data.copied_text || "",
+                elementVerified: selectedElement,
+                requestBody,
+                debug_images: data.coordinates?.debug_images || {},
+            };
+          }
         } 
         else if (fullCommand.startsWith('scroll up') || fullCommand.startsWith('scroll down')) {
           const requestBody = { 
@@ -771,6 +959,7 @@ useEffect(() => {
           };
 
           console.log("Scroll Request Body:", requestBody);
+          const start = performance.now();
 
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
             method: 'POST',
@@ -779,58 +968,48 @@ useEffect(() => {
           });
 
           if (!response.ok) throw new Error(`Failed to execute ${actionType} command`);
-            const data = await response.json();
+          
+          const data = await response.json();
+          console.log("Scroll Response:", data);
+          const end = performance.now();
+          const durationInSeconds = Math.floor((end - start) / 1000);
+
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+          // ✅ NEW PROCESS ID FLOW
+          if (data.process_id) {
+            console.log("🆔 Process ID received for scroll:", data.process_id);
+
+            const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
             
-            console.log("Scroll Response:", data);
-
-          if (data.omniparser_data && data.omniparser_data.elements) {
-            setElementData(data.omniparser_data);
-            sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
-          }
-
-          const screenshotUrl = data.screenshot
-            ? `http://127.0.0.1:8000${data.screenshot}`
-            : `/api/placeholder/800/300?text=No_Screenshot`;
-
-          return {
-            status: 'complete',
-            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
-            message: data.message || `${actionType} executed successfully`,
-            screenshot: screenshotUrl,
-            coordinates: data.coordinates || {},
-            requestBody,
-            debug_images: data.coordinates?.debug_images || {},
-          };
-        } 
-        else if (actionType === 'get') {
-            const selectedElement = stepObj.selectedElement;
-                
-            if (!selectedElement) {
-              throw new Error(`No element selected for get operation. Please select an element from the suggestions.`);
-            }
-
-            let requestBody = {
-              command: stepDescription, 
-              user_id: user_id,
-              click_x: selectedElement.click_point[0],
-              click_y: selectedElement.click_point[1],
-              action_type: 'get' 
+            // 🚀 Start background processing immediately (ASYNC - don't wait)
+            const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+            
+            // 📸 Return immediately with screenshot
+            return {
+              status: 'complete',
+              duration: formattedDuration,
+              message: data.message || `${actionType} executed successfully`,
+              screenshot: screenshotUrl,
+              coordinates: null, // Will be updated by omniparser
+              requestBody,
+              debug_images: {},
+              omniparserPromise: omniparserPromise,
+              processId: data.process_id
             };
-
-            console.log(`Sending coordinates for get step:`, requestBody);
-
-            const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody), 
-            });
-
-            if (!response.ok) {
-              throw new Error(`Failed to execute get command`);
+          } else {
+            // ✅ FALLBACK - OLD FLOW
+            if (data.omniparser_data && data.omniparser_data.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_data.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
             }
-
-            const data = await response.json();
-            console.log(`Get response:`, data);
 
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
@@ -843,7 +1022,99 @@ useEffect(() => {
 
             return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
+              message: data.message || `${actionType} executed successfully`,
+              screenshot: screenshotUrl,
+              coordinates: data.coordinates || {},
+              requestBody,
+              debug_images: data.coordinates?.debug_images || {},
+            };
+          }
+        } 
+        else if (actionType === 'get') {
+          const selectedElement = stepObj.selectedElement;
+              
+          if (!selectedElement) {
+            throw new Error(`No element selected for get operation. Please select an element from the suggestions.`);
+          }
+
+          let requestBody = {
+            command: stepDescription, 
+            user_id: user_id,
+            click_x: selectedElement.click_point[0],
+            click_y: selectedElement.click_point[1],
+            action_type: 'get' 
+          };
+
+          console.log(`Sending coordinates for get step:`, requestBody);
+          const start = performance.now();
+
+          const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody), 
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to execute get command`);
+          }
+
+          const data = await response.json();
+          console.log(`Get response:`, data);
+          const end = performance.now();
+          const durationInSeconds = Math.floor((end - start) / 1000);
+
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+          // ✅ NEW PROCESS ID FLOW
+          if (data.process_id) {
+            console.log("🆔 Process ID received for get:", data.process_id);
+
+            const screenshotUrl = data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null;
+            
+            // 🚀 Start background processing immediately (ASYNC - don't wait)
+            const omniparserPromise = fetchOmniparserDataInBackground(data.process_id, screenshotUrl);
+            
+            // 📸 Return immediately with screenshot
+            return {
+              status: 'complete',
+              duration: formattedDuration,
+              message: data.status || "Retrieved element text successfully",
+              screenshot: screenshotUrl,
+              coordinates: null, // Will be updated by omniparser
+              retrievedText: data.copied_text || "",
+              elementRetrieved: selectedElement,
+              requestBody,
+              debug_images: {},
+              omniparserPromise: omniparserPromise,
+              processId: data.process_id
+            };
+          } else {
+            // ✅ FALLBACK - OLD FLOW
+            if (data.omniparser_data && data.omniparser_data.error) {
+              return {
+                status: 'network_error',
+                duration: '00:00',
+                error: data.omniparser_data.error,
+                isNetworkError: true,
+                screenshot: data.screenshot ? `http://127.0.0.1:8000${data.screenshot}` : null
+              };
+            }
+
+            if (data.omniparser_data && data.omniparser_data.elements) {
+              setElementData(data.omniparser_data);
+              sessionStorage.setItem('latestElementData', JSON.stringify(data.omniparser_data));
+            }
+
+            const screenshotUrl = data.screenshot
+              ? `http://127.0.0.1:8000${data.screenshot}`
+              : `/api/placeholder/800/300?text=No_Screenshot`;
+
+            return {
+              status: 'complete',
+              duration: formattedDuration,
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
               coordinates: data.coordinates,
@@ -853,18 +1124,316 @@ useEffect(() => {
               debug_images: data.coordinates?.debug_images || {},
             };
           }
+        }
 
     } catch (error) {
-        console.error('Step execution error:', error);
-        return {
-            status: 'error',
-            duration: '00:00',
-            error: error.message
-        };
+      console.error('Step execution error:', error);
+      
+      return {
+        status: 'error',
+        duration: '00:00',
+        error: error.message
+      };
     } finally {
-        setIsProcessing(false);
-        setLoadingMessage('');
+      const endTime = performance.now();
+      const durationInSeconds = ((endTime - startTime) / 1000).toFixed(2);
+      console.log(`Step ${stepIndex + 1} execution time: ${durationInSeconds} seconds`);
+
+      clearTimeout(loadingTimer);
+      setIsProcessing(false);
+      setLoadingMessage('');
     }
+  };
+
+  const handleNetworkRetry = async () => {
+    const { stepIndex, stepData } = networkErrorModal;
+    
+    setNetworkErrorModal({ isOpen: false, stepIndex: null, stepData: null });
+    
+    console.log(`🔄 Retrying Step ${stepIndex + 1}:`, stepData);
+    
+    // ✅ DON'T remove the step - keep it in UI and update its status to "retrying"
+    setTestSteps(prev => prev.map(step => 
+      step.id === stepData.id 
+        ? { ...step, status: 'retrying', error: null } 
+        : step
+    ));
+    
+    // Re-execute the failed step
+    const retryResult = await executeStep(stepData, stepIndex);
+    
+    if (retryResult && retryResult.status === 'complete') {
+      // ✅ Update the existing step with successful result
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, ...retryResult, status: 'complete' } 
+          : step
+      ));
+
+      setCurrentGeneratedStepIndex(stepIndex);
+      handleNextStep(retryResult, stepIndex);
+    } else if (retryResult && retryResult.isNetworkError) {
+      // ✅ Update step status to show network error again
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, status: 'network_error', error: 'Network timeout' } 
+          : step
+      ));
+      
+      // Show network error modal again if retry fails
+      setNetworkErrorModal({
+        isOpen: true,
+        stepIndex: stepIndex,
+        stepData: stepData
+      });
+    } else {
+      // ✅ Update step status to show execution error
+      setTestSteps(prev => prev.map(step => 
+        step.id === stepData.id 
+          ? { ...step, status: 'error', error: retryResult?.error || 'Step execution failed after retry' } 
+          : step
+      ));
+      
+      // Show regular error modal if it's a different error
+      openEditModal(
+        stepData,
+        retryResult?.error || 'Step execution failed after retry',
+        null,
+        stepIndex,
+        retryResult?.screenshot 
+      );
+    }
+  };
+
+  const handleNetworkCancel = () => {
+    setNetworkErrorModal({ isOpen: false, stepIndex: null, stepData: null });
+    console.log("🚫 User cancelled execution due to network error");
+  };
+
+  const validateCommand = (description) => {
+    const allowedCommands = ['click', 'open', 'type', 'verify', 'select', 'get', 'search', 'wait'];
+    
+    const scrollOptions = [
+      "scroll up",
+      "scroll up a bit", 
+      "scroll up a lot",
+      "scroll up fast",
+      "scroll down",
+      "scroll down a bit",
+      "scroll down a lot", 
+      "scroll down fast",
+      "scroll left",
+      "scroll right"
+    ];
+    
+    const swipeOptions = [
+      "swipe left",
+      "swipe right",
+      "swipe long left", 
+      "swipe long right"
+    ];
+    
+    const command = description.trim().toLowerCase();
+    
+    // Check basic commands
+    for (const allowedCmd of allowedCommands) {
+      if (command.startsWith(allowedCmd)) {
+        return { isValid: true };
+      }
+    }
+    
+    // Check scroll options
+    for (const scrollCmd of scrollOptions) {
+      if (command === scrollCmd || command.startsWith(scrollCmd + ' ')) {
+        return { isValid: true };
+      }
+    }
+    
+    // Check swipe options  
+    for (const swipeCmd of swipeOptions) {
+      if (command === swipeCmd || command.startsWith(swipeCmd + ' ')) {
+        return { isValid: true };
+      }
+    }
+    
+    return { 
+      isValid: false, 
+      error: `"${description}" is not a valid command`,
+      allowedCommands: [...allowedCommands, ...scrollOptions, ...swipeOptions]
+    };
+  };
+
+  const InvalidCommandModal = ({ isOpen, onClose, onSkip, commandError, stepIndex }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="bg-purple-600 text-white px-6 py-4 rounded-t-lg">
+            <h3 className="text-lg font-semibold flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Invalid Command
+            </h3>
+          </div>
+          
+          {/* Content */}
+          <div className="p-6">
+            <div className="mb-4">
+              <p className="text-gray-700 mb-2">
+                <span className="font-medium">Step {stepIndex + 1}:</span> {commandError?.error}
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-700 text-sm">
+                  This command is not supported and cannot be executed.
+                </p>
+              </div>
+            </div>
+            
+            {/* Allowed Commands */}
+            <div className="mb-6">
+              <h4 className="font-medium text-gray-900 mb-3">Allowed Commands:</h4>
+              <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-1 gap-1 text-sm">
+                  {commandError?.allowedCommands?.map((cmd, index) => (
+                    <div key={index} className="text-gray-600 font-mono bg-white px-2 py-1 rounded border">
+                      {cmd}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3 rounded-b-lg">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSkip}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Skip Step
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handleSkipInvalidStep = () => {
+    const { stepIndex } = invalidCommandModal;
+    
+    console.log(`⏭️ Skipping invalid step ${stepIndex + 1}`);
+    
+    // Close modal
+    setInvalidCommandModal({
+      isOpen: false,
+      commandError: null,
+      stepIndex: null
+    });
+    
+    // Skip to next step
+    setCurrentGeneratedStepIndex(stepIndex);
+    
+    // Continue with next step if available
+    if (stepIndex + 1 < generatedSteps.length) {
+      handleNextStep(null, stepIndex);
+    } else {
+      console.log("🎉 All steps processed (some skipped)");
+    }
+  };
+
+  const handleCancelInvalidStep = () => {
+    console.log("❌ User cancelled invalid step execution");
+    
+    setInvalidCommandModal({
+      isOpen: false,
+      commandError: null,
+      stepIndex: null
+    });
+    
+  };
+
+  const NetworkErrorModal = ({ 
+    isOpen, 
+    onRetry, 
+    onCancel, 
+    stepNumber, 
+    stepDescription 
+  }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-red-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Network Connection Issue
+              </h3>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Wifi className="w-5 h-5 text-gray-400" />
+              <p className="text-gray-600">
+                Step {stepNumber}: <span className="font-medium">{stepDescription}</span>
+              </p>
+            </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-red-800 text-sm">
+                The operation timed out due to network connectivity issues. This can happen when:
+              </p>
+              <ul className="text-red-700 text-sm mt-2 ml-4 list-disc">
+                <li>Internet connection is slow or unstable</li>
+                <li>Server is temporarily unresponsive</li>
+                <li>Page is taking longer to load than expected</li>
+              </ul>
+            </div>
+
+            <p className="text-gray-700 text-sm mb-6">
+              Please check your network connection and try again. The step will be re-executed from where it failed.
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <button
+              onClick={onCancel}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              <span>Cancel Execution</span>
+            </button>
+            
+            <button
+              onClick={onRetry}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry Step</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
 const validateStepAgainstResponse = (step, omniparserData) => {
@@ -1105,6 +1674,38 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
   console.log("🔍 handleNextStep called | index:", index, "| currentGeneratedStepIndex (state):", currentGeneratedStepIndex);
   console.log("🧩 generatedSteps length:", generatedSteps.length, "index:", index);
 
+  // ✅ WAIT FOR OMNIPARSER DATA BEFORE PROCEEDING TO NEXT STEP
+  if (data.omniparserPromise) {
+    console.log("⏳ Waiting for omniparser data to complete before next step...");
+    try {
+      const omniparserResult = await data.omniparserPromise;
+      console.log("✅ Omniparser completed:", omniparserResult.success ? "SUCCESS" : "FAILED");
+      
+      if (omniparserResult.success) {
+        // Update the current step's data with omniparser results
+        setTestSteps(prev => prev.map(step => {
+          if (step.id === generatedSteps[index]?.id) {
+            return {
+              ...step,
+              coordinates: omniparserResult.data,
+              omniparser_data: omniparserResult.data
+            };
+          }
+          return step;
+        }));
+        
+        // Update data object for validation
+        data.omniparser_data = omniparserResult.data;
+        data.coordinates = omniparserResult.data;
+      } else {
+        console.error("❌ Omniparser failed:", omniparserResult.error);
+        // Continue with existing data if omniparser fails
+      }
+    } catch (error) {
+      console.error("❌ Error waiting for omniparser:", error);
+    }
+  }
+
   if (generatedSteps.length > 0 && index < generatedSteps.length) {
     const nextIndex = index + 1;
     console.log("➡️ Current index:", index, "| Next index:", nextIndex);
@@ -1112,6 +1713,22 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
     if (nextIndex < generatedSteps.length) {
       const nextStep = generatedSteps[nextIndex];
       console.log(`📝 Attempting Step ${nextIndex + 1}:`, nextStep);
+
+      // 🚨 VALIDATE COMMAND BEFORE EXECUTION
+      const validation = validateCommand(nextStep.description);
+      
+      if (!validation.isValid) {
+        console.error(`❌ Invalid command for Step ${nextIndex + 1}:`, validation.error);
+        
+        // Show invalid command modal
+        setInvalidCommandModal({
+          isOpen: true,
+          commandError: validation,
+          stepIndex: nextIndex
+        });
+        
+        return; 
+      }
 
       // 🚀 HANDLE OPEN COMMANDS DIRECTLY (NO VALIDATION NEEDED)
       if (nextStep.description.trim().toLowerCase().startsWith("open")) {
@@ -1142,6 +1759,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
           setTestSteps(prev => prev.map(step => 
             step.id === nextStep.id ? { ...step, ...executionResult } : step
           ));
+
           setCurrentGeneratedStepIndex(nextIndex);
           handleNextStep(executionResult, nextIndex);
         } else {
@@ -1184,6 +1802,7 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
           setTestSteps(prev => prev.map(step => 
             step.id === nextStep.id ? { ...step, ...executionResult } : step
           ));
+
           setCurrentGeneratedStepIndex(nextIndex);
           handleNextStep(executionResult, nextIndex);
         } else {
@@ -1353,7 +1972,8 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                 setTestSteps(prev => prev.map(step => 
                   step.id === nextStep.id ? { ...step, ...nextExecutionResult } : step
                 ));
-                  // 🔔 OTP Logic start
+
+                // 🔔 OTP Logic start
                 if (stepWithElement.requiresOtp && stepWithElement.otpType) {
                   console.log(`🔐 OTP Required after Step ${nextIndex + 1}:`, stepWithElement.otpType);
 
@@ -1415,8 +2035,16 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
                 }
                 setCurrentGeneratedStepIndex(nextIndex);
                 handleNextStep(nextExecutionResult, nextIndex);
+                } else if (nextExecutionResult && nextExecutionResult.isNetworkError) {
+                  console.error(`🌐 Network error for Step ${nextIndex + 1}`);
+                  
+                  setNetworkErrorModal({
+                    isOpen: true,
+                    stepIndex: nextIndex,
+                    stepData: stepWithElement
+                  });
                 } else {
-                console.error(`❌ Step ${nextIndex + 1} failed to execute properly.`);
+                  console.error(`❌ Step ${nextIndex + 1} failed to execute properly.`);
                 
                 // Open edit modal for execution errors
                 openEditModal(
@@ -1530,6 +2158,14 @@ const handleNextStep = async (data, index = currentGeneratedStepIndex) => {
               }
             setCurrentGeneratedStepIndex(nextIndex);
             handleNextStep(nextExecutionResult, nextIndex);
+          } else if (nextExecutionResult && nextExecutionResult.isNetworkError) {
+            console.error(`🌐 Network error for Step ${nextIndex + 1}`);
+            
+            setNetworkErrorModal({
+              isOpen: true,
+              stepIndex: nextIndex,
+              stepData: stepWithElement
+            });
           } else {
             console.error(`❌ Step ${nextIndex + 1} failed to execute properly.`);
             
@@ -1569,6 +2205,17 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
   const firstStep = generatedSteps[0];
   
   console.log("🚀 Auto-executing first step:", firstStep.description);
+
+  const validation = validateCommand(firstStep.description);
+
+  if (!validation.isValid) {
+    setInvalidCommandModal({
+      isOpen: true,
+      commandError: validation,
+      stepIndex: 0
+    });
+    return;
+  }
   
   // Check if first step is 'open'
   if (!firstStep.description.trim().toLowerCase().startsWith("open")) {
@@ -1587,12 +2234,53 @@ autoExecuteStepsRef.current = async (generatedSteps) => {
     setTestSteps(prev => prev.map(step => 
       step.id === firstStep.id ? { ...step, ...executionResult } : step
     ));
-    
+
+    // ✅ WAIT FOR OMNIPARSER DATA BEFORE PROCEEDING TO NEXT STEP
+    if (executionResult.omniparserPromise) {
+      console.log("⏳ Waiting for omniparser to complete before proceeding to step 2...");
+      try {
+        const omniparserResult = await executionResult.omniparserPromise;
+        console.log("✅ Omniparser completed:", omniparserResult.success ? "SUCCESS" : "FAILED");
+        
+        if (omniparserResult.success) {
+          // Update the first step's data with omniparser results
+          setTestSteps(prev => prev.map(step => {
+            if (step.id === firstStep.id) {
+              return {
+                ...step,
+                coordinates: omniparserResult.data,
+                omniparser_data: omniparserResult.data
+              };
+            }
+            return step;
+          }));
+          
+          // Update executionResult for next step
+          executionResult.omniparser_data = omniparserResult.data;
+          executionResult.coordinates = omniparserResult.data;
+        } else {
+          console.error("❌ Omniparser failed:", omniparserResult.error);
+          // Continue anyway - handleNextStep will handle missing data
+        }
+      } catch (error) {
+        console.error("❌ Error waiting for omniparser:", error);
+        // Continue anyway
+      }
+    }
+
     // Move to next step
     setCurrentGeneratedStepIndex(1);
     handleNextStep(executionResult);
     
     console.log("✅ First step executed successfully");
+  } else if (executionResult && executionResult.isNetworkError) {
+    console.error("🌐 Network error for first step");
+    
+    setNetworkErrorModal({
+      isOpen: true,
+      stepIndex: 0,
+      stepData: firstStep
+    });
   } else {
     console.error("❌ First step execution failed");
   }
@@ -1861,14 +2549,42 @@ const createTestCase = async () => {
   };
 
 const LoadingIndicator = ({ message }) => (
-  <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow-md border-l-4 border-purple-500 mb-4 transition-all duration-300">
-    <div className="mr-3 relative">
-      <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+  <div className="flex items-center justify-center p-4 bg-gradient-to-br from-white via-purple-50 to-indigo-50 rounded-xl shadow-md border border-purple-100 mb-3 transition-all duration-300 hover:shadow-lg">
+    <div className="mr-4 relative flex-shrink-0">
+      {/* Outer spinning ring with gradient */}
+      <div className="w-8 h-8 border-2 border-purple-300 border-t-purple-600 border-r-indigo-500 rounded-full animate-spin"></div>
+      {/* Inner pulsing dot */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+        <div className="w-3 h-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full animate-pulse"></div>
       </div>
     </div>
-    <span className="text-gray-700 font-medium text-lg">{message}</span>
+    
+    <div className="flex-1">
+      <span className="text-gray-800 font-medium text-lg leading-relaxed block">
+        {message}
+      </span>
+      <div className="mt-2 flex items-center space-x-3">
+        <div className="flex items-center space-x-1">
+          <span className="text-sm text-purple-600 font-medium">Processing</span>
+          <div className="flex space-x-0.5">
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></div>
+            <div className="w-1 h-1 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></div>
+          </div>
+        </div>
+        <span className="text-sm text-indigo-600 font-medium">
+          Keep tab active
+        </span>
+      </div>
+    </div>
+    
+    <div className="ml-4 flex-shrink-0">
+      <div className="flex space-x-1.5">
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+        <div className="w-2.5 h-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+      </div>
+    </div>
   </div>
 );
 
@@ -3081,7 +3797,7 @@ const handleOtpReplaceConfirm = (newOtp, currentPageData) => {
         setTestSteps(prev => prev.map(step => 
           step.id === stepWithElement.id ? { ...step, ...executionResult } : step
         ));
-        
+
         // Only proceed if execution was successful
         if (executionResult && executionResult.status === 'complete') {
           console.log("✅ OTP step succeeded, moving to next step");
@@ -3417,7 +4133,7 @@ const handleEditStep = async (updatedStep) => {
       setTestSteps(prev => prev.map(s => 
         s.id === updatedStep.id ? { ...s, ...executionResult } : s
       ));
-      
+
       // 🔔 ADD OTP LOGIC AFTER SUCCESSFUL EXECUTION
       if (updatedStep.requiresOtp && updatedStep.otpType && !updatedStep.isActualOtpStep) {
         console.log(`🔐 OTP Required after edited Step ${stepIndex + 1}:`, updatedStep.otpType);
@@ -4386,14 +5102,16 @@ const calculateDirectionalOffset = (coordinates, direction) => {
                                 )}
                               </span>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSuggestionSelect(suggestion);
-                                  }}
-                                  >
-                                  🎯 Adjust
-                                </span>
+                                {(commandType === 'click' || commandType === 'type') && (
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full cursor-pointer hover:bg-blue-200"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSuggestionSelect(suggestion);
+                                    }}
+                                    >
+                                    🎯 Adjust
+                                  </span>
+                                )}
 
                                 <span className={`text-xs px-2 py-1 rounded-full ${
                                   suggestion.type === 'button' || suggestion.tag === 'button' 
@@ -4469,6 +5187,41 @@ const calculateDirectionalOffset = (coordinates, direction) => {
 
       {showPositionControls && <PositionControls />}
     </>
+  );
+};
+
+const ElementsLoadingModal = () => {
+  const [dots, setDots] = useState('');
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  if (!elementsLoadingModal) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg p-8 shadow-lg max-w-md w-full mx-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-6"></div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-3">
+            Please Wait{dots}
+          </h3>
+          <p className="text-gray-600 text-base mb-4">
+            Elements are loading, just a minute
+          </p>
+          <div className="flex items-center justify-center space-x-1 text-purple-600">
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -4924,73 +5677,7 @@ const calculateDirectionalOffset = (coordinates, direction) => {
             </div>
           )}
 
-        {/* {addTestDataModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Add Test Data
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number:
-                  </label>
-                  <input
-                    type="text"
-                    value={testDataPhone}
-                    onChange={(e) => setTestDataPhone(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                    placeholder="Enter phone number"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email:
-                  </label>
-                  <input
-                    type="email"
-                    value={testDataEmail}
-                    onChange={(e) => setTestDataEmail(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                    placeholder="Enter email"
-                  />
-                </div>
-
-                {testDataEmail && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email App Password:
-                    </label>
-                    <input
-                      type="password"
-                      value={testDataPassword}
-                      onChange={(e) => setTestDataPassword(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                      placeholder="Enter app password"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-between gap-2">
-                <button
-                  onClick={() => setAddTestDataModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveTestData}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )} */}
+        {elementsLoadingModal && <ElementsLoadingModal />}
 
         <ElementSelectionModal  
           currentScreenshot={
@@ -5062,6 +5749,20 @@ const calculateDirectionalOffset = (coordinates, direction) => {
           testData={testData}
           // isTestDataLoading={isTestDataLoading}
           currentScreenshot={editStepModal.currentScreenshot}
+        />
+        <InvalidCommandModal
+          isOpen={invalidCommandModal.isOpen}
+          onClose={handleCancelInvalidStep}
+          onSkip={handleSkipInvalidStep}
+          commandError={invalidCommandModal.commandError}
+          stepIndex={invalidCommandModal.stepIndex}
+        />
+        <NetworkErrorModal
+          isOpen={networkErrorModal.isOpen}
+          onRetry={handleNetworkRetry}
+          onCancel={handleNetworkCancel}
+          stepNumber={networkErrorModal.stepIndex ? networkErrorModal.stepIndex + 1 : 0}
+          stepDescription={networkErrorModal.stepData?.description || ''}
         />
         </div>
       </div>

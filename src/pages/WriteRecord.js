@@ -1039,6 +1039,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
   const executeStep = async (stepObj) => {
     setIsProcessing(true);
+    const startTime = performance.now();
   
     try {
         const stepDescription = stepObj.description;
@@ -1146,6 +1147,8 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
         }
   
         if (actionType === 'open' || stepDescription.toLowerCase().includes('go to ')) {
+          const start = performance.now();
+
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1161,6 +1164,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
             const data = await response.json();
             console.log("Response:", data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
@@ -1178,7 +1188,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.status || "Page loaded successfully",
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_data,
@@ -1214,6 +1224,8 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
                 click_y: selectedElement.click_point[1],
                 requestBody
             });
+
+            const start = performance.now();
   
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
                 method: 'POST',
@@ -1229,6 +1241,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
             const data = await response.json();
             console.log(`${actionType} response:`, data);
+
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   
             if (data.omniparser_data && data.omniparser_data.elements) {
                 setElementData(data.omniparser_data);
@@ -1242,7 +1261,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
             return {
                 status: 'complete',
-                duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+                duration: formattedDuration,
                 message: data.message || `${actionType.charAt(0).toUpperCase() + actionType.slice(1)} action executed successfully`,
                 screenshot: screenshotUrl,
                 coordinates: data.omniparser_data || elementData,
@@ -1268,6 +1287,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           };
   
           console.log(`Sending coordinates for verify step:`, requestBody);
+          const start = performance.now();
   
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
               method: 'POST',
@@ -1281,6 +1301,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
   
           const data = await response.json();
           console.log(`Verify response:`, data);
+          const end = performance.now();
+          const durationInSeconds = Math.floor((end - start) / 1000);
+
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
   
           if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
@@ -1296,7 +1323,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           return {
 //              status: verificationPassed ? 'complete' : 'error',
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status,
               screenshot: screenshotUrl,
               coordinates: data.omniparser_data,
@@ -1315,6 +1342,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
           };
 
           console.log("Scroll Request Body:", requestBody);
+          const start = performance.now();
 
           const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
             method: 'POST',
@@ -1326,6 +1354,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             const data = await response.json();
             
             console.log("Scroll Response:", data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
 
           if (data.omniparser_data && data.omniparser_data.elements) {
             setElementData(data.omniparser_data);
@@ -1338,7 +1373,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
           return {
             status: 'complete',
-            duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+            duration: formattedDuration,
             message: data.message || `${actionType} executed successfully`,
             screenshot: screenshotUrl,
             coordinates: data.omniparser_data || {},
@@ -1362,6 +1397,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             };
 
             console.log(`Sending coordinates for get step:`, requestBody);
+            const start = performance.now();
 
             const response = await fetch('http://127.0.0.1:8000/automation/handle_command/', {
               method: 'POST',
@@ -1375,6 +1411,13 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             const data = await response.json();
             console.log(`Get response:`, data);
+            const end = performance.now();
+            const durationInSeconds = Math.floor((end - start) / 1000);
+
+            const minutes = Math.floor(durationInSeconds / 60);
+            const seconds = durationInSeconds % 60;
+            const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
 
             if (data.omniparser_data && data.omniparser_data.elements) {
               setElementData(data.omniparser_data);
@@ -1387,7 +1430,7 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
 
             return {
               status: 'complete',
-              duration: '00:' + Math.floor(Math.random() * 60).toString().padStart(2, '0'),
+              duration: formattedDuration,
               message: data.status || "Retrieved element text successfully",
               screenshot: screenshotUrl,
               coordinates: data.omniparser_data,
@@ -1406,6 +1449,10 @@ const callGetOtpAfterExecution = async (stepId, isPhoneNumberStep = false, isEma
             error: error.message
         };
     } finally {
+      const endTime = performance.now();
+      const durationInSeconds = ((endTime - startTime) / 1000).toFixed(2);
+      console.log(`Step execution time: ${durationInSeconds} seconds`);
+
         setIsProcessing(false);
         setLoadingMessage('');
     }
@@ -2556,14 +2603,16 @@ const SuggestionsDropdown = ({ omniparserData, lastScreenshot: currentScreenshot
                       )}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSuggestionSelect(suggestion);
-                      }}
-                      >
-                        🎯 Adjust
-                      </span>
+                      {(commandType === 'click' || commandType === 'type') && (
+                        <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSuggestionSelect(suggestion);
+                          }}
+                          >
+                            🎯 Adjust
+                        </span>
+                      )}
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         suggestion.type === 'button' || suggestion.tag === 'button' 
                             ? 'bg-blue-100 text-blue-700' 
