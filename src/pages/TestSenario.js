@@ -39,6 +39,86 @@ const [scenarioPriorities, setScenarioPriorities] = useState([]);
 const [promptHistory, setPromptHistory] = useState([]);
 const [showHistory, setShowHistory] = useState(false);
 
+const [testUrl, setTestUrl] = useState('');
+const [isEditingUrl, setIsEditingUrl] = useState(false);
+const [tempUrl, setTempUrl] = useState('');
+const [isSavingUrl, setIsSavingUrl] = useState(false);
+
+const [isEnhancing, setIsEnhancing] = useState(false);
+
+const [testResults, setTestResults] = useState(null);
+const [showTestResults, setShowTestResults] = useState(false);
+
+const [screenshotModal, setScreenshotModal] = useState({ isOpen: false, src: '', alt: '' });
+
+const saveTestUrl = async () => {
+  if (!projectData?.id || !tempUrl.trim()) return;
+  
+  setIsSavingUrl(true);
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: tempUrl.trim()
+      })
+    });
+    
+    if (response.ok) {
+      setTestUrl(tempUrl.trim());
+      setIsEditingUrl(false);
+      setTempUrl('');
+      console.log('URL saved successfully');
+    }
+  } catch (error) {
+    console.error('Error saving URL:', error);
+    alert('Failed to save URL');
+  } finally {
+    setIsSavingUrl(false);
+  }
+};
+
+const enhancePrompt = async () => {
+  if (!promptText.trim()) {
+    alert("Please enter a prompt first to enhance.");
+    return;
+  }
+
+  setIsEnhancing(true);
+  try {
+    const response = await fetch('http://127.0.0.1:8000/AIPrompt/enhance/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: promptText
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to enhance prompt');
+    }
+
+    const data = await response.json();
+
+    console.log("Enhanced_Prompt:", data)
+    
+    if (data.data && data.data.enhanced_prompt) {
+      setPromptText(data.data.enhanced_prompt);
+    } else {
+      alert('No enhanced prompt received.');
+    }
+  } catch (error) {
+    console.error('Error enhancing prompt:', error);
+    alert('Failed to enhance prompt. Please try again.');
+  } finally {
+    setIsEnhancing(false);
+  }
+};
+
 useEffect(() => {
   const fetchScenarioTypes = async () => {
     if (!projectData?.project_name) {
@@ -215,13 +295,14 @@ useEffect(() => {
   }, [navigate]);
 
   useEffect(() => {
-    if (needsOtpVerification && projectData?.id) {
+    if (projectData?.id) {
       setIsTestDataLoading(true);
       fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`)
         .then((res) => res.json())
         .then((data) => {
           console.log("✅ Test data loaded:", data);
           setTestData(data);
+          setTestUrl(data?.url || '');
         })
         .catch((err) => {
           console.warn("⚠️ Error fetching test data:", err.message);
@@ -229,9 +310,65 @@ useEffect(() => {
         })
         .finally(() => setIsTestDataLoading(false));
     }
-  }, [needsOtpVerification, projectData?.id]);
+  }, [projectData?.id]);
+
+  // const extractStepsFromPrompt = async () => {
+  //   if (!validateScenarioFields()) {
+  //     return;
+  //   }
+
+  //   if (!promptText.trim()) {
+  //     alert("Please enter a prompt first.");
+  //     return;
+  //   }
+
+  //   setIsExtracting(true);
+  //   try {
+  //     console.log("📦 Sending Request Payload:", {
+  //       prompt: promptText,
+  //       project_type: projectData?.project_type,
+  //       platform: projectData?.platform,
+  //     });
+
+  //     const response = await fetch('http://127.0.0.1:8000/api/extract-steps/', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         prompt: promptText,
+  //         project_type: projectData?.project_type,
+  //         platform: projectData?.platform,
+  //       })
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error('Failed to extract steps');
+  //     }
+
+  //     const data = await response.json();
+  //     console.log("✅ Extracted steps response:", data);
+
+  //     const newSteps = data.steps || [];
+  //     setExtractedSteps(newSteps);
+  //     setShowExtractedSteps(true);
+
+  //     // ✅ FIX: Use newSteps instead of extractedSteps
+  //     if (newSteps.length > 0) {
+  //       savePromptToHistory(promptText, newSteps);
+  //     }
+
+  //   } catch (error) {
+  //     console.error('Error extracting steps:', error);
+  //     alert('Failed to extract steps. Please try again.');
+  //   } finally {
+  //     setIsExtracting(false);
+  //   }
+  // };
 
   const extractStepsFromPrompt = async () => {
+    const userId = localStorage.getItem("userId");
+
     if (!validateScenarioFields()) {
       return;
     }
@@ -244,42 +381,38 @@ useEffect(() => {
     setIsExtracting(true);
     try {
       console.log("📦 Sending Request Payload:", {
-        prompt: promptText,
-        project_type: projectData?.project_type,
-        platform: projectData?.platform,
+        url: testUrl,
+        user_id: userId, 
+        test_prompt: promptText
       });
 
-      const response = await fetch('http://127.0.0.1:8000/api/extract-steps/', {
+      const response = await fetch('http://127.0.0.1:8000/automation/agent/run/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: promptText,
-          project_type: projectData?.project_type,
-          platform: projectData?.platform,
+          url: testUrl,
+          user_id: userId,
+          test_prompt: promptText
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to extract steps');
+        throw new Error('Failed to run automation');
       }
 
       const data = await response.json();
-      console.log("✅ Extracted steps response:", data);
+      console.log("✅ Automation response:", data);
 
-      const newSteps = data.steps || [];
-      setExtractedSteps(newSteps);
-      setShowExtractedSteps(true);
-
-      // ✅ FIX: Use newSteps instead of extractedSteps
-      if (newSteps.length > 0) {
-        savePromptToHistory(promptText, newSteps);
-      }
+      setTestResults(data);
+      setShowTestResults(true);
+      
+      alert('Automation completed successfully!');
 
     } catch (error) {
-      console.error('Error extracting steps:', error);
-      alert('Failed to extract steps. Please try again.');
+      console.error('Error running automation:', error);
+      alert('Failed to start automation. Please try again.');
     } finally {
       setIsExtracting(false);
     }
@@ -1006,8 +1139,90 @@ const handleOtpCheckboxChange = (e) => {
               </div>
             </div>
 
+            {/* URL Section */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Test URL</h2>
+              
+              <div className="flex items-center gap-3">
+                {!isEditingUrl ? (
+                  <>
+                    {testUrl ? (
+                      <>
+                        <div className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700 font-mono break-all">{testUrl}</span>
+                            <button
+                              onClick={() => {
+                                setIsEditingUrl(true);
+                                setTempUrl(testUrl);
+                              }}
+                              className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Edit URL"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1">
+                        <button
+                          onClick={() => setIsEditingUrl(true)}
+                          className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                          </svg>
+                          Add Test URL
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      type="url"
+                      value={tempUrl}
+                      onChange={(e) => setTempUrl(e.target.value)}
+                      placeholder="Enter test URL (e.g., https://example.com)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      autoFocus
+                    />
+                    <button
+                      onClick={saveTestUrl}
+                      disabled={!tempUrl.trim() || isSavingUrl}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                    >
+                      {isSavingUrl ? (
+                        <span className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Saving...
+                        </span>
+                      ) : (
+                        'Save'
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditingUrl(false);
+                        setTempUrl('');
+                      }}
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Main Content */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
             {/* Left Side - Prompt Input */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
                 {/* Action Buttons at Top */}
@@ -1023,10 +1238,10 @@ const handleOtpCheckboxChange = (e) => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Creating Steps...
+                        Running Automation...
                     </span>
                     ) : (
-                    'Create Steps'
+                    'Start Automation'
                     )}
                 </button>
 
@@ -1057,7 +1272,7 @@ const handleOtpCheckboxChange = (e) => {
                     className="w-full h-40 md:h-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent resize-none text-sm md:text-base"
                     disabled={isExtracting}
                 />
-                  <div className="flex justify-end mt-2">
+                  <div className="flex justify-end items-center gap-3 mt-2">
                     <button
                       onClick={generatePromptFromAssistant}
                       disabled={isGeneratingPrompt}
@@ -1100,9 +1315,53 @@ const handleOtpCheckboxChange = (e) => {
                           />
                         </svg>
                       )}
-                      {isGeneratingPrompt
-                        ? "Generating..."
-                        : "Prompt Assistant"}
+                      {isGeneratingPrompt ? "Generating..." : "Prompt Assistant"}
+                    </button>
+
+                    {/* New Enhance Button */}
+                    <button
+                      onClick={enhancePrompt}
+                      disabled={isEnhancing || !promptText.trim()}
+                      className="text-green-600 text-sm flex items-center hover:underline disabled:opacity-50"
+                    >
+                      {isEnhancing ? (
+                        <svg
+                          className="animate-spin w-4 h-4 mr-2 text-green-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4H8v4H4z"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4 mr-2 text-green-500"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                          />
+                        </svg>
+                      )}
+                      {isEnhancing ? "Enhancing..." : "Enhance"}
                     </button>
 
                     {/* ✅ ADD THIS HISTORY DROPDOWN RIGHT HERE */}
@@ -1169,7 +1428,7 @@ const handleOtpCheckboxChange = (e) => {
             </div>
 
             {/* Right Side - Generated Steps */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">
                     Generated Test Steps
@@ -1192,7 +1451,7 @@ const handleOtpCheckboxChange = (e) => {
                 </div>
               </div>
 
-              {/* ✅ MODIFIED: Add OTP Checkbox with test data status */}
+
                 {showExtractedSteps && extractedSteps.length > 0 && (
                   <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
                     <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -1208,7 +1467,7 @@ const handleOtpCheckboxChange = (e) => {
                       Check this if your test steps include OTP/verification code steps
                     </div>
                     
-                    {/* ✅ NEW: Show test data status */}
+
                     {needsOtpVerification && (
                       <div className="mt-2 text-xs">
                         {isTestDataLoading ? (
@@ -1251,7 +1510,7 @@ const handleOtpCheckboxChange = (e) => {
                       {extractedSteps.map((step, index) => (
                         <div key={index}>
                           <div className="group">
-                            {/* Existing Step */}
+
                             <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
                               <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
                                 {typeof step === 'object' ? step.step : index + 1}
@@ -1329,7 +1588,6 @@ const handleOtpCheckboxChange = (e) => {
                               )}
                             </div>
 
-                            {/* Add Step Button */}
                             {insertingStepIndex !== index && (
                               <div className="flex justify-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button
@@ -1344,7 +1602,7 @@ const handleOtpCheckboxChange = (e) => {
                               </div>
                             )}
                           </div>
-                          {/* Insert Step Form */}
+
                           {insertingStepIndex === index && (
                             <div className="mt-2 p-3 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50">
                               <div className="flex items-start space-x-3">
@@ -1385,7 +1643,7 @@ const handleOtpCheckboxChange = (e) => {
                     )}
                 </div>
                 )}
-            </div>
+            </div> */}
             </div>
 
             {/* Helper Text */}
@@ -1563,6 +1821,301 @@ const handleOtpCheckboxChange = (e) => {
             </div>
           </div>
         )}
+
+
+        {/* Test Results Section */}
+        {showTestResults && testResults && (
+          <div className="mt-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    testResults.success ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {testResults.success ? (
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Test Execution Results
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {testResults.test_prompt}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowTestResults(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-purple-900">
+                    {testResults.success_metrics?.total_steps_attempted || 0}
+                  </div>
+                  <div className="text-sm text-purple-700">Total Steps</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-purple-900">
+                    {testResults.success_metrics?.successful_steps || 0}
+                  </div>
+                  <div className="text-sm text-purple-700">Successful</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-purple-900">
+                    {testResults.success_metrics?.total_failures || 0}
+                  </div>
+                  <div className="text-sm text-purple-700">Failed</div>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-purple-900">
+                    {testResults.success_metrics?.success_rate || '0%'}
+                  </div>
+                  <div className="text-sm text-purple-700">Success Rate</div>
+                </div>
+              </div>
+
+              {/* Execution Time */}
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-gray-600">Execution Time:</span>
+                    <span className="ml-2 text-lg font-semibold text-gray-900">
+                      {testResults.success_metrics?.execution_time?.toFixed(2) || 0}s
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Status:</span>
+                    <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
+                      testResults.result === 'passed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {testResults.result || 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action History - Detailed Steps */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Step-by-Step Execution</h3>
+                
+                {testResults.action_history?.map((action, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Step Header */}
+                    <div className={`p-4 ${
+                      action.result === 'executed' || action.result === 'success' 
+                        ? 'bg-green-50 border-b border-green-200' 
+                        : 'bg-red-50 border-b border-red-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold ${
+                            action.result === 'executed' || action.result === 'success' 
+                              ? 'bg-green-600' 
+                              : 'bg-red-600'
+                          }`}>
+                            {action.step}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">
+                              Step {action.step}: {action.action?.action || 'Unknown Action'}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Element: {action.action?.element || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          action.result === 'executed' || action.result === 'success'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {action.result || 'Unknown'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step Details */}
+                    <div className="p-4 bg-white">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Left Side - Request & Action Details */}
+                        <div className="space-y-4">
+                          {/* Request Details */}
+                          <div>
+                            <h4 className="font-medium text-gray-900 mb-2">Request Details</h4>
+                            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                              <div className="space-y-1">
+                                <div><span className="font-medium">Command:</span> {action.request?.command || 'N/A'}</div>
+                                {action.request?.click_x && action.request?.click_y && (
+                                  <div><span className="font-medium">Coordinates:</span> ({action.request.click_x}, {action.request.click_y})</div>
+                                )}
+                                {action.action?.text && (
+                                  <div><span className="font-medium">Input Text:</span> {action.action.text}</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Details */}
+                          {action.action && (
+                            <div>
+                              <h4 className="font-medium text-gray-900 mb-2">Action Details</h4>
+                              <div className="bg-blue-50 rounded-lg p-3 text-sm">
+                                <div className="space-y-1">
+                                  <div><span className="font-medium">Action:</span> {action.action.action}</div>
+                                  <div><span className="font-medium">Element:</span> {action.action.element}</div>
+                                  {action.action.reasoning && (
+                                    <div><span className="font-medium">Reasoning:</span> {action.action.reasoning}</div>
+                                  )}
+                                  {action.action.expected_change && (
+                                    <div><span className="font-medium">Expected:</span> {action.action.expected_change}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Element Data */}
+                          {/* {action.action?.element_data && (
+                            <div>
+                              <h4 className="font-medium text-gray-900 mb-2">Element Information</h4>
+                              <div className="bg-purple-50 rounded-lg p-3 text-sm">
+                                <div className="space-y-1">
+                                  <div><span className="font-medium">Type:</span> {action.action.element_data.type}</div>
+                                  <div><span className="font-medium">ID:</span> {action.action.element_data.id}</div>
+                                  {action.action.element_data.coordinates && (
+                                    <div><span className="font-medium">Coordinates:</span> [{action.action.element_data.coordinates.join(', ')}]</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )} */}
+                        </div>
+
+                        {/* Right Side - Screenshot */}
+                        <div>
+                          <h4 className="font-medium text-gray-900 mb-2">Screenshot</h4>
+                          {action.screenshot ? (
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                              <img
+                                src={`http://127.0.0.1:8000${action.screenshot}`}
+                                alt={`Screenshot for step ${action.step}`}
+                                className="w-full h-auto max-h-64 object-contain bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => setScreenshotModal({
+                                  isOpen: true, 
+                                  src: `http://127.0.0.1:8000${action.screenshot}`, 
+                                  alt: `Screenshot for step ${action.step}`
+                                })}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden items-center justify-center h-32 bg-gray-100 text-gray-500">
+                                <div className="text-center">
+                                  <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                  </svg>
+                                  <div className="text-sm">Screenshot unavailable</div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="border border-gray-200 rounded-lg h-32 flex items-center justify-center bg-gray-50">
+                              <div className="text-center text-gray-500">
+                                <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <div className="text-sm">No screenshot available</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Final Screenshots */}
+              {testResults.screenshots && (
+                <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-4">Final Results</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {testResults.screenshots.previous_screenshot && (
+                      <div>
+                        <div className="text-sm text-gray-600 mb-2">Previous Screenshot</div>
+                        <img
+                          src={`http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`}
+                          alt="Previous screenshot"
+                          className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded bg-white"
+                          onClick={() => setScreenshotModal({
+                            isOpen: true,
+                            src: `http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`,
+                            alt: 'Final screenshot'
+                          })}
+                        />
+                      </div>
+                    )}
+                    {testResults.screenshots.final_screenshot && (
+                      <div>
+                        <div className="text-sm text-gray-600 mb-2">Final Screenshot</div>
+                        <img
+                          src={`http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`}
+                          alt="Final screenshot"
+                          className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded bg-white"
+                          onClick={() => setScreenshotModal({
+                            isOpen: true,
+                            src: `http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`,
+                            alt: 'Final screenshot'
+                          })}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Screenshot Modal */}
+        {screenshotModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="relative max-w-6xl max-h-[90vh] w-full">
+              <button
+                onClick={() => setScreenshotModal({ isOpen: false, src: '', alt: '' })}
+                className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+              <img
+                src={screenshotModal.src}
+                alt={screenshotModal.alt}
+                className="w-full h-full object-contain bg-white rounded-lg"
+              />
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
