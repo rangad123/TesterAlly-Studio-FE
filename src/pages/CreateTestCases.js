@@ -63,10 +63,63 @@ const CreateTestCases = () => {
     return isValid;
   };
 
+  // const handleNextClick = async () => {
+  //   const userId = localStorage.getItem("userId");
+  //   if (!userId) return;
+  //   if (!validateFields()) return;
+  //   setIsLoading(true);
+
+  //   try {
+  //     const response = await fetch(
+  //       `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${encodeURIComponent(testcase_name)}`,
+  //       {
+  //         headers: { "Content-Type": "application/json" }
+  //       }
+  //     );
+
+  //     if (response.ok) {
+  //       if (response.status === 200) {
+  //         const data = await response.json();
+  //         const existingTestCase = data.testcase;
+
+  //         if (
+  //           existingTestCase &&
+  //           existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
+  //         ) {
+  //           console.log("✅ Duplicate found — setting error");
+  //           setErrors((prev) => ({
+  //             ...prev,
+  //             name: "A test case with this name already exists. Please use a different name.",
+  //           }));
+  //           setIsLoading(false);
+  //           return;
+  //         }
+  //       }
+        
+  //       setShowModal(true);
+  //       setIsLoading(false);
+        
+  //     } else {
+  //       if (response.status === 404) {
+  //         setShowModal(true);
+  //         setIsLoading(false);
+  //       } else {
+  //         throw new Error("Failed to check existing test cases");
+  //       }
+  //     }
+
+  //   } catch (error) {
+  //     console.error("Error checking test case name:", error);
+  //     alert("Error checking test case name. Please try again.");
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleNextClick = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return;
     if (!validateFields()) return;
+    
     setIsLoading(true);
 
     try {
@@ -86,7 +139,6 @@ const CreateTestCases = () => {
             existingTestCase &&
             existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
           ) {
-            console.log("✅ Duplicate found — setting error");
             setErrors((prev) => ({
               ...prev,
               name: "A test case with this name already exists. Please use a different name.",
@@ -96,13 +148,35 @@ const CreateTestCases = () => {
           }
         }
         
-        setShowModal(true);
-        setIsLoading(false);
+        // Navigate directly to TestSenario page
+        navigate("/test-scenario", {
+          state: {
+            testCaseInfo: {
+              testcase_name: testcase_name.trim(),
+              testcase_type: testCaseType,
+              testcase_priority: testCasePriority,
+              projectId: selectedProject.project_name,
+              project_type: selectedProject.project_type,
+              platform: selectedProject.platform
+            }
+          }
+        });
         
       } else {
         if (response.status === 404) {
-          setShowModal(true);
-          setIsLoading(false);
+          // Navigate directly to TestSenario page
+          navigate("/test-scenario", {
+            state: {
+              testCaseInfo: {
+                testcase_name: testcase_name.trim(),
+                testcase_type: testCaseType,
+                testcase_priority: testCasePriority,
+                projectId: selectedProject.project_name,
+                project_type: selectedProject.project_type,
+                platform: selectedProject.platform
+              }
+            }
+          });
         } else {
           throw new Error("Failed to check existing test cases");
         }
@@ -114,7 +188,6 @@ const CreateTestCases = () => {
       setIsLoading(false);
     }
   };
-
 
   const handleOptionClick = (option) => {
     const route = option === "write" ? "/gitwritemanually-test" : "/write-manually";

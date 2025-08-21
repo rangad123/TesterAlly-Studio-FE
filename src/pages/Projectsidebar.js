@@ -203,11 +203,11 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     { icon: FaClipboardList, label: "Test Suites", path: "/test-suites" },
     { icon: FaChartBar, label: "Reports", path: "/reports" },
     { icon: FaDatabase, label: "Test Data", path: "/test-data" },
-    {
-      icon: FaProjectDiagram,
-      label: "Test Scenario",
-      path: "/test-scenario",  
-    },
+    // {
+    //   icon: FaProjectDiagram,
+    //   label: "Test Scenario",
+    //   path: "/test-scenario",  
+    // },
     {
       icon: FaCog,
       label: "Project Settings",

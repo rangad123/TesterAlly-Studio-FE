@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 function TestSenario() {
   const [promptText, setPromptText] = useState('');
@@ -31,10 +31,12 @@ function TestSenario() {
 const [scenarioName, setScenarioName] = useState('');
 const [scenarioType, setScenarioType] = useState('');
 const [scenarioPriority, setScenarioPriority] = useState('');
-const [scenarioErrors, setScenarioErrors] = useState({ name: "", type: "", priority: "" });
+// const [scenarioErrors, setScenarioErrors] = useState({ name: "", type: "", priority: "" });
+// const [scenarioTypes, setScenarioTypes] = useState([]);
+// const [scenarioPriorities, setScenarioPriorities] = useState([]);
 
-const [scenarioTypes, setScenarioTypes] = useState([]);
-const [scenarioPriorities, setScenarioPriorities] = useState([]);
+  const location = useLocation();
+  const testCaseInfo = location.state?.testCaseInfo;
 
 const [promptHistory, setPromptHistory] = useState([]);
 const [showHistory, setShowHistory] = useState(false);
@@ -88,7 +90,7 @@ const enhancePrompt = async () => {
 
   setIsEnhancing(true);
   try {
-    const response = await fetch('http://127.0.0.1:8000/AIPrompt/enhance/', {
+    const response = await fetch('http://127.0.0.1:8000/AI/prompt-enhance/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,92 +121,100 @@ const enhancePrompt = async () => {
   }
 };
 
-useEffect(() => {
-  const fetchScenarioTypes = async () => {
-    if (!projectData?.project_name) {
-      return;
+// useEffect(() => {
+//   const fetchScenarioTypes = async () => {
+//     if (!projectData?.project_name) {
+//       return;
+//     }
+
+//     try {
+//       const response = await fetch(
+//         `http://127.0.0.1:8000/api/testcase-types/?project_name=${projectData.project_name}`,
+//         {
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//         }
+//       );
+
+//       if (!response.ok) {
+//         throw new Error("Failed to fetch scenario types");
+//       }
+
+//       const data = await response.json();
+//       console.log("Fetched Scenario Types:", data);
+//       setScenarioTypes(data); 
+//     } catch (error) {
+//       console.error("Error fetching scenario types:", error);
+//       setScenarioTypes([]);
+//     }
+//   };
+
+//   fetchScenarioTypes();
+// }, [projectData]);
+
+// useEffect(() => {
+//   const fetchScenarioPriorities = async () => {
+//     if (!projectData?.project_name) {
+//       return;
+//     }
+
+//     try {
+//       const response = await fetch(
+//         `http://127.0.0.1:8000/api/testcase-priorities/?project_name=${projectData.project_name}`,
+//         {
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//         }
+//       );
+
+//       if (!response.ok) {
+//         throw new Error("Failed to fetch scenario priorities");
+//       }
+
+//       const data = await response.json();
+//       console.log("Fetched Scenario Priorities:", data);
+//       setScenarioPriorities(data); 
+//     } catch (error) {
+//       console.error("Error fetching scenario priorities:", error);
+//       setScenarioPriorities([]);
+//     }
+//   };
+
+//   fetchScenarioPriorities();
+// }, [projectData]);
+
+// const validateScenarioFields = () => {
+//   const newErrors = {};
+//   let isValid = true;
+
+//   if (!scenarioName.trim()) {
+//     newErrors.name = "Scenario name is required!";
+//     isValid = false;
+//   }
+
+//   if (!scenarioType.trim()) {
+//     newErrors.type = "Scenario type is required!";
+//     isValid = false;
+//   }
+
+//   if (!scenarioPriority.trim()) {
+//     newErrors.priority = "Scenario priority is required!";
+//     isValid = false;
+//   }
+
+//   setScenarioErrors(newErrors);
+//   return isValid;
+// };
+
+  useEffect(() => {
+    if (testCaseInfo) {
+      setScenarioName(testCaseInfo.testcase_name || '');
+      setScenarioType(testCaseInfo.testcase_type || '');
+      setScenarioPriority(testCaseInfo.testcase_priority || '');
     }
-
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-types/?project_name=${projectData.project_name}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch scenario types");
-      }
-
-      const data = await response.json();
-      console.log("Fetched Scenario Types:", data);
-      setScenarioTypes(data); 
-    } catch (error) {
-      console.error("Error fetching scenario types:", error);
-      setScenarioTypes([]);
-    }
-  };
-
-  fetchScenarioTypes();
-}, [projectData]);
-
-useEffect(() => {
-  const fetchScenarioPriorities = async () => {
-    if (!projectData?.project_name) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/testcase-priorities/?project_name=${projectData.project_name}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch scenario priorities");
-      }
-
-      const data = await response.json();
-      console.log("Fetched Scenario Priorities:", data);
-      setScenarioPriorities(data); 
-    } catch (error) {
-      console.error("Error fetching scenario priorities:", error);
-      setScenarioPriorities([]);
-    }
-  };
-
-  fetchScenarioPriorities();
-}, [projectData]);
-
-const validateScenarioFields = () => {
-  const newErrors = {};
-  let isValid = true;
-
-  if (!scenarioName.trim()) {
-    newErrors.name = "Scenario name is required!";
-    isValid = false;
-  }
-
-  if (!scenarioType.trim()) {
-    newErrors.type = "Scenario type is required!";
-    isValid = false;
-  }
-
-  if (!scenarioPriority.trim()) {
-    newErrors.priority = "Scenario priority is required!";
-    isValid = false;
-  }
-
-  setScenarioErrors(newErrors);
-  return isValid;
-};
+  }, [testCaseInfo]);
 
 const savePromptToHistory = (promptText, steps) => {
   const historyItem = {
@@ -369,9 +379,9 @@ useEffect(() => {
   const extractStepsFromPrompt = async () => {
     const userId = localStorage.getItem("userId");
 
-    if (!validateScenarioFields()) {
-      return;
-    }
+    // if (!validateScenarioFields()) {
+    //   return;
+    // }
 
     if (!promptText.trim()) {
       alert("Please enter a prompt first.");
@@ -383,7 +393,8 @@ useEffect(() => {
       console.log("📦 Sending Request Payload:", {
         url: testUrl,
         user_id: userId, 
-        test_prompt: promptText
+        test_prompt: promptText,
+        scenarios_name: scenarioName
       });
 
       const response = await fetch('http://127.0.0.1:8000/automation/agent/run/', {
@@ -394,7 +405,8 @@ useEffect(() => {
         body: JSON.stringify({
           url: testUrl,
           user_id: userId,
-          test_prompt: promptText
+          test_prompt: promptText,
+          scenarios_name: scenarioName
         })
       });
 
@@ -1057,11 +1069,10 @@ const handleOtpCheckboxChange = (e) => {
             </div>
 
             {/* Test Scenario Details - ADD THIS NEW SECTION */}
-            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            {/* <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Test Scenario Details</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Scenario Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Scenario Name <span className="text-red-500">*</span>
@@ -1083,7 +1094,6 @@ const handleOtpCheckboxChange = (e) => {
                   )}
                 </div>
 
-                {/* Scenario Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Type <span className="text-red-500">*</span>
@@ -1110,7 +1120,6 @@ const handleOtpCheckboxChange = (e) => {
                   )}
                 </div>
 
-                {/* Scenario Priority */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Priority <span className="text-red-500">*</span>
@@ -1137,26 +1146,59 @@ const handleOtpCheckboxChange = (e) => {
                   )}
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            {/* URL Section */}
-            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Test URL</h2>
+            {/* Test Details and URL Combined Section */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Test Case Details</h2>
               
-              <div className="flex items-center gap-3">
-                {!isEditingUrl ? (
-                  <>
-                    {testUrl ? (
+              <div className="grid grid-cols-2 gap-8">
+                
+                {/* Left Half - Test Case Details (Name, Type, Priority) */}
+                <div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* Name Field */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
+                        {testCaseInfo?.testcase_name || 'Not specified'}
+                      </div>
+                    </div>
+                    
+                    {/* Type Field */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                      <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
+                        {testCaseInfo?.testcase_type || 'Not specified'}
+                      </div>
+                    </div>
+
+                    {/* Priority Field */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                      <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
+                        {testCaseInfo?.testcase_priority || 'Not specified'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Half - Test URL Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Test URL</label>
+                  
+                  <div className="h-11">
+                    {!isEditingUrl ? (
                       <>
-                        <div className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700 font-mono break-all">{testUrl}</span>
+                        {testUrl ? (
+                          <div className="w-full h-full px-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                            <span className="text-sm text-gray-700 font-mono truncate flex-1 mr-2">{testUrl}</span>
                             <button
                               onClick={() => {
                                 setIsEditingUrl(true);
                                 setTempUrl(testUrl);
                               }}
-                              className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
                               title="Edit URL"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1164,60 +1206,56 @@ const handleOtpCheckboxChange = (e) => {
                               </svg>
                             </button>
                           </div>
-                        </div>
+                        ) : (
+                          <button
+                            onClick={() => setIsEditingUrl(true)}
+                            className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center text-sm"
+                          >
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Add URL
+                          </button>
+                        )}
                       </>
                     ) : (
-                      <div className="flex-1">
+                      <div className="flex gap-2 h-11">
+                        <input
+                          type="url"
+                          value={tempUrl}
+                          onChange={(e) => setTempUrl(e.target.value)}
+                          placeholder="Enter test URL"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          autoFocus
+                        />
                         <button
-                          onClick={() => setIsEditingUrl(true)}
-                          className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+                          onClick={saveTestUrl}
+                          disabled={!tempUrl.trim() || isSavingUrl}
+                          className="px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                          </svg>
-                          Add Test URL
+                          {isSavingUrl ? (
+                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            'Save'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditingUrl(false);
+                            setTempUrl('');
+                          }}
+                          className="px-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+                        >
+                          Cancel
                         </button>
                       </div>
                     )}
-                  </>
-                ) : (
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="url"
-                      value={tempUrl}
-                      onChange={(e) => setTempUrl(e.target.value)}
-                      placeholder="Enter test URL (e.g., https://example.com)"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      autoFocus
-                    />
-                    <button
-                      onClick={saveTestUrl}
-                      disabled={!tempUrl.trim() || isSavingUrl}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                    >
-                      {isSavingUrl ? (
-                        <span className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Saving...
-                        </span>
-                      ) : (
-                        'Save'
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsEditingUrl(false);
-                        setTempUrl('');
-                      }}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
-                    >
-                      Cancel
-                    </button>
                   </div>
-                )}
+                </div>
+
               </div>
             </div>
 
@@ -1238,10 +1276,10 @@ const handleOtpCheckboxChange = (e) => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Running Automation...
+                        Running...
                     </span>
                     ) : (
-                    'Start Automation'
+                    'Start'
                     )}
                 </button>
 
@@ -1827,6 +1865,7 @@ const handleOtpCheckboxChange = (e) => {
         {showTestResults && testResults && (
           <div className="mt-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+              {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -1843,12 +1882,8 @@ const handleOtpCheckboxChange = (e) => {
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Test Execution Results
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {testResults.test_prompt}
-                    </p>
+                    <h2 className="text-xl font-bold text-gray-900">Test Execution Results</h2>
+                    <p className="text-sm text-gray-600">{testResults.test_prompt}</p>
                   </div>
                 </div>
                 <button
@@ -1869,33 +1904,37 @@ const handleOtpCheckboxChange = (e) => {
                   </div>
                   <div className="text-sm text-purple-700">Total Steps</div>
                 </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-purple-900">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-900">
                     {testResults.success_metrics?.successful_steps || 0}
                   </div>
-                  <div className="text-sm text-purple-700">Successful</div>
+                  <div className="text-sm text-green-700">Successful</div>
                 </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-purple-900">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-red-900">
                     {testResults.success_metrics?.total_failures || 0}
                   </div>
-                  <div className="text-sm text-purple-700">Failed</div>
+                  <div className="text-sm text-red-700">Failed</div>
                 </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-purple-900">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-900">
                     {testResults.success_metrics?.success_rate || '0%'}
                   </div>
-                  <div className="text-sm text-purple-700">Success Rate</div>
+                  <div className="text-sm text-blue-700">Success Rate</div>
                 </div>
               </div>
 
-              {/* Execution Time */}
+              {/* Execution Time & Status */}
               <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-sm text-gray-600">Execution Time:</span>
                     <span className="ml-2 text-lg font-semibold text-gray-900">
-                      {testResults.success_metrics?.execution_time?.toFixed(2) || 0}s
+                      {testResults.success_metrics?.execution_time
+                        ? testResults.success_metrics.execution_time >= 60
+                          ? `${(testResults.success_metrics.execution_time / 60).toFixed(2)}m`
+                          : `${testResults.success_metrics.execution_time.toFixed(2)}s`
+                        : "0s"}
                     </span>
                   </div>
                   <div>
@@ -1911,186 +1950,142 @@ const handleOtpCheckboxChange = (e) => {
                 </div>
               </div>
 
-              {/* Action History - Detailed Steps */}
+              {/* Results Table */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Step-by-Step Execution</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Step-by-Step Execution</h3>
                 
-                {testResults.action_history?.map((action, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-                    {/* Step Header */}
-                    <div className={`p-4 ${
-                      action.result === 'executed' || action.result === 'success' 
-                        ? 'bg-green-50 border-b border-green-200' 
-                        : 'bg-red-50 border-b border-red-200'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold ${
-                            action.result === 'executed' || action.result === 'success' 
-                              ? 'bg-green-600' 
-                              : 'bg-red-600'
-                          }`}>
-                            {action.step}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              Step {action.step}: {action.action?.action || 'Unknown Action'}
+                <div className="overflow-hidden border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Step
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Action
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Element
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Input
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Screenshot
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {testResults.action_history?.map((action, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
+                              action.result === 'executed' || action.result === 'success' 
+                                ? 'bg-green-600' 
+                                : 'bg-red-600'
+                            }`}>
+                              {action.step + 1}
                             </div>
-                            <div className="text-sm text-gray-600">
-                              Element: {action.action?.element || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900 capitalize">
+                              {action.action?.action || 'Unknown'}
                             </div>
-                          </div>
-                        </div>
-                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          action.result === 'executed' || action.result === 'success'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {action.result || 'Unknown'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step Details */}
-                    <div className="p-4 bg-white">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Left Side - Request & Action Details */}
-                        <div className="space-y-4">
-                          {/* Request Details */}
-                          <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Request Details</h4>
-                            <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                              <div className="space-y-1">
-                                <div><span className="font-medium">Command:</span> {action.request?.command || 'N/A'}</div>
-                                {action.request?.click_x && action.request?.click_y && (
-                                  <div><span className="font-medium">Coordinates:</span> ({action.request.click_x}, {action.request.click_y})</div>
-                                )}
-                                {action.action?.text && (
-                                  <div><span className="font-medium">Input Text:</span> {action.action.text}</div>
-                                )}
-                              </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 max-w-xs truncate" title={action.action?.element || 'N/A'}>
+                              {action.action?.element || 'N/A'}
                             </div>
-                          </div>
-
-                          {/* Action Details */}
-                          {action.action && (
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Action Details</h4>
-                              <div className="bg-blue-50 rounded-lg p-3 text-sm">
-                                <div className="space-y-1">
-                                  <div><span className="font-medium">Action:</span> {action.action.action}</div>
-                                  <div><span className="font-medium">Element:</span> {action.action.element}</div>
-                                  {action.action.reasoning && (
-                                    <div><span className="font-medium">Reasoning:</span> {action.action.reasoning}</div>
-                                  )}
-                                  {action.action.expected_change && (
-                                    <div><span className="font-medium">Expected:</span> {action.action.expected_change}</div>
-                                  )}
-                                </div>
-                              </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 max-w-xs truncate">
+                              {action.action?.text || action.action?.url || '-'}
                             </div>
-                          )}
-
-                          {/* Element Data */}
-                          {/* {action.action?.element_data && (
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-2">Element Information</h4>
-                              <div className="bg-purple-50 rounded-lg p-3 text-sm">
-                                <div className="space-y-1">
-                                  <div><span className="font-medium">Type:</span> {action.action.element_data.type}</div>
-                                  <div><span className="font-medium">ID:</span> {action.action.element_data.id}</div>
-                                  {action.action.element_data.coordinates && (
-                                    <div><span className="font-medium">Coordinates:</span> [{action.action.element_data.coordinates.join(', ')}]</div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )} */}
-                        </div>
-
-                        {/* Right Side - Screenshot */}
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Screenshot</h4>
-                          {action.screenshot ? (
-                            <div className="border border-gray-200 rounded-lg overflow-hidden">
-                              <img
-                                src={`http://127.0.0.1:8000${action.screenshot}`}
-                                alt={`Screenshot for step ${action.step}`}
-                                className="w-full h-auto max-h-64 object-contain bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              action.result === 'executed' || action.result === 'success'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {action.result || 'Unknown'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {action.screenshot ? (
+                              <button
                                 onClick={() => setScreenshotModal({
-                                  isOpen: true, 
-                                  src: `http://127.0.0.1:8000${action.screenshot}`, 
-                                  alt: `Screenshot for step ${action.step}`
+                                  isOpen: true,
+                                  src: `http://127.0.0.1:8000${action.screenshot}`,
+                                  alt: `Screenshot for step ${action.step + 1}`
                                 })}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'flex';
-                                }}
-                              />
-                              <div className="hidden items-center justify-center h-32 bg-gray-100 text-gray-500">
-                                <div className="text-center">
-                                  <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                  </svg>
-                                  <div className="text-sm">Screenshot unavailable</div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="border border-gray-200 rounded-lg h-32 flex items-center justify-center bg-gray-50">
-                              <div className="text-center text-gray-500">
-                                <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                className="text-blue-600 hover:text-blue-800 transition-colors"
+                                title={`View screenshot for step ${action.step + 1}`}
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"/>
                                 </svg>
-                                <div className="text-sm">No screenshot available</div>
-                              </div>
-                            </div>
-                          )}
+                              </button>
+                            ) : (
+                              <span className="text-gray-400">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Final Screenshots */}
+                {/* {testResults.screenshots && (
+                  <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-4">Final Results</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {testResults.screenshots.previous_screenshot && (
+                        <div>
+                          <div className="text-sm text-gray-600 mb-2">Previous Screenshot</div>
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <img
+                              src={`http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`}
+                              alt="Previous screenshot"
+                              className="w-full h-auto max-h-48 object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setScreenshotModal({
+                                isOpen: true,
+                                src: `http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`,
+                                alt: 'Previous screenshot'
+                              })}
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {testResults.screenshots.final_screenshot && (
+                        <div>
+                          <div className="text-sm text-gray-600 mb-2">Final Screenshot</div>
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <img
+                              src={`http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`}
+                              alt="Final screenshot"
+                              className="w-full h-auto max-h-48 object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setScreenshotModal({
+                                isOpen: true,
+                                src: `http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`,
+                                alt: 'Final screenshot'
+                              })}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )} */}
               </div>
-
-              {/* Final Screenshots */}
-              {testResults.screenshots && (
-                <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-4">Final Results</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {testResults.screenshots.previous_screenshot && (
-                      <div>
-                        <div className="text-sm text-gray-600 mb-2">Previous Screenshot</div>
-                        <img
-                          src={`http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`}
-                          alt="Previous screenshot"
-                          className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded bg-white"
-                          onClick={() => setScreenshotModal({
-                            isOpen: true,
-                            src: `http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`,
-                            alt: 'Final screenshot'
-                          })}
-                        />
-                      </div>
-                    )}
-                    {testResults.screenshots.final_screenshot && (
-                      <div>
-                        <div className="text-sm text-gray-600 mb-2">Final Screenshot</div>
-                        <img
-                          src={`http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`}
-                          alt="Final screenshot"
-                          className="w-full h-auto max-h-48 object-contain border border-gray-200 rounded bg-white"
-                          onClick={() => setScreenshotModal({
-                            isOpen: true,
-                            src: `http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`,
-                            alt: 'Final screenshot'
-                          })}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
