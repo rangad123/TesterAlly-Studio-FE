@@ -655,11 +655,11 @@ const containsOtpPlaceholder = (text) => {
     }
   };
 
-const calculateExecutionTime = (executedSteps) => {
-  if (!executedSteps || executedSteps.length === 0) return "0s";
-  // Simple calculation - you can modify this based on your actual timing data
-  return `${executedSteps.length * 2}s`;
-};
+// const calculateExecutionTime = (executedSteps) => {
+//   if (!executedSteps || executedSteps.length === 0) return "0s";
+//   // Simple calculation - you can modify this based on your actual timing data
+//   return `${executedSteps.length * 2}s`;
+// };
 
 const checkAndroidConnection = async () => {
   try {
@@ -796,22 +796,22 @@ const handleModalOkClick = async () => {
     // Process results regardless of success or failure
     let testRunSummary;
     
-    if (result.status === "success" && result.executed_steps) {
+    if (result.status === "success" && result.executed_steps && result.executed_steps.execution_log) {
       // Handle successful execution
       const newExecutionResults = {};
 
-      result.executed_steps.forEach((executedStep) => {
+      result.executed_steps.execution_log.forEach((executedStep) => {
         const step = steps.find(s => s.step_number === executedStep.step_number);
-        if (step) {
-          newExecutionResults[step.step_number] = {
-            status: 'complete',
-            message: executedStep.response.status,
-            screenshot: executedStep.response.screenshot ? `http://127.0.0.1:8000${executedStep.response.screenshot}` : null,
-            duration: null,
-            url: executedStep.response.url || null,
-            activeWindow: executedStep.response.active_window || null
-          };
-        }
+          if (step) {
+            newExecutionResults[step.step_number] = {
+              status: 'complete',
+              message: executedStep.result, 
+              screenshot: executedStep.screenshot ? `http://127.0.0.1:8000${executedStep.screenshot}` : null,
+              healed: executedStep.healed || false,
+              duration: null,
+              timestamp: executedStep.timestamp
+            };
+          }
       });
 
       setExecutionResults(newExecutionResults);
@@ -821,26 +821,22 @@ const handleModalOkClick = async () => {
         execution_date: new Date().toISOString(),
         name: testCaseName,
         project_name: projectName,
-        status: result.executed_steps.some(step => 
-          step.response.status === 'error' || 
-          step.response.status === 'timeout'
-        ) ? "FAIL" : "PASS",
-        total_steps: result.executed_steps.length,
-        passed_steps: result.executed_steps.filter(step => 
-          step.response.status === 'success' || 
-          step.response.status !== 'error'
-        ).length,
-        failed_steps: result.executed_steps.filter(step => 
-          step.response.status === 'error'
-        ).length,
-        execution_time: calculateExecutionTime(result.executed_steps),
+        status: result.executed_steps.execution_log.some(log => log.result === 'failed') ? "FAIL" : "PASS",
+        total_steps: result.executed_steps.total_steps,
+        passed_steps: result.executed_steps.total_steps - result.executed_steps.failed_steps,
+        failed_steps: result.executed_steps.failed_steps,
+        healed_steps: result.executed_steps.healed_steps || 0,
+        execexecution_time: result.executed_steps.execution_log[
+            result.executed_steps.execution_log.length - 1
+        ].timestamp - result.executed_steps.execution_log[0].timestamp,
         id: Date.now().toString(),
         error_message: null
       };
 
-      alert(`Test case "${result.testcase_name}" executed successfully! ${result.executed_steps.length} steps completed.`);
+      alert(`Test case "${result.testcase_name}" executed successfully! ${result.executed_steps.total_steps} steps completed.`);
       
-    } else {
+    } 
+    else {
       // Handle failed execution
       setError(result.message || "Test execution failed");
       
@@ -1042,7 +1038,7 @@ const selectAllSteps = () => {
           </div>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid grid-cols-3 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-500">Name</label>
             <p className="mt-1 text-lg text-gray-900">{testCase.testcase_name}</p>
@@ -1054,6 +1050,16 @@ const selectAllSteps = () => {
           <div>
             <label className="block text-sm font-medium text-gray-500">Priority</label>
             <p className="mt-1 text-lg text-gray-900">{testCase.testcase_priority || "Not specified"}</p>
+          </div>
+        </div>
+        <div>
+          <div>
+            <label className="block text-sm font-medium text-gray-500">Test Scenario Description</label>
+            <div className="mt-1 p-3 bg-gray-50 rounded-md border">
+              <p className="text-gray-800 whitespace-pre-wrap">
+                {testCase?.tescase_scenarios_desc || 'No description provided'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1324,7 +1330,7 @@ const selectAllSteps = () => {
                                   <span className="text-yellow-700">Executed, but the condition was <strong>not met</strong> (timeout)</span>
                                 ) : (
                                   <span className="text-green-700">Executed successfully {executionResults[step.step_number].duration ? `(${executionResults[step.id].duration})` : ''}</span>
-                                )}
+                                )} 
                               </div>
                               {/* Countdown display */}
                               {executionResults[step.step_number].countdown !== undefined && (
@@ -1341,7 +1347,7 @@ const selectAllSteps = () => {
                           )}
                         </div>
                       )}
-                      {executionResults[step.step_number] && executionResults[step.step_number].screenshot && (
+                      {/* {executionResults[step.step_number] && executionResults[step.step_number].screenshot && (
                         <div className="mt-2">
                           <img 
                             src={executionResults[step.step_number].screenshot} 
@@ -1349,6 +1355,19 @@ const selectAllSteps = () => {
                             className="w-full max-h-40 object-contain mt-2 border border-gray-200 rounded-md cursor-pointer"
                             onClick={() => handleViewExecutionScreenshot(executionResults[step.step_number].screenshot)}
                           />
+                        </div>
+                      )} */}
+                      {executionResults[step.step_number] && executionResults[step.step_number].screenshot && (
+                        <div className="mt-2">
+                          <button
+                            onClick={() => handleViewExecutionScreenshot(executionResults[step.step_number].screenshot)}
+                            className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            View Screenshot
+                          </button>
                         </div>
                       )}
                     </div>

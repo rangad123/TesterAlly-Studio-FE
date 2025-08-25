@@ -3,18 +3,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 function TestSenario() {
   const [promptText, setPromptText] = useState('');
-  const [extractedSteps, setExtractedSteps] = useState([]);
+  // const [extractedSteps, setExtractedSteps] = useState([]);
   const [showExtractedSteps, setShowExtractedSteps] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [projectData, setProjectData] = useState(null);
-  const [editingStepIndex, setEditingStepIndex] = useState(null);
-  const [editingStepText, setEditingStepText] = useState('');
-  const [needsOtpVerification, setNeedsOtpVerification] = useState(false);
+  // const [needsOtpVerification, setNeedsOtpVerification] = useState(false);
 
   const [complexityLevel, setComplexityLevel] = useState("simple");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
-  const [insertingStepIndex, setInsertingStepIndex] = useState(null);
-  const [insertingStepText, setInsertingStepText] = useState('');
 
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
@@ -31,9 +27,6 @@ function TestSenario() {
 const [scenarioName, setScenarioName] = useState('');
 const [scenarioType, setScenarioType] = useState('');
 const [scenarioPriority, setScenarioPriority] = useState('');
-// const [scenarioErrors, setScenarioErrors] = useState({ name: "", type: "", priority: "" });
-// const [scenarioTypes, setScenarioTypes] = useState([]);
-// const [scenarioPriorities, setScenarioPriorities] = useState([]);
 
   const location = useLocation();
   const testCaseInfo = location.state?.testCaseInfo;
@@ -53,30 +46,57 @@ const [showTestResults, setShowTestResults] = useState(false);
 
 const [screenshotModal, setScreenshotModal] = useState({ isOpen: false, src: '', alt: '' });
 
+const [isCreatingTestCase, setIsCreatingTestCase] = useState(false);
+
 const saveTestUrl = async () => {
   if (!projectData?.id || !tempUrl.trim()) return;
   
-  setIsSavingUrl(true);
+  // URL validation and formatting
+  const formatAndValidateUrl = (url) => {
+    let formattedUrl = url.trim();
+    
+    // Remove any existing protocol to standardize
+    formattedUrl = formattedUrl.replace(/^https?:\/\//, '');
+    
+    // Check if it looks like a valid domain format
+    const domainPattern = /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.([a-zA-Z]{2,}|[a-zA-Z]{2,}\.[a-zA-Z]{2,})(\/.*)*/;
+    const localhostPattern = /^(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/;
+    
+    if (!domainPattern.test(formattedUrl) && !localhostPattern.test(formattedUrl)) {
+      throw new Error('Please enter a valid URL format (e.g., example.com, www.example.com)');
+    }
+    
+    // Add https:// prefix
+    return `https://${formattedUrl}`;
+  };
+  
   try {
+    const validatedUrl = formatAndValidateUrl(tempUrl);
+    
+    setIsSavingUrl(true);
     const response = await fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        url: tempUrl.trim()
+        url: validatedUrl
       })
     });
     
     if (response.ok) {
-      setTestUrl(tempUrl.trim());
+      setTestUrl(validatedUrl);
       setIsEditingUrl(false);
       setTempUrl('');
-      console.log('URL saved successfully');
+      console.log('URL saved successfully:', validatedUrl);
     }
   } catch (error) {
-    console.error('Error saving URL:', error);
-    alert('Failed to save URL');
+    if (error.message.includes('valid URL format')) {
+      alert(error.message);
+    } else {
+      console.error('Error saving URL:', error);
+      alert('Failed to save URL');
+    }
   } finally {
     setIsSavingUrl(false);
   }
@@ -121,93 +141,6 @@ const enhancePrompt = async () => {
   }
 };
 
-// useEffect(() => {
-//   const fetchScenarioTypes = async () => {
-//     if (!projectData?.project_name) {
-//       return;
-//     }
-
-//     try {
-//       const response = await fetch(
-//         `http://127.0.0.1:8000/api/testcase-types/?project_name=${projectData.project_name}`,
-//         {
-//           headers: {
-//             "Content-Type": "application/json",
-//           },
-//         }
-//       );
-
-//       if (!response.ok) {
-//         throw new Error("Failed to fetch scenario types");
-//       }
-
-//       const data = await response.json();
-//       console.log("Fetched Scenario Types:", data);
-//       setScenarioTypes(data); 
-//     } catch (error) {
-//       console.error("Error fetching scenario types:", error);
-//       setScenarioTypes([]);
-//     }
-//   };
-
-//   fetchScenarioTypes();
-// }, [projectData]);
-
-// useEffect(() => {
-//   const fetchScenarioPriorities = async () => {
-//     if (!projectData?.project_name) {
-//       return;
-//     }
-
-//     try {
-//       const response = await fetch(
-//         `http://127.0.0.1:8000/api/testcase-priorities/?project_name=${projectData.project_name}`,
-//         {
-//           headers: {
-//             "Content-Type": "application/json",
-//           },
-//         }
-//       );
-
-//       if (!response.ok) {
-//         throw new Error("Failed to fetch scenario priorities");
-//       }
-
-//       const data = await response.json();
-//       console.log("Fetched Scenario Priorities:", data);
-//       setScenarioPriorities(data); 
-//     } catch (error) {
-//       console.error("Error fetching scenario priorities:", error);
-//       setScenarioPriorities([]);
-//     }
-//   };
-
-//   fetchScenarioPriorities();
-// }, [projectData]);
-
-// const validateScenarioFields = () => {
-//   const newErrors = {};
-//   let isValid = true;
-
-//   if (!scenarioName.trim()) {
-//     newErrors.name = "Scenario name is required!";
-//     isValid = false;
-//   }
-
-//   if (!scenarioType.trim()) {
-//     newErrors.type = "Scenario type is required!";
-//     isValid = false;
-//   }
-
-//   if (!scenarioPriority.trim()) {
-//     newErrors.priority = "Scenario priority is required!";
-//     isValid = false;
-//   }
-
-//   setScenarioErrors(newErrors);
-//   return isValid;
-// };
-
   useEffect(() => {
     if (testCaseInfo) {
       setScenarioName(testCaseInfo.testcase_name || '');
@@ -216,35 +149,35 @@ const enhancePrompt = async () => {
     }
   }, [testCaseInfo]);
 
-const savePromptToHistory = (promptText, steps) => {
-  const historyItem = {
-    id: Date.now(),
-    prompt: promptText,
-    steps: steps,
-    timestamp: new Date().toLocaleString(),
-    scenarioDetails: {
-      name: scenarioName,
-      type: scenarioType,
-      priority: scenarioPriority
-    }
-  };
+// const savePromptToHistory = (promptText, steps) => {
+//   const historyItem = {
+//     id: Date.now(),
+//     prompt: promptText,
+//     steps: steps,
+//     timestamp: new Date().toLocaleString(),
+//     scenarioDetails: {
+//       name: scenarioName,
+//       type: scenarioType,
+//       priority: scenarioPriority
+//     }
+//   };
 
-  // Get existing history from sessionStorage
-  const existingHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
+//   // Get existing history from sessionStorage
+//   const existingHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
   
-  // Add new item to beginning and keep only last 3
-  const updatedHistory = [historyItem, ...existingHistory].slice(0, 3);
+//   // Add new item to beginning and keep only last 3
+//   const updatedHistory = [historyItem, ...existingHistory].slice(0, 3);
   
-  // Save to sessionStorage and state
-  sessionStorage.setItem('promptHistory', JSON.stringify(updatedHistory));
-  setPromptHistory(updatedHistory);
+//   // Save to sessionStorage and state
+//   sessionStorage.setItem('promptHistory', JSON.stringify(updatedHistory));
+//   setPromptHistory(updatedHistory);
   
-  console.log("💾 Prompt saved to history:", historyItem);
-};
+//   console.log("💾 Prompt saved to history:", historyItem);
+// };
 
 const loadPromptFromHistory = (historyItem) => {
   setPromptText(historyItem.prompt);
-  setExtractedSteps(historyItem.steps);
+  // setExtractedSteps(historyItem.steps);
   setShowExtractedSteps(true);
   
   // Also restore scenario details if they exist
@@ -321,60 +254,6 @@ useEffect(() => {
         .finally(() => setIsTestDataLoading(false));
     }
   }, [projectData?.id]);
-
-  // const extractStepsFromPrompt = async () => {
-  //   if (!validateScenarioFields()) {
-  //     return;
-  //   }
-
-  //   if (!promptText.trim()) {
-  //     alert("Please enter a prompt first.");
-  //     return;
-  //   }
-
-  //   setIsExtracting(true);
-  //   try {
-  //     console.log("📦 Sending Request Payload:", {
-  //       prompt: promptText,
-  //       project_type: projectData?.project_type,
-  //       platform: projectData?.platform,
-  //     });
-
-  //     const response = await fetch('http://127.0.0.1:8000/api/extract-steps/', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({
-  //         prompt: promptText,
-  //         project_type: projectData?.project_type,
-  //         platform: projectData?.platform,
-  //       })
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error('Failed to extract steps');
-  //     }
-
-  //     const data = await response.json();
-  //     console.log("✅ Extracted steps response:", data);
-
-  //     const newSteps = data.steps || [];
-  //     setExtractedSteps(newSteps);
-  //     setShowExtractedSteps(true);
-
-  //     // ✅ FIX: Use newSteps instead of extractedSteps
-  //     if (newSteps.length > 0) {
-  //       savePromptToHistory(promptText, newSteps);
-  //     }
-
-  //   } catch (error) {
-  //     console.error('Error extracting steps:', error);
-  //     alert('Failed to extract steps. Please try again.');
-  //   } finally {
-  //     setIsExtracting(false);
-  //   }
-  // };
 
   const extractStepsFromPrompt = async () => {
     const userId = localStorage.getItem("userId");
@@ -485,86 +364,6 @@ useEffect(() => {
     }
   };
 
-const detectOtpStepsInGenerated = (steps) => {
-  console.log("🔍 Starting OTP detection...");
-  console.log("📊 Test Data:", testData);
-  console.log("📋 Generated Steps:", steps);
-  
-  if (!testData) {
-    console.log("❌ No test data available");
-    return { hasOtpSteps: false };
-  }
-
-  let contactStep = null;
-  let matchedContactData = null;
-  let contactType = null;
-  let autoDetectedOtpStep = null; 
-
-  // ✅ STEP 1: Detect contact step (keep this part as is)
-  steps.forEach((step, index) => {
-    const stepText = typeof step === 'object' ? step.command || step.description : step;
-    const stepValue = typeof step === 'object' ? step.value : null;
-    
-    console.log(`🔍 Checking Step ${index + 1}:`, {
-      stepText,
-      stepValue,
-      fullStep: step
-    });
-
-    const stepLower = stepText.toLowerCase();
-
-    if (testData.email) {
-      const emailLower = testData.email.toLowerCase();
-      if (stepLower.includes(emailLower) || (stepValue && stepValue.toLowerCase().includes(emailLower))) {
-        contactStep = index;
-        matchedContactData = testData.email;
-        contactType = 'email';
-        console.log(`✅ Email detected in step ${index + 1}: ${testData.email}`);
-      }
-    }
-
-    if (testData.phone_number) {
-      const phoneStr = testData.phone_number.toString();
-      if (stepLower.includes(phoneStr) || (stepValue && stepValue.toString().includes(phoneStr))) {
-        contactStep = index;
-        matchedContactData = testData.phone_number;
-        contactType = 'phone';
-        console.log(`✅ Phone detected in step ${index + 1}: ${testData.phone_number}`);
-      }
-    }
-  });
-
-  // ✅ NEW: Auto-detect OTP step after contact step
-  if (contactStep !== null) {
-    for (let i = contactStep + 1; i < steps.length; i++) {
-      if (isLikelyOtpStep(steps[i])) {
-        autoDetectedOtpStep = i;
-        console.log(`🎯 Auto-detected OTP step at index ${i + 1}`);
-        break; // Take the first OTP step found
-      }
-    }
-  }
-
-  // ✅ STEP 2: Return result with auto-detected OTP step
-  const result = {
-    hasOtpSteps: contactStep !== null,
-    contactStep,
-    otpStep: autoDetectedOtpStep, 
-    matchedContactData,
-    contactType,
-    detectedSteps: steps,
-    potentialOtpSteps: contactStep !== null ? 
-      steps.slice(contactStep + 1).map((step, index) => ({
-        stepIndex: contactStep + 1 + index,
-        stepText: typeof step === 'object' ? step.command || step.description : step,
-        isLikelyOtp: isLikelyOtpStep(step)
-      })) : []
-  };
-
-  console.log("🎯 Final Detection Result:", result);
-  return result;
-};
-
 const isLikelyOtpStep = (step) => {
   const stepText = typeof step === 'object' ? step.command || step.description : step;
   const stepLower = stepText.toLowerCase();
@@ -582,103 +381,6 @@ const isLikelyOtpStep = (step) => {
          stepLower.startsWith('enter otp') ||
          stepLower.startsWith('input otp');
 };
-
-  const handleAddSteps = () => {
-    console.log("🚀 handleAddSteps called");
-    console.log("📋 Current state:", {
-      extractedStepsLength: extractedSteps.length,
-      needsOtpVerification,
-      isTestDataLoading,
-      testData: testData ? 'Available' : 'Not Available'
-    });
-
-    if (extractedSteps.length === 0) {
-      alert("No steps to add. Please create steps first.");
-      return;
-    }
-
-    const { project_type, platform } = projectData || {};
-    console.log("📊 Project Data:", { project_type, platform });
-
-    // ✅ FIXED: Check for OTP verification before navigation
-    if (needsOtpVerification) {
-      console.log("🔐 OTP verification is enabled, checking requirements...");
-      
-      if (isTestDataLoading) {
-        console.log("⏳ Test data is still loading...");
-        alert("Loading test data... Please wait.");
-        return;
-      }
-
-      if (!testData) {
-        console.log("❌ No test data found");
-        alert("No test data found. Please add test data first.");
-        return;
-      }
-
-      console.log("🔍 Starting OTP detection process...");
-      const detectedData = detectOtpStepsInGenerated(extractedSteps);
-      
-      if (detectedData.hasOtpSteps) {
-        console.log("✅ OTP steps detected, opening confirmation modal...");
-        
-        // Set default selected OTP step
-        const defaultOtpStep = detectedData.otpStep !== null ? detectedData.otpStep.toString() : 'none';
-        setSelectedOtpStep(defaultOtpStep);
-        
-        setOtpConfirmationModal({
-          isOpen: true,
-          contactStep: detectedData.contactStep,
-          otpStep: detectedData.otpStep,
-          matchedContactData: detectedData.matchedContactData,
-          contactType: detectedData.contactType,
-          detectedSteps: detectedData.detectedSteps
-        });
-        console.log("🎯 Modal state set with default OTP step:", defaultOtpStep);
-        return;
-      } else {
-        console.log("❌ No OTP steps detected");
-        alert("No matching email or phone number found in the generated steps for OTP verification.");
-        return;
-      }
-    }
-
-    console.log("➡️ Proceeding with normal navigation (no OTP verification)");
-    // ✅ EXISTING: Normal navigation logic
-    const navigationState = {
-      generatedSteps: extractedSteps,
-      autoExecuteFirst: true,
-      needsOtpVerification: needsOtpVerification,
-      testScenarioInfo: {
-        testcase_name: scenarioName.trim(),
-        testcase_type: scenarioType,
-        testcase_priority: scenarioPriority,
-        projectId: projectData?.project_name,
-        project_type: projectData?.project_type,
-        platform: projectData?.platform
-      }
-    };
-
-    console.log("🎯 Navigation State:", navigationState);
-
-    // Navigation Logic:
-    if (project_type === "Web Application" && platform === "Laptop/PC") {
-      console.log("🌐 Navigating to /prompt-adding");
-      navigate("/prompt-adding", { state: navigationState });
-    } 
-    else if (project_type === "Web Application" && platform === "Mobile") {
-      console.log("📱 Navigating to /mobile-prompt");
-      navigate("/mobile-prompt", { state: navigationState });
-    } 
-    else if (project_type === "Mobile Application" && platform === "Android") {
-      console.log("🤖 Navigating to /android-prompt");
-      navigate("/android-prompt", { state: navigationState });
-    } 
-    else {
-      console.log("❌ Unsupported combination:", { project_type, platform });
-      alert("Unsupported combination of project type and platform.");
-    }
-  };
 
 const handleOtpConfirmation = (userSelectedOtpStep) => {
   const { contactStep, contactType, detectedSteps } = otpConfirmationModal;
@@ -798,241 +500,144 @@ const handleOtpConfirmation = (userSelectedOtpStep) => {
     });
   };
 
-  const parseStepText = (stepText) => {
-    const lowerText = stepText.toLowerCase().trim();
-    
-    // Scroll actions
-    const scrollOptions = [
-      "scroll up", "scroll up a bit", "scroll up a lot", "scroll up fast",
-      "scroll down", "scroll down a bit", "scroll down a lot", "scroll down fast",
-      "scroll left", "scroll right"
-    ];
-    
-    const swipeOptions = [
-      "swipe left", "swipe right", "swipe long left", "swipe long right"
-    ];
-    
-    // Check for scroll actions
-    for (const scrollAction of scrollOptions) {
-      if (lowerText.startsWith(scrollAction)) {
-        const remainingText = stepText.replace(new RegExp(`^${scrollAction}`, 'i'), '').trim();
-        return {
-          action: scrollAction, 
-          target: remainingText || null, 
-          value: null
-        };
-      }
-    }
-    
-    // Check for swipe actions
-    for (const swipeAction of swipeOptions) {
-      if (lowerText.startsWith(swipeAction)) {
-        const remainingText = stepText.replace(new RegExp(`^${swipeAction}`, 'i'), '').trim();
-        return {
-          action: swipeAction, 
-          target: remainingText || null,
-          value: null
-        };
-      }
-    }
-    
-    // Search action - just "search" as action, everything else as target
-    if (lowerText.startsWith('search')) {
-      return {
-        action: 'search',
-        target: stepText.replace(/^search\s+/i, '').trim(), // Everything after "search"
-        value: null
-      };
-    }
-    
-    // Click action
-    if (lowerText.startsWith('click')) {
-      return {
-        action: 'click',
-        target: stepText.replace(/^click\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Type action
-    if (lowerText.startsWith('type')) {
-      const match = stepText.match(/type\s+(.+?)\s+in\s+(.+)/i);
-      if (match) {
-        return {
-          action: 'type',
-          target: match[2].trim(),
-          value: match[1].trim()
-        };
-      }
-      return {
-        action: 'type',
-        target: null,
-        value: stepText.replace(/^type\s+/i, '').trim()
-      };
-    }
-    
-    // Open action
-    if (lowerText.startsWith('open')) {
-      return {
-        action: 'open',
-        target: stepText.replace(/^open\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Get action
-    if (lowerText.startsWith('get')) {
-      return {
-        action: 'get',
-        target: stepText.replace(/^get\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Verify action
-    if (lowerText.startsWith('verify')) {
-      return {
-        action: 'verify',
-        target: stepText.replace(/^verify\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Select action
-    if (lowerText.startsWith('select')) {
-      return {
-        action: 'select',
-        target: stepText.replace(/^select\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Wait action
-    if (lowerText.startsWith('wait')) {
-      const match = stepText.match(/wait\s+(\d+)\s*(seconds?|mins?|minutes?)?/i);
-      if (match) {
-        return {
-          action: 'wait',
-          target: match[2] || 'seconds',
-          value: match[1]
-        };
-      }
-      return {
-        action: 'wait',
-        target: stepText.replace(/^wait\s+/i, '').trim(),
-        value: null
-      };
-    }
-    
-    // Default case
-    return {
-      action: null,
-      target: null,
-      value: null
-    };
-  };
-
-  const handleInsertStep = (index) => {
-    setInsertingStepIndex(index);
-    setInsertingStepText('');
-  };
-
-  const handleSaveInsert = () => {
-    if (insertingStepText.trim()) {
-      const updatedSteps = [...extractedSteps];
-      
-      const isObjectFormat = extractedSteps.some(step => typeof step === 'object' && step.step);
-      
-      let newStep;
-      if (isObjectFormat) {
-        const parsedStep = parseStepText(insertingStepText.trim());
-        newStep = {
-          step: insertingStepIndex + 2,
-          ...parsedStep,
-          command: insertingStepText.trim(),
-          description: insertingStepText.trim()
-        };
-      }
-      
-      updatedSteps.splice(insertingStepIndex + 1, 0, newStep);
-      
-      // Re-index all steps to maintain proper numbering
-      const reindexedSteps = updatedSteps.map((step, index) => {
-        if (typeof step === 'object') {
-          return { ...step, step: index + 1 };
-        }
-        return step;
-      });
-      
-      setExtractedSteps(reindexedSteps);
-    }
-    setInsertingStepIndex(null);
-    setInsertingStepText('');
-  };
-
-  const handleCancelInsert = () => {
-    setInsertingStepIndex(null);
-    setInsertingStepText('');
-  };
-
-  const handleEditStep = (index) => {
-    setEditingStepIndex(index);
-    const stepText = typeof extractedSteps[index] === 'object' 
-      ? extractedSteps[index].command 
-      : extractedSteps[index];
-    setEditingStepText(stepText);
-  };
-
-  const handleSaveEdit = () => {
-    const updatedSteps = [...extractedSteps];
-    if (typeof updatedSteps[editingStepIndex] === 'object') {
-      updatedSteps[editingStepIndex] = {
-        ...updatedSteps[editingStepIndex],
-        command: editingStepText,
-        description: editingStepText 
-      };
-    } else {
-      updatedSteps[editingStepIndex] = editingStepText;
-    }
-    setExtractedSteps(updatedSteps);
-    setEditingStepIndex(null);
-    setEditingStepText('');
-  };
-
-  const handleCancelEdit = () => {
-    setEditingStepIndex(null);
-    setEditingStepText('');
-  };
-
-  const handleDeleteStep = (index) => {
-    const updatedSteps = extractedSteps.filter((_, i) => i !== index);
-    
-    // Reindex object-type steps
-    const reindexedSteps = updatedSteps.map((step, newIndex) => {
-      if (typeof step === 'object') {
-        return { ...step, step: newIndex + 1 };
-      }
-      return step;
-    });
-    
-    setExtractedSteps(reindexedSteps);
-  };
-
   const handleClearSteps = () => {
-    setExtractedSteps([]);
-    setShowExtractedSteps(false);
+    // setExtractedSteps([]);
+    // setShowExtractedSteps(false);
     setPromptText('');
   };
 
-const handleOtpCheckboxChange = (e) => {
-  const isChecked = e.target.checked;
-  console.log("☑️ OTP Checkbox changed:", isChecked);
-  setNeedsOtpVerification(isChecked);
+// const handleOtpCheckboxChange = (e) => {
+//   const isChecked = e.target.checked;
+//   console.log("☑️ OTP Checkbox changed:", isChecked);
+//   setNeedsOtpVerification(isChecked);
   
-  if (isChecked) {
-    console.log("🔐 OTP verification enabled, will fetch test data...");
-  } else {
-    console.log("❌ OTP verification disabled");
+//   if (isChecked) {
+//     console.log("🔐 OTP verification enabled, will fetch test data...");
+//   } else {
+//     console.log("❌ OTP verification disabled");
+//   }
+// };
+
+const createTestScenarioFromResults = async () => {
+  if (!testResults || !testResults.action_history) {
+    alert('No test results available to create scenario.');
+    return;
+  }
+
+  try {
+    setIsCreatingTestCase(true);
+    
+    // Get the user ID from localStorage
+    const userId = localStorage.getItem("userId");
+
+    // Step 1: Create the test case first (with test scenario prompt)
+    const testCasePayload = {
+      user_id: parseInt(userId),
+      project_name: testCaseInfo.projectId,
+      testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
+      testcase_type: testCaseInfo.testcase_type || 'Functional',
+      testcase_priority: testCaseInfo.testcase_priority || 'Medium',
+      test_scenarios_desc: promptText 
+    };
+
+    console.log("Creating test case with payload:", testCasePayload);
+
+    const testCaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(testCasePayload)
+    });
+
+    if (!testCaseResponse.ok) {
+      const errorData = await testCaseResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to create test case");
+    }
+
+    const testCaseData = await testCaseResponse.json();
+    console.log("Test case created:", testCaseData);
+
+    // Step 2: Prepare and add steps from automation results
+    const selectedSteps = testResults.action_history.map((actionItem, index) => {
+      const { action, request, result, screenshot } = actionItem;
+      
+      // Get step description from command or create from action
+      let stepDescription = request.command || `${action.action} ${action.element || ''}`;
+
+      // Determine test step result based on execution result
+      let teststep_result = "not_executed";
+      if (result === "executed" || result === "success") {
+        teststep_result = "passed";
+      } else if (result === "failed" || result === "error") {
+        teststep_result = "failed";
+      }
+
+      // Get coordinates from action or request
+      let coordinates = { click_x: 0, click_y: 0 };
+      if (action.coordinates) {
+        coordinates = {
+          click_x: action.coordinates.x || action.coordinates.click_x || 0,
+          click_y: action.coordinates.y || action.coordinates.click_y || 0
+        };
+      } else if (request.click_x !== undefined && request.click_y !== undefined) {
+        coordinates = {
+          click_x: request.click_x,
+          click_y: request.click_y
+        };
+      }
+
+      const stepData = {
+        step_number: index + 1,
+        step_description: stepDescription,
+        teststep_result: teststep_result,
+        step_coordinates: coordinates,
+        actual_result: result === "executed" ? "Step executed successfully" : result,
+        self_healing_required: true, 
+        scenarios_step_screenshot: screenshot || "",
+        step_reason: action.reasoning || `Reason for ${action.action} action on ${action.element || 'element'}`,
+        expected_result: action.expected_change || `Expected result for step ${index + 1}`,
+        // requires_otp: false,
+        // otp_type: null ,
+      };
+
+      return stepData;
+    });
+
+    // Create steps payload
+    const stepsPayload = {
+      user_id: parseInt(userId),
+      project_name: testCaseInfo.projectId,
+      testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
+      steps: selectedSteps
+    };
+
+    console.log("Adding steps with payload:", stepsPayload);
+
+    const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stepsPayload)
+    });
+
+    if (!stepsResponse.ok) {
+      const errorData = await stepsResponse.json().catch(() => ({}));
+      // If steps fail, show warning that test case was created but steps failed
+      console.warn("Steps creation failed:", errorData);
+      alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
+      return;
+    }
+
+    const stepsData = await stepsResponse.json();
+    console.log("Steps added:", stepsData);
+
+    alert(`Test Scenario Created Successfully with ${selectedSteps.length} steps!`);
+    
+    navigate("/test-cases");
+
+  } catch (error) {
+    console.error('Error creating test scenario:', error);
+    alert(`Error: ${error.message}`);
+  } finally {
+    setIsCreatingTestCase(false);
   }
 };
 
@@ -1067,86 +672,6 @@ const handleOtpCheckboxChange = (e) => {
                   )}
               </div>
             </div>
-
-            {/* Test Scenario Details - ADD THIS NEW SECTION */}
-            {/* <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Test Scenario Details</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Scenario Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={scenarioName}
-                    onChange={(e) => {
-                      setScenarioName(e.target.value);
-                      setScenarioErrors((prev) => ({ ...prev, name: "" }));
-                    }}
-                    placeholder="Enter scenario name"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
-                      scenarioErrors.name ? "border-red-500" : "border-gray-300"
-                    }`}
-                  />
-                  {scenarioErrors.name && (
-                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.name}</span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={scenarioType}
-                    onChange={(e) => {
-                      setScenarioType(e.target.value);
-                      setScenarioErrors((prev) => ({ ...prev, type: "" }));
-                    }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
-                      scenarioErrors.type ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select Type</option>
-                    {scenarioTypes.map((type) => (
-                      <option key={type.id} value={type.name}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                  {scenarioErrors.type && (
-                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.type}</span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priority <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={scenarioPriority}
-                    onChange={(e) => {
-                      setScenarioPriority(e.target.value);
-                      setScenarioErrors((prev) => ({ ...prev, priority: "" }));
-                    }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm ${
-                      scenarioErrors.priority ? "border-red-500" : "border-gray-300"
-                    }`}
-                  >
-                    <option value="">Select Priority</option>
-                    {scenarioPriorities.map((priority) => (
-                      <option key={priority.id} value={priority.priority_level}>
-                        {priority.priority_level}
-                      </option>
-                    ))}
-                  </select>
-                  {scenarioErrors.priority && (
-                    <span className="text-red-500 text-xs mt-1">{scenarioErrors.priority}</span>
-                  )}
-                </div>
-              </div>
-            </div> */}
 
             {/* Test Details and URL Combined Section */}
             <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1190,7 +715,16 @@ const handleOtpCheckboxChange = (e) => {
                   <div className="h-11">
                     {!isEditingUrl ? (
                       <>
-                        {testUrl ? (
+                        {isTestDataLoading ? (
+                          // Loading state
+                          <div className="w-full h-full px-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
+                            <svg className="animate-spin h-4 w-4 text-purple-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span className="text-sm text-gray-500">Loading URL...</span>
+                          </div>
+                        ) : testUrl ? (
                           <div className="w-full h-full px-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center">
                             <span className="text-sm text-gray-700 font-mono truncate flex-1 mr-2">{testUrl}</span>
                             <button
@@ -1268,7 +802,7 @@ const handleOtpCheckboxChange = (e) => {
                 <button
                     onClick={extractStepsFromPrompt}
                     disabled={isExtracting || !promptText.trim()}
-                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm md:text-base font-medium"
+                    className="px-6 py-2 bg-white text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-300 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm md:text-base font-medium"
                 >
                     {isExtracting ? (
                     <span className="flex items-center justify-center">
@@ -1282,6 +816,27 @@ const handleOtpCheckboxChange = (e) => {
                     'Start'
                     )}
                 </button>
+
+                {/* Add Create Button - Only show after test results are available */}
+                {showTestResults && testResults && (
+                  <button
+                    onClick={createTestScenarioFromResults}
+                    disabled={isCreatingTestCase}
+                    className="px-6 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm md:text-base font-medium"
+                  >
+                    {isCreatingTestCase ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                      </span>
+                    ) : (
+                      'Create'
+                    )}
+                  </button>
+                )}
 
                 {showExtractedSteps && (
                     <button
@@ -1464,224 +1019,6 @@ const handleOtpCheckboxChange = (e) => {
                   </div>
                 </div>
             </div>
-
-            {/* Right Side - Generated Steps */}
-            {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-                    Generated Test Steps
-                </h2>
-                <div className="flex items-center gap-3">
-                    {showExtractedSteps && extractedSteps.length > 0 && (
-                    <>
-                        <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded-full">
-                        {extractedSteps.length} steps
-                        </span>
-                        <button
-                        onClick={handleAddSteps}
-                        disabled={needsOtpVerification && isTestDataLoading}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm font-medium"
-                        >
-                        {needsOtpVerification && isTestDataLoading ? 'Loading...' : 'Add Steps'}
-                        </button>
-                    </>
-                    )}
-                </div>
-              </div>
-
-
-                {showExtractedSteps && extractedSteps.length > 0 && (
-                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={needsOtpVerification}
-                        onChange={handleOtpCheckboxChange}
-                        className="accent-orange-500"
-                      />
-                      <span className="font-medium">This scenario requires OTP verification</span>
-                    </label>
-                    <div className="text-xs text-gray-600 mt-1">
-                      Check this if your test steps include OTP/verification code steps
-                    </div>
-                    
-
-                    {needsOtpVerification && (
-                      <div className="mt-2 text-xs">
-                        {isTestDataLoading ? (
-                          <span className="text-blue-600">📱 Loading test data...</span>
-                        ) : testData ? (
-                          <div className="text-green-600">
-                            ✅ Test data found: 
-                            {testData.email && <span className="ml-1">📧 {testData.email}</span>}
-                            {testData.phone_number && <span className="ml-1">📱 {testData.phone_number}</span>}
-                          </div>
-                        ) : (
-                          <span className="text-red-600">⚠️ No test data found for OTP verification</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!showExtractedSteps ? (
-                <div className="text-center py-8 md:py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    </div>
-                    <p className="text-gray-500 text-sm md:text-base">
-                    Enter a prompt and click "Create Steps" to generate your test steps
-                    </p>
-                </div>
-                ) : (
-                <div className="space-y-3">
-                    {extractedSteps.length === 0 ? (
-                    <div className="text-center py-8">
-                        <p className="text-gray-500 text-sm md:text-base">
-                        No steps generated. Please try a different prompt.
-                        </p>
-                    </div>
-                    ) : (
-                    <div className="max-h-64 md:max-h-80 overflow-y-auto space-y-3">
-                      {extractedSteps.map((step, index) => (
-                        <div key={index}>
-                          <div className="group">
-
-                            <div className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-150">
-                              <div className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-medium">
-                                {typeof step === 'object' ? step.step : index + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                {editingStepIndex === index ? (
-                                  <div className="space-y-2">
-                                    <textarea
-                                      value={editingStepText}
-                                      onChange={(e) => setEditingStepText(e.target.value)}
-                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-none"
-                                      rows="2"
-                                    />
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={handleSaveEdit}
-                                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={handleCancelEdit}
-                                        className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-sm md:text-base text-gray-800 break-words">
-                                      {typeof step === 'object' ? (step.command || step.description) : step}
-                                    </p>
-                                    {typeof step === 'object' && step.action && (
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                          {step.action}
-                                        </span>
-                                        {step.target && (
-                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            Target: {step.target}
-                                          </span>
-                                        )}
-                                        {step.value && (
-                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Value: {step.value}
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                              {editingStepIndex !== index && (
-                                <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <button
-                                    onClick={() => handleEditStep(index)}
-                                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                                    title="Edit step"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteStep(index)}
-                                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Delete step"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-
-                            {insertingStepIndex !== index && (
-                              <div className="flex justify-center mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <button
-                                  onClick={() => handleInsertStep(index)}
-                                  className="group flex items-center justify-center w-8 h-8 bg-white border-2 border-dashed border-gray-300 rounded-full hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
-                                  title={`Add step after step ${index + 1}`}
-                                >
-                                  <svg className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                  </svg>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {insertingStepIndex === index && (
-                            <div className="mt-2 p-3 border-2 border-dashed border-purple-300 rounded-lg bg-purple-50">
-                              <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-6 h-6 bg-purple-200 text-purple-700 rounded-full flex items-center justify-center text-xs font-medium">
-                                  {index + 2}
-                                </div>
-                                <div className="flex-1 space-y-2">
-                                  <textarea
-                                    value={insertingStepText}
-                                    onChange={(e) => setInsertingStepText(e.target.value)}
-                                    placeholder="Enter new step..."
-                                    className="w-full px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                                    rows="2"
-                                    autoFocus
-                                  />
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={handleSaveInsert}
-                                      disabled={!insertingStepText.trim()}
-                                      className="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                      Add Step
-                                    </button>
-                                    <button
-                                      onClick={handleCancelInsert}
-                                      className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 transition-colors"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    )}
-                </div>
-                )}
-            </div> */}
             </div>
 
             {/* Helper Text */}
@@ -1949,6 +1286,75 @@ const handleOtpCheckboxChange = (e) => {
                   </div>
                 </div>
               </div>
+
+              {/* ADD THIS ERROR SECTION HERE */}
+              {testResults.error_message && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-red-900 mb-2">Error Details</h3>
+                      
+                      {/* Error Message */}
+                      <div className="mb-3">
+                        <span className="text-sm font-medium text-red-800">Message:</span>
+                        <p className="text-sm text-red-700 mt-1 bg-red-100 p-2 rounded border">
+                          {testResults.error_message}
+                        </p>
+                      </div>
+
+                      {/* Error Context */}
+                      {testResults.error_context && (
+                        <div className="mb-3">
+                          <span className="text-sm font-medium text-red-800">Context:</span>
+                          <div className="text-sm text-red-700 mt-1 bg-red-100 p-3 rounded border">
+                            <div className="grid grid-cols-2 gap-4">
+                              {testResults.error_context.step_number && (
+                                <div>
+                                  <span className="font-medium">Step:</span> {testResults.error_context.step_number}
+                                </div>
+                              )}
+                              {testResults.error_context.action && (
+                                <div>
+                                  <span className="font-medium">Action:</span> {testResults.error_context.action}
+                                </div>
+                              )}
+                              {testResults.error_context.element && (
+                                <div>
+                                  <span className="font-medium">Element:</span> {testResults.error_context.element}
+                                </div>
+                              )}
+                              {testResults.error_context.error_type && (
+                                <div>
+                                  <span className="font-medium">Error Type:</span> {testResults.error_context.error_type}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Traceback - Collapsible */}
+                      {testResults.error_context?.traceback && (
+                        <div className="mb-3">
+                          <details className="cursor-pointer">
+                            <summary className="text-sm font-medium text-red-800 hover:text-red-900 select-none">
+                              Technical Details (Click to expand)
+                            </summary>
+                            <div className="mt-2 p-3 bg-red-100 rounded border text-xs font-mono text-red-800 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                              {testResults.error_context.traceback}
+                            </div>
+                          </details>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Results Table */}
               <div className="space-y-4">
