@@ -22,6 +22,12 @@ const Reports = () => {
     pendingRate: 0
   });
 
+  const [selectedTestCase, setSelectedTestCase] = useState(null);
+  const [showTestCaseDetails, setShowTestCaseDetails] = useState(false);
+  const [testCaseSteps, setTestCaseSteps] = useState([]);
+  const [selectedScreenshot, setSelectedScreenshot] = useState(null);
+  const [showScreenshotModal, setShowScreenshotModal] = useState(false);
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -54,57 +60,70 @@ const Reports = () => {
 const fetchTestResults = React.useCallback(async () => {
   setLoading(true);
   try {
-    // Get localStorage data directly
-    const localStorageKey = activeTab === "suites" ? 'testSuiteResults' : 'testCaseResults';
-    const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
-    
-    // Filter by date range first
-    const dateFilteredData = localData.filter(item => {
-      const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
-      const fromDate = dateRange.from;
-      const toDate = dateRange.to;
-      
-      return itemDate >= fromDate && itemDate <= toDate;
-    });
-    
-    console.log(`After date filtering: ${dateFilteredData.length} items`);
-    
-    // Then filter by project (if selectedProject exists)
-    let projectFilteredData = dateFilteredData;
-    
-    if (selectedProject) {
-      projectFilteredData = dateFilteredData.filter(item => {
-        // FIXED: More flexible project matching
-        const selectedProjectName = selectedProject.project_name || selectedProject.folder_name;
-        const itemProjectName = item.project_name || item.name || item.project_id;
-        
-        console.log("Comparing:", {
-          selectedProjectName,
-          itemProjectName,
-          selectedProject: selectedProject,
-          item: item
-        });
-        
-        // Try multiple matching strategies
-        if (selectedProjectName && itemProjectName) {
-          return selectedProjectName.toLowerCase() === itemProjectName.toLowerCase();
-        }
-        
-        // If no clear project name match, show all results
-        return true;
-      });
+    const userId = localStorage.getItem("userId");
+    if (!userId || !selectedProject?.project_name) {
+      setTestResults([]);
+      setStats({ totalRuns: 0, passRate: 0, failRate: 0, pendingRate: 0 });
+      setLoading(false);
+      return;
     }
-    
-    console.log(`After project filtering: ${projectFilteredData.length} items`);
-    console.log("Final filtered data:", projectFilteredData);
-    
-    // Sort by execution date, most recent first
-    const sortedData = projectFilteredData.sort((a, b) => 
-      new Date(b.execution_date) - new Date(a.execution_date)
-    );
-    
-    setTestResults(sortedData);
-    calculateStats(sortedData);
+
+    if (activeTab === "cases") {
+      const response = await fetch(`http://127.0.0.1:8000/integrate/case_report/?user_id=${userId}&project_name=${selectedProject.project_name}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reports');
+      }
+
+      const reportData = await response.json();
+      const processedResults = reportData.reports || [];
+      
+      const dateFilteredData = processedResults.filter(item => {
+        const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
+        return itemDate >= dateRange.from && itemDate <= dateRange.to;
+      });
+      
+      setTestResults(dateFilteredData);
+      calculateStats(dateFilteredData);
+      
+    } else {
+      // For test suites tab, use localStorage (keep your existing logic)
+      const localStorageKey = 'testSuiteResults';
+      const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+      
+      const dateFilteredData = localData.filter(item => {
+        const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
+        const fromDate = dateRange.from;
+        const toDate = dateRange.to;
+        return itemDate >= fromDate && itemDate <= toDate;
+      });
+      
+      let projectFilteredData = dateFilteredData;
+      
+      if (selectedProject) {
+        projectFilteredData = dateFilteredData.filter(item => {
+          const selectedProjectName = selectedProject.project_name || selectedProject.folder_name;
+          const itemProjectName = item.project_name || item.name || item.project_id;
+          
+          if (selectedProjectName && itemProjectName) {
+            return selectedProjectName.toLowerCase() === itemProjectName.toLowerCase();
+          }
+          return true;
+        });
+      }
+      
+      const sortedData = projectFilteredData.sort((a, b) => 
+        new Date(b.execution_date) - new Date(a.execution_date)
+      );
+      
+      setTestResults(sortedData);
+      calculateStats(sortedData);
+    }
     
   } catch (error) {
     console.error(`Error fetching ${activeTab} results:`, error);
@@ -123,6 +142,25 @@ const fetchTestResults = React.useCallback(async () => {
 
     fetchTestResults();
   }, [selectedProject, activeTab, timeRange, dateRange, fetchTestResults]);
+
+const fetchTestCaseDetails = async (testCaseName) => {
+  try {
+    const userId = localStorage.getItem("userId");
+    const response = await fetch(`http://127.0.0.1:8000/integrate/case_report/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${testCaseName}`, {
+      method: 'GET'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log("test case info:", data)
+      setTestCaseSteps(data.steps || []); 
+      setSelectedTestCase(testCaseName);
+      setShowTestCaseDetails(true);
+    }
+  } catch (error) {
+    console.error('Error fetching test case details:', error);
+  }
+};
 
   const calculateStats = (data) => {
     if (!data.length) {
@@ -375,7 +413,12 @@ const handleExportReport = () => {
         {filteredResults.map((result, idx) => (
           <tr key={result.id || idx} className="hover:bg-gray-50">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {result.name || result.test_name || 'Unnamed Test'}
+              <button 
+                onClick={() => fetchTestCaseDetails(result.name || result.test_name)}
+                className="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
+              >
+                {result.name || result.test_name || 'Unnamed Test'}
+              </button>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {formatDate(result.execution_date)}
@@ -718,6 +761,80 @@ const handleExportReport = () => {
           </div>
         </div>
       </div>
+
+      {/* Test Case Details Modal */}
+      {showTestCaseDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold">Test Case: {selectedTestCase}</h3>
+              <button onClick={() => setShowTestCaseDetails(false)} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Step</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Command</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Screenshot</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {testCaseSteps.map((step, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 text-sm">{step.step_number || index + 1}</td>
+                      <td className="px-4 py-2 text-sm">{step.command || step.step_description}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={step.result === 'passed' ? 'text-green-600' : 'text-red-600'}>
+                          {step.result || 'Not Executed'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        {step.screenshot && (
+                          <button 
+                            onClick={() => {
+                              setSelectedScreenshot(`http://127.0.0.1:8000${step.screenshot}`);
+                              setShowScreenshotModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            📸 View
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Screenshot Modal */}
+      {showScreenshotModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-semibold">Screenshot</h3>
+              <button onClick={() => setShowScreenshotModal(false)} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            <div className="p-4 flex justify-center">
+              <img 
+                src={selectedScreenshot} 
+                alt="Step Screenshot" 
+                className="max-w-full max-h-[70vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
