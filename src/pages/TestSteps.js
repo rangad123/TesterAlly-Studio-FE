@@ -48,6 +48,8 @@ const TestSteps = () => {
   const [showSenderEmailField, setShowSenderEmailField] = useState(false);
   const [senderEmail, setSenderEmail] = useState('');
 
+  const [executionSummary, setExecutionSummary] = useState(null);
+
 
   useEffect(() => {
     const otpSteps = steps.filter((step) => containsOtpPlaceholder(
@@ -778,7 +780,7 @@ const handleModalOkClick = async () => {
     
     console.log("📤 Final Request Body:", JSON.stringify(payloadToSend, null, 2));
 
-    const response = await fetch("http://127.0.0.1:8000/integrate/run_testcase/", {
+    const response = await fetch("http://127.0.0.1:8000/automation/agent/scenario_run/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -808,13 +810,21 @@ const handleModalOkClick = async () => {
               message: executedStep.result, 
               screenshot: executedStep.screenshot ? `http://127.0.0.1:8000${executedStep.screenshot}` : null,
               healed: executedStep.healed || false,
-              duration: null,
+              duration: `${executedStep.execution_time?.toFixed(2)}s`,
               timestamp: executedStep.timestamp
             };
           }
       });
 
       setExecutionResults(newExecutionResults);
+
+      setExecutionSummary({
+        totalExecutionTime: `${result.executed_steps.total_execution_time?.toFixed(2)}s`,
+        totalSteps: result.executed_steps.total_steps,
+        executedSteps: result.executed_steps.executed_steps,
+        healedSteps: result.executed_steps.healed_steps,
+        successRate: `${result.executed_steps.success_rate}%`
+      });
 
       // Create summary for successful execution
       testRunSummary = {
@@ -826,7 +836,7 @@ const handleModalOkClick = async () => {
         passed_steps: result.executed_steps.total_steps - result.executed_steps.failed_steps,
         failed_steps: result.executed_steps.failed_steps,
         healed_steps: result.executed_steps.healed_steps || 0,
-        execexecution_time: result.executed_steps.execution_log[
+        execution_time: result.executed_steps.execution_log[
             result.executed_steps.execution_log.length - 1
         ].timestamp - result.executed_steps.execution_log[0].timestamp,
         id: Date.now().toString(),
@@ -872,7 +882,10 @@ const handleModalOkClick = async () => {
         body: JSON.stringify({
           user_id: userId,
           project_name: projectName,
-          testcase_name: testCaseName  
+          testcase_name: testCaseName,
+          execution_results: result.status === "success" ? result.executed_steps : null,
+          execution_summary: executionSummary, 
+          test_status: result.status === "success" ? "PASS" : "FAIL"
         }),
       });
 
@@ -923,6 +936,7 @@ const handleModalOkClick = async () => {
 
   const handleResetExecution = () => {
     setExecutionResults({});
+    setExecutionSummary(null);
   };
 
 const handleStepSelection = (stepNumber) => {  
@@ -1204,6 +1218,37 @@ const selectAllSteps = () => {
             </div>
           )}
 
+          {/* Execution Summary */}
+          {executionSummary && (
+            <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Execution Summary</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="font-semibold text-gray-600">Total Time</div>
+                  <div className="text-xl font-bold text-green-600">{executionSummary.totalExecutionTime}</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-gray-600">Steps Executed</div>
+                  <div className="text-xl font-bold text-blue-600">{executionSummary.executedSteps}/{executionSummary.totalSteps}</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-gray-600">Self-Healed</div>
+                  <div className="text-xl font-bold text-orange-600">{executionSummary.healedSteps}</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-gray-600">Success Rate</div>
+                  <div className="text-xl font-bold text-purple-600">{executionSummary.successRate}</div>
+                </div>
+                <div className="text-center md:col-span-1 col-span-2">
+                  <div className="font-semibold text-gray-600">Status</div>
+                  <div className={`text-xl font-bold ${executionSummary.successRate === '100%' ? 'text-green-600' : 'text-red-600'}`}>
+                    {executionSummary.successRate === '100%' ? 'PASSED' : 'FAILED'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end mb-2">
             <button
               onClick={selectAllSteps}
@@ -1327,16 +1372,21 @@ const selectAllSteps = () => {
                               <div className="flex items-center">
                                 <span className="mr-2">✓</span>
                                 {executionResults[step.step_number].message === 'timeout' ? (
-                                  <span className="text-yellow-700">Executed, but the condition was <strong>not met</strong> (timeout)</span>
+                                  <span className="text-yellow-700">Executed, but condition not met (timeout)</span>
+                                ) : executionResults[step.step_number].message === 'failed' ? (
+                                  <span className="text-red-700">Failed</span>
                                 ) : (
-                                  <span className="text-green-700">Executed successfully {executionResults[step.step_number].duration ? `(${executionResults[step.id].duration})` : ''}</span>
-                                )} 
+                                  <span className="text-green-700">Success</span>
+                                )}
+                                {executionResults[step.step_number].healed && (
+                                  <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">Self-Healed</span>
+                                )}
                               </div>
                               {/* Countdown display */}
-                              {executionResults[step.step_number].countdown !== undefined && (
-                                <div className="mt-2 text-yellow-700 bg-yellow-50 p-2 rounded">
-                                  Waiting for next step: {executionResults[step.step_number].countdown} seconds
-                                </div>
+                              {executionResults[step.step_number].duration && (
+                                <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                                  {executionResults[step.step_number].duration}
+                                </span>
                               )}
                             </div>
                           ) : (

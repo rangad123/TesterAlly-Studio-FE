@@ -81,6 +81,7 @@ const fetchTestResults = React.useCallback(async () => {
       }
 
       const reportData = await response.json();
+      console.log("testcases report:", reportData)
       const processedResults = reportData.reports || [];
       
       const dateFilteredData = processedResults.filter(item => {
@@ -233,53 +234,207 @@ const fetchTestCaseDetails = async (testCaseName) => {
     setTimeRange("custom");
   };
 
-const handleExportReport = () => {
+const handleExportReport = async () => {
   if (!testResults.length) {
     alert("No results to export");
     return;
   }
 
   const doc = new jsPDF();
+  const purpleColor = [147, 51, 234];
+  const lightPurple = [237, 233, 254];
+  const darkPurple = [88, 28, 135];
+  
+  let yPosition = 20;
+  const pageHeight = doc.internal.pageSize.height;
+  const pageWidth = doc.internal.pageSize.width;
+  
+  const checkPageBreak = (requiredSpace = 30) => {
+    if (yPosition + requiredSpace > pageHeight - 20) {
+      doc.addPage();
+      yPosition = 20;
+      return true;
+    }
+    return false;
+  };
 
-  const title = activeTab === "suites" ? "Test Suites Report" : "Test Cases Report";
-  doc.text(title, 14, 15);
+  doc.setFillColor(...purpleColor);
+  doc.rect(10, 10, pageWidth - 20, 15, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('Test Execution Report', pageWidth / 2, 20, { align: 'center' });
+  
+  yPosition = 35;
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Project: ${selectedProject?.project_name || 'N/A'}`, 15, yPosition);
+  doc.text(`Export Date: ${new Date().toLocaleDateString()}`, 15, yPosition + 5);
+  doc.text(`Total Test Cases: ${testResults.length}`, 15, yPosition + 10);
+  
+  yPosition += 25;
 
-  const headers = activeTab === "suites"
-    ? ['Test Suite', 'Execution Date', 'Status', 'Test Cases', 'Passed', 'Failed', 'Time (s)']
-    : ['Test Case', 'Execution Date', 'Status', 'Steps', 'Passed', 'Failed', 'Time (s)'];
+  checkPageBreak(40);
+  doc.setFillColor(...lightPurple);
+  doc.rect(10, yPosition - 5, pageWidth - 20, 8, 'F');
+  doc.setTextColor(...darkPurple);
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Execution Summary', 15, yPosition);
+  
+  yPosition += 15;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const totalPassed = testResults.reduce((sum, result) => sum + (result.passed_steps || 0), 0);
+  const totalFailed = testResults.reduce((sum, result) => sum + (result.failed_steps || 0), 0);
+  const totalSteps = testResults.reduce((sum, result) => sum + (result.total_steps || 0), 0);
+  const passRate = totalSteps > 0 ? ((totalPassed / totalSteps) * 100).toFixed(1) : 0;
+  
+  doc.text(`Total Steps: ${totalSteps}`, 15, yPosition);
+  doc.text(`Passed: ${totalPassed}`, 80, yPosition);
+  doc.text(`Failed: ${totalFailed}`, 130, yPosition);
+  doc.text(`Pass Rate: ${passRate}%`, 180, yPosition);
+  
+  yPosition += 20;
 
-  const rows = testResults.map(result => (
-    activeTab === "suites"
-      ? [
-          result.name,
-          new Date(result.execution_date).toLocaleString(),
-          result.status,
-          result.total_testcases || 0,
-          result.passed_testcases || 0,
-          result.failed_testcases || 0,
-          result.execution_time || 0
-        ]
-      : [
-          result.name,
-          new Date(result.execution_date).toLocaleString(),
-          result.status,
-          result.total_steps || 0,
-          result.passed_steps || 0,
-          result.failed_steps || 0,
-          result.execution_time || 0
-        ]
-  ));
+  for (let i = 0; i < testResults.length; i++) {
+    const testCase = testResults[i];
+    
+    checkPageBreak(50);
+    
+    doc.setFillColor(...purpleColor);
+    doc.rect(10, yPosition - 5, pageWidth - 20, 12, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Test Case: ${testCase.name}`, 15, yPosition + 2);
+    
+    const statusColor = testCase.status === 'PASS' ? [34, 197, 94] : testCase.status === 'FAIL' ? [239, 68, 68] : [251, 191, 36];
+    doc.setFillColor(...statusColor);
+    doc.rect(pageWidth - 50, yPosition - 3, 35, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text(testCase.status, pageWidth - 32, yPosition + 1, { align: 'center' });
+    
+    yPosition += 15;
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'normal');
+    
+    const summaryData = [
+      ['Execution Date:', new Date(testCase.execution_date).toLocaleString()],
+      ['Total Steps:', testCase.total_steps || 0],
+      ['Passed Steps:', testCase.passed_steps || 0],
+      ['Failed Steps:', testCase.failed_steps || 0],
+      ['Healed Steps:', testCase.healed_steps || 0],
+      ['Execution Time:', testCase.execution_time || 'N/A']
+    ];
+    
+    const baseY = yPosition;
+    summaryData.forEach((item, index) => {
+      const x = 15 + (index % 2) * 95;
+      const y = baseY + Math.floor(index / 2) * 5;
+      doc.setFont(undefined, 'bold');
+      doc.text(item[0], x, y);
+      doc.setFont(undefined, 'normal');
+      doc.text(String(item[1]), x + 25, y);
+    });
+    
+    yPosition += 20;
 
-  // ✅ Use autoTable(doc, { ... })
-  autoTable(doc, {
-    head: [headers],
-    body: rows,
-    startY: 25,
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [22, 160, 133] }
-  });
+    try {
+      const userId = localStorage.getItem("userId");
+      const response = await fetch(`http://127.0.0.1:8000/integrate/case_report/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${testCase.name}`);
+      
+      if (response.ok) {
+        const stepData = await response.json();
+        const steps = stepData.steps || [];
+        
+        if (steps.length > 0) {
+          checkPageBreak(30);
+          
+          doc.setFillColor(...lightPurple);
+          doc.rect(10, yPosition - 2, pageWidth - 20, 6, 'F');
+          doc.setTextColor(...darkPurple);
+          doc.setFontSize(9);
+          doc.setFont(undefined, 'bold');
+          doc.text('Test Steps Details', 15, yPosition + 2);
+          
+          yPosition += 12;
+          
+          const stepHeaders = ['#', 'Command', 'Duration', 'Status', 'Healed'];
+          const stepRows = steps.map(step => [
+            step.step_number || '',
+            (step.command || step.step_description || '').substring(0, 25) + ((step.command || '').length > 25 ? '...' : ''),
+            step.duration || 'N/A',
+            step.result || 'N/A',
+            step.healed ? 'Yes' : 'No'
+          ]);
+          
+          autoTable(doc, {
+            head: [stepHeaders],
+            body: stepRows,
+            startY: yPosition,
+            margin: { left: 10, right: 10 },
+            tableWidth: 'auto',
+            styles: { 
+              fontSize: 7,
+              cellPadding: 2,
+              overflow: 'linebreak',
+              cellWidth: 'wrap'
+            },
+            headStyles: { 
+              fillColor: purpleColor,
+              textColor: [255, 255, 255],
+              fontStyle: 'bold'
+            },
+            alternateRowStyles: {
+              fillColor: [248, 250, 252]
+            },
+            columnStyles: {
+              0: { cellWidth: 8 },
+              1: { cellWidth: 45 },
+              2: { cellWidth: 15 },
+              3: { cellWidth: 15 },
+              4: { cellWidth: 10 }
+            }
+          });
+          
+          yPosition = doc.lastAutoTable.finalY + 15;
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching steps for ${testCase.name}:`, error);
+      
+      doc.setTextColor(239, 68, 68);
+      doc.setFontSize(8);
+      doc.text('Error loading step details', 15, yPosition);
+      yPosition += 10;
+    }
+    
+    if (i < testResults.length - 1) {
+      checkPageBreak(15);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, yPosition, pageWidth - 15, yPosition);
+      yPosition += 10;
+    }
+  }
+  
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth - 30, pageHeight - 10);
+    doc.text(`Generated by TesterAlly - ${new Date().toLocaleDateString()}`, 15, pageHeight - 10);
+  }
 
-  const filename = `${activeTab}-report-${new Date().toISOString().split('T')[0]}.pdf`;
+  const filename = `test-cases-detailed-report-${new Date().toISOString().split('T')[0]}.pdf`;
   doc.save(filename);
 };
 
@@ -778,6 +933,8 @@ const handleExportReport = () => {
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Step</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Command</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Duration</th> 
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Healed</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Screenshot</th>
                   </tr>
@@ -788,7 +945,19 @@ const handleExportReport = () => {
                       <td className="px-4 py-2 text-sm">{step.step_number || index + 1}</td>
                       <td className="px-4 py-2 text-sm">{step.command || step.step_description}</td>
                       <td className="px-4 py-2 text-sm">
-                        <span className={step.result === 'passed' ? 'text-green-600' : 'text-red-600'}>
+                        <span className="text-blue-600 font-mono">
+                          {step.duration || 'N/A'}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${step.healed ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-600'}`}>
+                          {step.healed ? 'Healed' : 'Normal'}
+                        </span>
+                      </td>
+      
+                      <td className="px-4 py-2 text-sm">
+                        <span className={step.result === 'success' ? 'text-green-600' : 'text-red-600'}>
                           {step.result || 'Not Executed'}
                         </span>
                       </td>
