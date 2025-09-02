@@ -809,8 +809,10 @@ const handleModalOkClick = async () => {
               status: 'complete',
               message: executedStep.result, 
               screenshot: executedStep.screenshot ? `http://127.0.0.1:8000${executedStep.screenshot}` : null,
-              healed: executedStep.healed || false,
+              healed: executedStep.was_healed || false,
               duration: `${executedStep.execution_time?.toFixed(2)}s`,
+              executionTime: executedStep.execution_time,
+              comparisonTime: executedStep.comparison_time,
               timestamp: executedStep.timestamp
             };
           }
@@ -819,7 +821,7 @@ const handleModalOkClick = async () => {
       setExecutionResults(newExecutionResults);
 
       setExecutionSummary({
-        totalExecutionTime: `${result.executed_steps.total_execution_time?.toFixed(2)}s`,
+        totalExecutionTime: result.executed_steps.total_execution_time,
         totalSteps: result.executed_steps.total_steps,
         executedSteps: result.executed_steps.executed_steps,
         healedSteps: result.executed_steps.healed_steps,
@@ -1225,7 +1227,10 @@ const selectAllSteps = () => {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-semibold text-gray-600">Total Time</div>
-                  <div className="text-xl font-bold text-green-600">{executionSummary.totalExecutionTime}</div>
+                  <div className="text-xl font-bold text-green-600">
+                    {Math.floor(executionSummary.totalExecutionTime / 60)} min{" "}
+                    {Math.floor(executionSummary.totalExecutionTime % 60)} sec
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-gray-600">Steps Executed</div>
@@ -1382,11 +1387,18 @@ const selectAllSteps = () => {
                                   <span className="ml-2 px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">Self-Healed</span>
                                 )}
                               </div>
-                              {/* Countdown display */}
-                              {executionResults[step.step_number].duration && (
-                                <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
-                                  {executionResults[step.step_number].duration}
-                                </span>
+                              {/* Execution times display */}
+                              {executionResults[step.step_number].executionTime && (
+                                <div className="mt-1 flex gap-2 text-xs">
+                                  <span className="text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                                    Execution Time: {executionResults[step.step_number].executionTime.toFixed(2)}s
+                                  </span>
+                                  {executionResults[step.step_number].comparisonTime && (
+                                    <span className="text-gray-500 font-mono bg-blue-100 px-2 py-1 rounded">
+                                      Comparession/Healing Time: {executionResults[step.step_number].comparisonTime.toFixed(2)}s
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           ) : (
