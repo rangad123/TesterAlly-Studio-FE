@@ -364,7 +364,7 @@ const Login = (props) => {
           {/* Agent Key field */}
           <div>
             <label htmlFor="agentKey" className="font-medium required">
-              Agent Key
+              Studio Key
             </label>
           </div>
           <div>
@@ -372,7 +372,7 @@ const Login = (props) => {
               id="agentKey"
               name="agentKey"
               type="text"
-              placeholder="Your Agent Key"
+              placeholder="Your Studio Key"
               className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-purple-500 dark:focus:border-purple-500"
               required
             />

@@ -85,7 +85,7 @@ const AppNavBar = (props) => {
             onClick={handleLogoClick}
           />
           <span className="self-center whitespace-nowrap text-2xl font-bold brand-text">
-            TesterAlly Agent
+            TesterAlly Studio
           </span>
         </Navbar.Brand>
 
