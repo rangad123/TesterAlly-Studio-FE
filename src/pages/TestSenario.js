@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Play, Plus, AlertCircle, CheckCircle, Clock, Target, Zap, Code, X } from 'lucide-react';
 
 function TestSenario() {
   const [promptText, setPromptText] = useState('');
-  // const [extractedSteps, setExtractedSteps] = useState([]);
   const [showExtractedSteps, setShowExtractedSteps] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [projectData, setProjectData] = useState(null);
-  // const [needsOtpVerification, setNeedsOtpVerification] = useState(false);
 
   const [complexityLevel, setComplexityLevel] = useState("simple");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
 
   const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
-  const [selectedOtpStep, setSelectedOtpStep] = useState('none');
-  const [otpConfirmationModal, setOtpConfirmationModal] = useState({
-    isOpen: false,
-    contactStep: null,
-    otpStep: null,
-    matchedContactData: null,
-    contactType: null, 
-    detectedSteps: []
-  });
 
-const [scenarioName, setScenarioName] = useState('');
-const [scenarioType, setScenarioType] = useState('');
-const [scenarioPriority, setScenarioPriority] = useState('');
+  const [scenarioName, setScenarioName] = useState('');
+  const [scenarioType, setScenarioType] = useState('');
+  const [scenarioPriority, setScenarioPriority] = useState('');
 
   const location = useLocation();
   const testCaseInfo = location.state?.testCaseInfo;
@@ -40,13 +30,16 @@ const [tempUrl, setTempUrl] = useState('');
 const [isSavingUrl, setIsSavingUrl] = useState(false);
 
 const [isEnhancing, setIsEnhancing] = useState(false);
-
 const [testResults, setTestResults] = useState(null);
 const [showTestResults, setShowTestResults] = useState(false);
-
 const [screenshotModal, setScreenshotModal] = useState({ isOpen: false, src: '', alt: '' });
-
 const [isCreatingTestCase, setIsCreatingTestCase] = useState(false);
+
+const [testFoundModalOpen, setTestFoundModalOpen] = useState(false);
+const [foundTestData, setFoundTestData] = useState(null);
+const [loadingModal, setLoadingModal] = useState({ isOpen: false, title: '', message: '' });
+const [generatedTestFile, setGeneratedTestFile] = useState(null);
+
 
 const saveTestUrl = async () => {
   if (!projectData?.id || !tempUrl.trim()) return;
@@ -149,31 +142,6 @@ const enhancePrompt = async () => {
     }
   }, [testCaseInfo]);
 
-// const savePromptToHistory = (promptText, steps) => {
-//   const historyItem = {
-//     id: Date.now(),
-//     prompt: promptText,
-//     steps: steps,
-//     timestamp: new Date().toLocaleString(),
-//     scenarioDetails: {
-//       name: scenarioName,
-//       type: scenarioType,
-//       priority: scenarioPriority
-//     }
-//   };
-
-//   // Get existing history from sessionStorage
-//   const existingHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
-  
-//   // Add new item to beginning and keep only last 3
-//   const updatedHistory = [historyItem, ...existingHistory].slice(0, 3);
-  
-//   // Save to sessionStorage and state
-//   sessionStorage.setItem('promptHistory', JSON.stringify(updatedHistory));
-//   setPromptHistory(updatedHistory);
-  
-//   console.log("💾 Prompt saved to history:", historyItem);
-// };
 
 const loadPromptFromHistory = (historyItem) => {
   setPromptText(historyItem.prompt);
@@ -258,10 +226,6 @@ useEffect(() => {
   const extractStepsFromPrompt = async () => {
     const userId = localStorage.getItem("userId");
 
-    // if (!validateScenarioFields()) {
-    //   return;
-    // }
-
     if (!promptText.trim()) {
       alert("Please enter a prompt first.");
       return;
@@ -272,11 +236,12 @@ useEffect(() => {
       console.log("📦 Sending Request Payload:", {
         url: testUrl,
         user_id: userId, 
-        test_prompt: promptText,
-        scenarios_name: scenarioName
+        prompt: promptText,
+        scenarios_name: scenarioName,
+        run_mode: "auto"
       });
 
-      const response = await fetch('http://127.0.0.1:8000/automation/agent/run/', {
+      const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -284,8 +249,9 @@ useEffect(() => {
         body: JSON.stringify({
           url: testUrl,
           user_id: userId,
-          test_prompt: promptText,
-          scenarios_name: scenarioName
+          prompt: promptText,
+          scenarios_name: scenarioName,
+          run_mode: "auto"  
         })
       });
 
@@ -294,18 +260,213 @@ useEffect(() => {
       }
 
       const data = await response.json();
-      console.log("✅ Automation response:", data);
+      console.log("✅ API Response:", data);
 
-      setTestResults(data);
-      setShowTestResults(true);
-      
-      alert('Automation completed successfully!');
+      // NEW LOGIC: Check if test file was found
+      if (data.status === "test_found") {
+        console.log("🔍 Test file found, asking user for choice...");
+        handleTestFound(data);
+        return;  
+      }
+
+      // If test created or already completed
+      if (data.status === "success") {
+        setTestResults(data);
+        setShowTestResults(true);
+        // Store test file info if it was generated
+        if (data.test_file_info) {
+          setGeneratedTestFile(data.test_file_info);
+        }
+        alert('Automation completed successfully!');
+      } else if (data.status === "incomplete") {
+        alert('Automation incomplete. Please try again.');
+      } else if (data.status === "error") {
+        alert(`Error: ${data.error}`);
+      }
 
     } catch (error) {
       console.error('Error running automation:', error);
       alert('Failed to start automation. Please try again.');
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const handleTestFound = (testData) => {
+    setFoundTestData(testData);
+    setTestFoundModalOpen(true);
+  };
+
+  const runExistingTest = async (testFile) => {
+    setLoadingModal({ isOpen: true, title: 'Running Test', message: 'Executing existing test file...' });
+    setIsExtracting(true);
+    
+    try {
+
+      const payload = { test_file: testFile };
+      console.log("Request payload (object):", payload);
+      console.log("Request payload (JSON):", JSON.stringify(payload));
+
+      const response = await fetch('http://127.0.0.1:8000/AI/test/run-existing/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error('Failed to run existing test');
+
+      const data = await response.json();
+      console.log("✅ API Response:", data);
+      setTestResults(data);
+      setShowTestResults(true);
+      alert(`Test ${data.passed ? 'PASSED' : 'FAILED'}`);
+      
+    } catch (error) {
+      console.error('Error running existing test:', error);
+      alert('Failed to run test. Please try again.');
+    } finally {
+      setIsExtracting(false);
+      setLoadingModal({ isOpen: false, title: '', message: '' });
+      setTestFoundModalOpen(false);
+    }
+  };
+
+  const runNewAutomation = async () => {
+    const userId = localStorage.getItem("userId");
+    setLoadingModal({ isOpen: true, title: 'Creating Automation', message: 'Recording new automation steps...' });
+    setIsExtracting(true);
+    
+    try {
+      const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: testUrl,
+          user_id: userId,
+          prompt: promptText,
+          scenarios_name: scenarioName,
+          run_mode: "new"  
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to run new automation');
+
+      const data = await response.json();
+      console.log("✅ API Response:", data);
+      setTestResults(data);
+      setShowTestResults(true);
+      alert('New automation completed successfully!');
+      
+    } catch (error) {
+      console.error('Error running new automation:', error);
+      alert('Failed to start automation. Please try again.');
+    } finally {
+      setIsExtracting(false);
+      setLoadingModal({ isOpen: false, title: '', message: '' });
+      setTestFoundModalOpen(false);
+    }
+  };
+
+  const parseAction = (action, input) => {
+    if (typeof action === "string" && input === undefined) {
+      // old string parsing
+      const match = action.match(/(\w+)\((.*)\)/);
+      if (!match) return { type: action, details: {} };
+      const type = match[1];
+      const paramsStr = match[2];
+      try {
+        const jsonStr = paramsStr.replace(/'/g, '"');
+        const details = JSON.parse(`{${jsonStr}}`);
+        return { type, details };
+      } catch {
+        return { type, details: {} };
+      }
+    } else {
+      // actual action object
+      return { type: action, details: input || {} };
+    }
+  };
+
+  const getActionInfo = (type, details, elementInfo) => {
+    const actions = {
+      navigate: {
+        icon: Zap,
+        label: `Navigated to: ${details.url}`,
+        color: 'bg-blue-100 text-blue-600'
+      },
+      click: {
+        icon: Play,
+        label: `Clicked on ${elementInfo?.ariaLabel || details?.element_ref || "unknown element"}`,
+        color: 'bg-purple-100 text-purple-600'
+      },
+      fill: {
+        icon: Code,
+        label: `Typed in ${elementInfo?.ariaLabel || details?.element_ref || "unknown element"}${details?.text ? `: "${details.text}"` : ''}`,
+        color: 'bg-green-100 text-green-600'
+      },
+      snapshot: {
+        icon: Target,
+        label: 'Took Snapshot',
+        color: 'bg-yellow-100 text-yellow-600'
+      },
+      console_messages: {
+        icon: AlertCircle,
+        label: 'Retrieved console messages',
+        color: 'bg-red-100 text-red-600'
+      },
+      network_requests: {
+        icon: Zap,
+        label: 'Captured network requests',
+        color: 'bg-indigo-100 text-indigo-600'
+      },
+      report_completion: {
+        icon: CheckCircle,
+        label: `Completed - ${details.reason || details.status}`,
+        color: 'bg-green-100 text-green-600'
+      }
+    };
+    
+    return actions[type] || {
+      icon: Code,
+      label: type,
+      color: 'bg-gray-100 text-gray-600'
+    };
+  };
+
+  const deleteTestFile = async (filename, metaname) => {
+    if (!window.confirm(`Are you sure you want to delete ${filename}?`)) {
+      return;
+    }
+
+    try {
+
+      const requestBody = {
+        filename: filename,
+        metadata_file: metaname
+      };
+      console.log('🗑️ Delete Request Body:', requestBody); 
+
+      const response = await fetch('http://127.0.0.1:8000/AI/api/test-file/delete/', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete test file');
+      }
+
+      const data = await response.json();
+      console.log('✅ Deleted:', data);
+      
+      alert('Test file deleted successfully!');
+      setGeneratedTestFile(null);
+      
+    } catch (error) {
+      console.error('Error deleting test file:', error);
+      alert('Failed to delete test file');
     }
   };
 
@@ -364,282 +525,134 @@ useEffect(() => {
     }
   };
 
-const isLikelyOtpStep = (step) => {
-  const stepText = typeof step === 'object' ? step.command || step.description : step;
-  const stepLower = stepText.toLowerCase();
-  
-  const typePattern = /type\s+([^in]+)\s+in/i;
-  const match = stepText.match(typePattern);
-  
-  if (match) {
-    const userInput = match[1].trim().toLowerCase();
-    return userInput.includes('otp');
-  }
-  
-
-  return stepLower.startsWith('type otp') || 
-         stepLower.startsWith('enter otp') ||
-         stepLower.startsWith('input otp');
-};
-
-const handleOtpConfirmation = (userSelectedOtpStep) => {
-  const { contactStep, contactType, detectedSteps } = otpConfirmationModal;
-  const { project_type, platform } = projectData || {};
-
-  // Parse user selection
-  const otpStep = userSelectedOtpStep === 'none' ? null : parseInt(userSelectedOtpStep);
-
-  console.log("🚀 Navigating with user-confirmed OTP:", {
-    contactStep: contactStep + 1,
-    otpStep: otpStep !== null ? otpStep + 1 : 'User selected: None',
-    contactType
-  });
-
-  const stepsWithOtpFlags = detectedSteps.map((step, index) => {
-    const baseStep = typeof step === 'object' ? step : { command: step };
-    
-    const isContactStep = index === contactStep;
-    const isActualOtpStep = index === otpStep;
-    
-    if (isContactStep) {
-      return {
-        ...baseStep,
-        requiresOtp: true, 
-        otpType: contactType, 
-        isOtpRelatedStep: true, 
-        isActualOtpStep: false
-      };
-    }
-
-    if (isActualOtpStep) {
-      return {
-        ...baseStep,
-        requiresOtp: true, 
-        otpType: contactType, 
-        isOtpRelatedStep: false, 
-        isActualOtpStep: true 
-      };
-    }
-    
-    if (contactStep !== null && otpStep !== null && index > contactStep && index < otpStep) {
-      return {
-        ...baseStep,
-        requiresOtp: true, 
-        otpType: contactType, 
-        isOtpRelatedStep: false, 
-        isActualOtpStep: false 
-      };
-    }
-    
-    return {
-      ...baseStep,
-      requiresOtp: false,
-      otpType: null,
-      isOtpRelatedStep: false,
-      isActualOtpStep: false
-    };
-  });
-
-  const navigationState = {
-    generatedSteps: stepsWithOtpFlags,
-    autoExecuteFirst: true,
-    needsOtpVerification: true,
-    senderEmail: otpConfirmationModal.contactType === 'email' ? testData?.email : null,
-    testScenarioInfo: {
-      testcase_name: scenarioName.trim(),
-      testcase_type: scenarioType,
-      testcase_priority: scenarioPriority,
-      projectId: projectData?.project_name,
-      project_type: projectData?.project_type,
-      platform: projectData?.platform
-    }
-  };
-
-  console.log("🎯 Steps with user-confirmed OTP flags:", stepsWithOtpFlags);
-
-  // Close modal and reset selection
-  setOtpConfirmationModal({
-    isOpen: false,
-    contactStep: null,
-    otpStep: null,
-    matchedContactData: null,
-    contactType: null,
-    detectedSteps: []
-  });
-  setSelectedOtpStep('none');
-
-  console.log("🔍 Debug navigation data:", {
-    contactType: otpConfirmationModal.contactType,
-    testDataEmail: testData?.email,
-    senderEmailToPass: otpConfirmationModal.contactType === 'email' ? testData?.email : null
-  });
-
-  // Navigation logic remains the same...
-  if (project_type === "Web Application" && platform === "Laptop/PC") {
-    navigate("/prompt-adding", { state: navigationState });
-  } 
-  else if (project_type === "Web Application" && platform === "Mobile") {
-    navigate("/mobile-prompt", { state: navigationState });
-  } 
-  else if (project_type === "Mobile Application" && platform === "Android") {
-    navigate("/android-prompt", { state: navigationState });
-  } 
-  else {
-    alert("Unsupported combination of project type and platform.");
-  }
-};
-
-  const handleOtpModalCancel = () => {
-    setOtpConfirmationModal({
-      isOpen: false,
-      contactStep: null,
-      otpStep: null,
-      matchedContactData: null,
-      contactType: null,
-      detectedSteps: []
-    });
-  };
-
   const handleClearSteps = () => {
     // setExtractedSteps([]);
     // setShowExtractedSteps(false);
     setPromptText('');
   };
 
-// const handleOtpCheckboxChange = (e) => {
-//   const isChecked = e.target.checked;
-//   console.log("☑️ OTP Checkbox changed:", isChecked);
-//   setNeedsOtpVerification(isChecked);
-  
-//   if (isChecked) {
-//     console.log("🔐 OTP verification enabled, will fetch test data...");
-//   } else {
-//     console.log("❌ OTP verification disabled");
-//   }
-// };
-
-const createTestScenarioFromResults = async () => {
-  if (!testResults || !testResults.action_history) {
-    alert('No test results available to create scenario.');
-    return;
-  }
-
-  try {
-    setIsCreatingTestCase(true);
-    
-    // Get the user ID from localStorage
-    const userId = localStorage.getItem("userId");
-
-    // Step 1: Create the test case first (with test scenario prompt)
-    const testCasePayload = {
-      user_id: parseInt(userId),
-      project_name: testCaseInfo.projectId,
-      testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
-      testcase_type: testCaseInfo.testcase_type || 'Functional',
-      testcase_priority: testCaseInfo.testcase_priority || 'Medium',
-      test_scenarios_desc: promptText 
-    };
-
-    console.log("Creating test case with payload:", testCasePayload);
-
-    const testCaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(testCasePayload)
-    });
-
-    if (!testCaseResponse.ok) {
-      const errorData = await testCaseResponse.json().catch(() => ({}));
-      throw new Error(errorData.message || "Failed to create test case");
-    }
-
-    const testCaseData = await testCaseResponse.json();
-    console.log("Test case created:", testCaseData);
-
-    // Step 2: Prepare and add steps from automation results
-    const selectedSteps = testResults.action_history.map((actionItem, index) => {
-      const { action, request, result, screenshot } = actionItem;
-      
-      // Get step description from command or create from action
-      let stepDescription = request.command || `${action.action} ${action.element || ''}`;
-
-      // Determine test step result based on execution result
-      let teststep_result = "not_executed";
-      if (result === "executed" || result === "success") {
-        teststep_result = "passed";
-      } else if (result === "failed" || result === "error") {
-        teststep_result = "failed";
-      }
-
-      // Get coordinates from action or request
-      let coordinates = { click_x: 0, click_y: 0 };
-      if (action.coordinates) {
-        coordinates = {
-          click_x: action.coordinates.x || action.coordinates.click_x || 0,
-          click_y: action.coordinates.y || action.coordinates.click_y || 0
-        };
-      } else if (request.click_x !== undefined && request.click_y !== undefined) {
-        coordinates = {
-          click_x: request.click_x,
-          click_y: request.click_y
-        };
-      }
-
-      const stepData = {
-        step_number: index + 1,
-        step_description: stepDescription,
-        teststep_result: teststep_result,
-        step_coordinates: coordinates,
-        actual_result: result === "executed" ? "Step executed successfully" : result,
-        self_healing_required: true, 
-        scenarios_step_screenshot: screenshot || "",
-        step_reason: action.reasoning || `Reason for ${action.action} action on ${action.element || 'element'}`,
-        expected_result: action.expected_change || `Expected result for step ${index + 1}`,
-        // requires_otp: false,
-        // otp_type: null ,
-      };
-
-      return stepData;
-    });
-
-    // Create steps payload
-    const stepsPayload = {
-      user_id: parseInt(userId),
-      project_name: testCaseInfo.projectId,
-      testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
-      steps: selectedSteps
-    };
-
-    console.log("Adding steps with payload:", stepsPayload);
-
-    const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(stepsPayload)
-    });
-
-    if (!stepsResponse.ok) {
-      const errorData = await stepsResponse.json().catch(() => ({}));
-      // If steps fail, show warning that test case was created but steps failed
-      console.warn("Steps creation failed:", errorData);
-      alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
+  const createTestScenarioFromResults = async () => {
+    if (!testResults || !testResults.action_history) {
+      alert('No test results available to create scenario.');
       return;
     }
 
-    const stepsData = await stepsResponse.json();
-    console.log("Steps added:", stepsData);
+    try {
+      setIsCreatingTestCase(true);
+      
+      // Get the user ID from localStorage
+      const userId = localStorage.getItem("userId");
 
-    alert(`Test Scenario Created Successfully with ${selectedSteps.length} steps!`);
-    
-    navigate("/test-cases");
+      // Step 1: Create the test case first (with test scenario prompt)
+      const testCasePayload = {
+        user_id: parseInt(userId),
+        project_name: testCaseInfo.projectId,
+        testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
+        testcase_type: testCaseInfo.testcase_type || 'Functional',
+        testcase_priority: testCaseInfo.testcase_priority || 'Medium',
+        test_scenarios_desc: promptText 
+      };
 
-  } catch (error) {
-    console.error('Error creating test scenario:', error);
-    alert(`Error: ${error.message}`);
-  } finally {
-    setIsCreatingTestCase(false);
-  }
-};
+      console.log("Creating test case with payload:", testCasePayload);
+
+      const testCaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(testCasePayload)
+      });
+
+      if (!testCaseResponse.ok) {
+        const errorData = await testCaseResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create test case");
+      }
+
+      const testCaseData = await testCaseResponse.json();
+      console.log("Test case created:", testCaseData);
+
+      // Step 2: Prepare and add steps from automation results
+      const selectedSteps = testResults.action_history.map((actionItem, index) => {
+        const { action, request, result, screenshot } = actionItem;
+        
+        // Get step description from command or create from action
+        let stepDescription = request.command || `${action.action} ${action.element || ''}`;
+
+        // Determine test step result based on execution result
+        let teststep_result = "not_executed";
+        if (result === "executed" || result === "success") {
+          teststep_result = "passed";
+        } else if (result === "failed" || result === "error") {
+          teststep_result = "failed";
+        }
+
+        // Get coordinates from action or request
+        let coordinates = { click_x: 0, click_y: 0 };
+        if (action.coordinates) {
+          coordinates = {
+            click_x: action.coordinates.x || action.coordinates.click_x || 0,
+            click_y: action.coordinates.y || action.coordinates.click_y || 0
+          };
+        } else if (request.click_x !== undefined && request.click_y !== undefined) {
+          coordinates = {
+            click_x: request.click_x,
+            click_y: request.click_y
+          };
+        }
+
+        const stepData = {
+          step_number: index + 1,
+          step_description: stepDescription,
+          teststep_result: teststep_result,
+          step_coordinates: coordinates,
+          actual_result: result === "executed" ? "Step executed successfully" : result,
+          self_healing_required: true, 
+          scenarios_step_screenshot: screenshot || "",
+          step_reason: action.reasoning || `Reason for ${action.action} action on ${action.element || 'element'}`,
+          expected_result: action.expected_change || `Expected result for step ${index + 1}`,
+          // requires_otp: false,
+          // otp_type: null ,
+        };
+
+        return stepData;
+      });
+
+      // Create steps payload
+      const stepsPayload = {
+        user_id: parseInt(userId),
+        project_name: testCaseInfo.projectId,
+        testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
+        steps: selectedSteps
+      };
+
+      console.log("Adding steps with payload:", stepsPayload);
+
+      const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stepsPayload)
+      });
+
+      if (!stepsResponse.ok) {
+        const errorData = await stepsResponse.json().catch(() => ({}));
+        // If steps fail, show warning that test case was created but steps failed
+        console.warn("Steps creation failed:", errorData);
+        alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
+        return;
+      }
+
+      const stepsData = await stepsResponse.json();
+      console.log("Steps added:", stepsData);
+
+      alert(`Test Scenario Created Successfully with ${selectedSteps.length} steps!`);
+      
+      navigate("/test-cases");
+
+    } catch (error) {
+      console.error('Error creating test scenario:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsCreatingTestCase(false);
+    }
+  };
 
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
@@ -1044,454 +1057,318 @@ const createTestScenarioFromResults = async () => {
           </div>
         </div>
 
-        {/* ✅ NEW: OTP Confirmation Modal */}
-        {otpConfirmationModal.isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[70vh] overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">OTP Verification Setup</h3>
-                    <p className="text-sm text-gray-600">Configure automated OTP handling for your test</p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleOtpModalCancel}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-6">
-                {/* Contact Information */}
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">
-                        {otpConfirmationModal.contactStep + 1}
-                      </span>
-                    </div>
-                    <h4 className="font-semibold text-purple-900">Contact Method Detected</h4>
-                  </div>
-                  <div className="ml-11">
-                    <div className="flex items-center gap-2">
-                      <span className="text-purple-700 font-medium">
-                        {otpConfirmationModal.contactType === 'email' ? '📧 Email:' : '📱 Phone:'} 
-                      </span>
-                      <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {otpConfirmationModal.matchedContactData}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* OTP Step Selection */}
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-purple-600 rounded-full"></span>
-                    Select OTP Entry Step
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Which step requires entering the OTP/verification code?
-                  </p>
-                  
-                  <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {/* No OTP Option */}
-                    <label className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedOtpStep === 'none' 
-                        ? 'border-purple-300 bg-purple-50' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="otpStep"
-                        value="none"
-                        checked={selectedOtpStep === 'none'}
-                        onChange={(e) => setSelectedOtpStep(e.target.value)}
-                        className="mt-1 text-purple-600"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">No manual OTP step</div>
-                        <div className="text-sm text-gray-500">System will handle OTP automatically</div>
-                      </div>
-                    </label>
-
-                    {/* Available Steps */}
-                    {otpConfirmationModal.detectedSteps
-                      .slice(otpConfirmationModal.contactStep + 1)
-                      .map((step, index) => {
-                        const actualIndex = otpConfirmationModal.contactStep + 1 + index;
-                        const stepText = typeof step === 'object' ? step.command || step.description : step;
-                        const isLikely = isLikelyOtpStep(step);
-                        const isSelected = selectedOtpStep === actualIndex.toString();
-                        
-                        return (
-                          <label 
-                            key={actualIndex} 
-                            className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                              isSelected
-                                ? 'border-purple-300 bg-purple-50'
-                                : isLikely
-                                ? 'border-green-300 bg-green-50 hover:border-green-400'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="otpStep"
-                              value={actualIndex.toString()}
-                              checked={isSelected}
-                              onChange={(e) => setSelectedOtpStep(e.target.value)}
-                              className="mt-1 text-purple-600"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-gray-900">Step {actualIndex + 1}</span>
-                                {isLikely && (
-                                  <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
-                                    🎯 Detected OTP
-                                  </span>
-                                )}
-                                {isSelected && (
-                                  <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full font-medium">
-                                    Selected
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm text-gray-700 break-words font-mono bg-gray-50 px-2 py-1 rounded">
-                                {stepText}
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={handleOtpModalCancel}
-                  className="px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleOtpConfirmation(selectedOtpStep)}
-                  className="px-6 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors duration-200 font-medium shadow-md hover:shadow-lg"
-                >
-                  Configure & Proceed
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
         {/* Test Results Section */}
         {showTestResults && testResults && (
           <div className="mt-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+              
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    testResults.success ? 'bg-green-100' : 'bg-red-100'
+                    testResults.status === 'success' ? 'bg-green-100' : 'bg-red-100'
                   }`}>
-                    {testResults.success ? (
-                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
-                      </svg>
+                    {testResults.status === 'success' ? (
+                      <CheckCircle className="w-6 h-6 text-green-600" />
                     ) : (
-                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                      </svg>
+                      <AlertCircle className="w-6 h-6 text-red-600" />
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Test Execution Results</h2>
-                    <p className="text-sm text-gray-600">{testResults.test_prompt}</p>
+                    <h2 className="text-xl font-bold text-gray-900">Test Execution Report</h2>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowTestResults(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
+                  <X className="w-6 h-6" />
                 </button>
               </div>
 
               {/* Summary Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-purple-900">
-                    {testResults.success_metrics?.total_steps_attempted || 0}
+                {/* Status Card */}
+                <div className={`border rounded-lg p-4 ${
+                  testResults.status === 'success' 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className={`text-2xl font-bold ${
+                    testResults.status === 'success' ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {testResults.status === 'success' ? 'Passed' : 'Failed'}
                   </div>
-                  <div className="text-sm text-purple-700">Total Steps</div>
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-green-900">
-                    {testResults.success_metrics?.successful_steps || 0}
+                  <div className={`text-sm ${
+                    testResults.status === 'success' ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    Status
                   </div>
-                  <div className="text-sm text-green-700">Successful</div>
                 </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-red-900">
-                    {testResults.success_metrics?.total_failures || 0}
-                  </div>
-                  <div className="text-sm text-red-700">Failed</div>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-blue-900">
-                    {testResults.success_metrics?.success_rate || '0%'}
-                  </div>
-                  <div className="text-sm text-blue-700">Success Rate</div>
-                </div>
-              </div>
 
-              {/* Execution Time & Status */}
-              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm text-gray-600">Execution Time:</span>
-                    <span className="ml-2 text-lg font-semibold text-gray-900">
-                      {testResults.success_metrics?.execution_time
-                        ? testResults.success_metrics.execution_time >= 60
-                          ? `${(testResults.success_metrics.execution_time / 60).toFixed(2)}m`
-                          : `${testResults.success_metrics.execution_time.toFixed(2)}s`
-                        : "0s"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-600">Status:</span>
-                    <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
-                      testResults.result === 'passed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {testResults.result || 'Unknown'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ADD THIS ERROR SECTION HERE */}
-              {testResults.error_message && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0">
-                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
+                {/* For NEW AUTOMATION */}
+                {testResults.actions_taken && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-purple-900">
+                      {testResults.iterations || 0}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-red-900 mb-2">Error Details</h3>
-                      
-                      {/* Error Message */}
-                      <div className="mb-3">
-                        <span className="text-sm font-medium text-red-800">Message:</span>
-                        <p className="text-sm text-red-700 mt-1 bg-red-100 p-2 rounded border">
-                          {testResults.error_message}
-                        </p>
-                      </div>
+                    <div className="text-sm text-purple-700">Actions</div>
+                  </div>
+                )}
 
-                      {/* Error Context */}
-                      {testResults.error_context && (
-                        <div className="mb-3">
-                          <span className="text-sm font-medium text-red-800">Context:</span>
-                          <div className="text-sm text-red-700 mt-1 bg-red-100 p-3 rounded border">
-                            <div className="grid grid-cols-2 gap-4">
-                              {testResults.error_context.step_number && (
-                                <div>
-                                  <span className="font-medium">Step:</span> {testResults.error_context.step_number}
-                                </div>
-                              )}
-                              {testResults.error_context.action && (
-                                <div>
-                                  <span className="font-medium">Action:</span> {testResults.error_context.action}
-                                </div>
-                              )}
-                              {testResults.error_context.element && (
-                                <div>
-                                  <span className="font-medium">Element:</span> {testResults.error_context.element}
-                                </div>
-                              )}
-                              {testResults.error_context.error_type && (
-                                <div>
-                                  <span className="font-medium">Error Type:</span> {testResults.error_context.error_type}
-                                </div>
-                              )}
+                {/* For RERUN - Test Results */}
+                {testResults.summary && (
+                  <>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-green-900">
+                        {testResults.summary?.passed || 0}
+                      </div>
+                      <div className="text-sm text-green-700">Passed</div>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-red-900">
+                        {testResults.summary?.failed || 0}
+                      </div>
+                      <div className="text-sm text-red-700">Failed</div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-blue-900">
+                        {testResults.summary?.duration}
+                      </div>
+                      <div className="text-sm text-blue-700">Duration</div>
+                    </div>
+                  </>
+                )}
+
+                {/* Website */}
+                {testResults.website && (
+                  <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+                    <div className="text-lg font-bold text-cyan-900 truncate">
+                      {testResults.website}
+                    </div>
+                    <div className="text-sm text-cyan-700">Website</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Test Task */}
+              <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 className="font-semibold text-gray-900 mb-3">Test Task</h3>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {testResults.task}
+                </p>
+              </div>
+
+              {/* NEW AUTOMATION - Actions */}
+              {testResults.actions_taken && testResults.actions_taken.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">Actions Performed</h3>
+                  <div className="space-y-3">
+                    {testResults.actions_taken.map((action, index) => {
+                      const { type, details } = parseAction(action.action, action.input);
+                      const elementInfo = action.element_info;
+                      const { icon: Icon, label, color } = getActionInfo(type, details, elementInfo);
+
+                      return (
+                        <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex-shrink-0 pt-1">
+                            <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                              {index + 1}
                             </div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Traceback - Collapsible */}
-                      {testResults.error_context?.traceback && (
-                        <div className="mb-3">
-                          <details className="cursor-pointer">
-                            <summary className="text-sm font-medium text-red-800 hover:text-red-900 select-none">
-                              Technical Details (Click to expand)
-                            </summary>
-                            <div className="mt-2 p-3 bg-red-100 rounded border text-xs font-mono text-red-800 max-h-40 overflow-y-auto whitespace-pre-wrap">
-                              {testResults.error_context.traceback}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-2 mb-3">
+                              <div className={`flex-shrink-0 p-2 rounded ${color}`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {label}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5 font-mono">
+                                  {action.action}
+                                </p>
+                              </div>
                             </div>
-                          </details>
+                            
+                            {/* Element Full Context */}
+                            {elementInfo && (
+                              <div className="bg-white p-3 rounded border border-gray-200 space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-gray-600">Ref ID:</span>
+                                  <span className="text-xs bg-blue-100 text-blue-900 px-2 py-1 rounded font-mono">
+                                    {elementInfo.ref_id}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-gray-600">Element:</span>
+                                  <span className="text-xs bg-purple-100 text-purple-900 px-2 py-1 rounded">
+                                    &lt;{elementInfo.tag}&gt; {elementInfo.role}
+                                  </span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-gray-600">Text:</span>
+                                  <span className="text-xs bg-green-100 text-green-900 px-2 py-1 rounded">
+                                    "{elementInfo.text}"
+                                  </span>
+                                </div>
+                                {elementInfo.ariaLabel && (
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">Label:</span>
+                                    <span className="text-xs bg-yellow-100 text-yellow-900 px-2 py-1 rounded">
+                                      {elementInfo.ariaLabel}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.input.text && (
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">Input:</span>
+                                    <span className="text-xs bg-green-100 text-green-900 px-2 py-1 rounded break-words">
+                                      "{action.input.text}"
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* RERUN - Test Results */}
+              {testResults.tests && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">Test Results</h3>
+                  <div className="space-y-3">
+                    {testResults.tests.map((test, idx) => (
+                      <div key={idx} className={`p-4 rounded-lg border ${
+                        test.status === 'passed' 
+                          ? 'bg-green-50 border-green-200' 
+                          : 'bg-red-50 border-red-200'
+                      }`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className={`font-semibold ${
+                            test.status === 'passed' 
+                              ? 'text-green-900' 
+                              : 'text-red-900'
+                          }`}>
+                            {test.title}
+                          </h4>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            test.status === 'passed' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {test.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className={`text-sm mb-2 ${
+                          test.status === 'passed' 
+                            ? 'text-green-800' 
+                            : 'text-red-800'
+                        }`}>
+                          Duration: {test.duration}
+                        </p>
+                        
+                        {test.error && (
+                          <div className="bg-white p-3 rounded border border-red-300 mt-3">
+                            <p className="text-xs font-semibold text-red-900 mb-2">Error:</p>
+                            <p className="text-xs text-red-800 mb-2 font-mono break-words">
+                              {test.error.message}
+                            </p>
+                            <p className="text-xs text-red-700 mb-1">
+                              <strong>File:</strong> {test.error.file}:{test.error.line}
+                            </p>
+                            <div className="bg-red-100 p-2 rounded text-xs font-mono text-red-900 overflow-x-auto mt-2">
+                              <pre>{test.error.snippet}</pre>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Generated Test File Section */}
+              {generatedTestFile && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                        <Code className="w-5 h-5" />
+                        Generated Test File
+                      </h4>
+                      
+                      {/* File Details */}
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-600">File:</span>
+                          <span className="text-xs bg-white px-2 py-1 rounded font-mono text-blue-900">
+                            {generatedTestFile.filename}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-600">Path:</span>
+                          <span className="text-xs text-gray-700 break-all">
+                            {generatedTestFile.test_file}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Run Command */}
+                      <div className="bg-white p-2 rounded border border-blue-300 font-mono text-xs text-gray-800">
+                        npx playwright test {generatedTestFile.filename}
+                      </div>
+                    </div>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => deleteTestFile(generatedTestFile.filename, generatedTestFile.metadata_file)}
+                      className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete test file"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Message */}
+              {testResults.status === 'success' ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-green-900 mb-1">Test Completed Successfully</h4>
+                      <p className="text-sm text-green-800">
+                        {testResults.actions_taken 
+                          ? 'All automated actions were executed successfully. You can now create a test case from these results.'
+                          : 'The test file executed successfully without any errors.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-900 mb-1">Test Execution Failed</h4>
+                      <p className="text-sm text-red-800">
+                        {testResults.message || 'The test did not complete successfully. Please check the details above.'}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Results Table */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Step-by-Step Execution</h3>
-                
-                <div className="overflow-hidden border border-gray-200 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Step
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Action
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Element
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Input
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Screenshot
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {testResults.action_history?.map((action, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
-                              action.result === 'executed' || action.result === 'success' 
-                                ? 'bg-green-600' 
-                                : 'bg-red-600'
-                            }`}>
-                              {action.step + 1}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900 capitalize">
-                              {action.action?.action || 'Unknown'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 max-w-xs truncate" title={action.action?.element || 'N/A'}>
-                              {action.action?.element || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 max-w-xs truncate">
-                              {action.action?.text || action.action?.url || '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              action.result === 'executed' || action.result === 'success'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}>
-                              {action.result || 'Unknown'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {action.screenshot ? (
-                              <button
-                                onClick={() => setScreenshotModal({
-                                  isOpen: true,
-                                  src: `http://127.0.0.1:8000${action.screenshot}`,
-                                  alt: `Screenshot for step ${action.step + 1}`
-                                })}
-                                className="text-blue-600 hover:text-blue-800 transition-colors"
-                                title={`View screenshot for step ${action.step + 1}`}
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z"/>
-                                </svg>
-                              </button>
-                            ) : (
-                              <span className="text-gray-400">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Final Screenshots */}
-                {/* {testResults.screenshots && (
-                  <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-4">Final Results</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {testResults.screenshots.previous_screenshot && (
-                        <div>
-                          <div className="text-sm text-gray-600 mb-2">Previous Screenshot</div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <img
-                              src={`http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`}
-                              alt="Previous screenshot"
-                              className="w-full h-auto max-h-48 object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => setScreenshotModal({
-                                isOpen: true,
-                                src: `http://127.0.0.1:8000${testResults.screenshots.previous_screenshot}`,
-                                alt: 'Previous screenshot'
-                              })}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      {testResults.screenshots.final_screenshot && (
-                        <div>
-                          <div className="text-sm text-gray-600 mb-2">Final Screenshot</div>
-                          <div className="border border-gray-200 rounded-lg overflow-hidden">
-                            <img
-                              src={`http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`}
-                              alt="Final screenshot"
-                              className="w-full h-auto max-h-48 object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => setScreenshotModal({
-                                isOpen: true,
-                                src: `http://127.0.0.1:8000${testResults.screenshots.final_screenshot}`,
-                                alt: 'Final screenshot'
-                              })}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )} */}
-              </div>
             </div>
           </div>
         )}
@@ -1513,6 +1390,83 @@ const createTestScenarioFromResults = async () => {
                 alt={screenshotModal.alt}
                 className="w-full h-full object-contain bg-white rounded-lg"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Test Found Modal */}
+        {testFoundModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">Test File Found</h2>
+                </div>
+                <button
+                  onClick={() => setTestFoundModalOpen(false)}
+                  disabled={isExtracting}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">A test file from a previous run was detected. What would you like to do?</p>
+              
+              <div className="bg-gray-50 p-3 rounded-lg mb-6 border border-gray-200">
+                <p className="text-xs text-gray-500 mb-1">Generated:</p>
+                <p className="text-sm font-mono text-gray-700">{foundTestData?.generated_at}</p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => runExistingTest(foundTestData.test_file)}
+                  disabled={isExtracting}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  {isExtracting ? (
+                    <>
+                      <Clock className="w-4 h-4 animate-spin" />
+                      Running...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" />
+                      Run Existing Test (Fast)
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => runNewAutomation()}
+                  disabled={isExtracting}
+                  className="w-full px-4 py-3 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 disabled:bg-gray-400 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Automation (Fresh)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Modal */}
+        {loadingModal.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+              <div className="flex flex-col items-center gap-4">
+                <svg className="animate-spin h-12 w-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{loadingModal.title}</h3>
+                  <p className="text-sm text-gray-600">{loadingModal.message}</p>
+                </div>
+              </div>
             </div>
           </div>
         )}

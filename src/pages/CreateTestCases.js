@@ -115,6 +115,21 @@ const CreateTestCases = () => {
   //   }
   // };
 
+  const getNextRoute = () => {
+    if (
+      selectedProject.project_type === "Web Application" &&
+      selectedProject.platform.toLowerCase() === "mobile"
+    ) {
+      return "/android-scenario";
+    } else if (
+      selectedProject.project_type === "Mobile Application" &&
+      selectedProject.platform.toLowerCase() === "android"
+    ) {
+      return "/android-scenario";
+    }
+    return "/test-scenario";
+  };
+
   const handleNextClick = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return;
@@ -149,7 +164,7 @@ const CreateTestCases = () => {
         }
         
         // Navigate directly to TestSenario page
-        navigate("/test-scenario", {
+        navigate(getNextRoute(), {
           state: {
             testCaseInfo: {
               testcase_name: testcase_name.trim(),
@@ -165,7 +180,7 @@ const CreateTestCases = () => {
       } else {
         if (response.status === 404) {
           // Navigate directly to TestSenario page
-          navigate("/test-scenario", {
+          navigate(getNextRoute(), {
             state: {
               testCaseInfo: {
                 testcase_name: testcase_name.trim(),

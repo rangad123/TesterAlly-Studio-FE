@@ -361,6 +361,7 @@ import DesktopPrompt from "./pages/DesktopPrompt";
 import TestSenario from "./pages/TestSenario";
 import MobilePrompt from "./Android/MobilePrompt";
 import AndroidPrompt from "./Android/AndroidPrompt";
+import AndroidSenario from "./Android/AndroidSenario";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -946,6 +947,15 @@ const App = () => {
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
                     <Requirement />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="android-scenario"
+                exact
+                element={
+                  <PrivateRoute isLoggedIn={isLoggedIn}>
+                    <AndroidSenario />
                   </PrivateRoute>
                 }
               />
