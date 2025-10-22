@@ -238,7 +238,8 @@ useEffect(() => {
         user_id: userId, 
         prompt: promptText,
         scenarios_name: scenarioName,
-        run_mode: "auto"
+        run_mode: "auto",
+        test_path: testCaseInfo?.testcase_dir || "",
       });
 
       const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
@@ -251,7 +252,8 @@ useEffect(() => {
           user_id: userId,
           prompt: promptText,
           scenarios_name: scenarioName,
-          run_mode: "auto"  
+          run_mode: "auto",
+          test_path: testCaseInfo?.testcase_dir || "", 
         })
       });
 

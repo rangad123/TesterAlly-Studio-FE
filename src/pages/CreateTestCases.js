@@ -63,58 +63,6 @@ const CreateTestCases = () => {
     return isValid;
   };
 
-  // const handleNextClick = async () => {
-  //   const userId = localStorage.getItem("userId");
-  //   if (!userId) return;
-  //   if (!validateFields()) return;
-  //   setIsLoading(true);
-
-  //   try {
-  //     const response = await fetch(
-  //       `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${selectedProject.project_name}&testcase_name=${encodeURIComponent(testcase_name)}`,
-  //       {
-  //         headers: { "Content-Type": "application/json" }
-  //       }
-  //     );
-
-  //     if (response.ok) {
-  //       if (response.status === 200) {
-  //         const data = await response.json();
-  //         const existingTestCase = data.testcase;
-
-  //         if (
-  //           existingTestCase &&
-  //           existingTestCase.testcase_name.toLowerCase() === testcase_name.toLowerCase()
-  //         ) {
-  //           console.log("✅ Duplicate found — setting error");
-  //           setErrors((prev) => ({
-  //             ...prev,
-  //             name: "A test case with this name already exists. Please use a different name.",
-  //           }));
-  //           setIsLoading(false);
-  //           return;
-  //         }
-  //       }
-        
-  //       setShowModal(true);
-  //       setIsLoading(false);
-        
-  //     } else {
-  //       if (response.status === 404) {
-  //         setShowModal(true);
-  //         setIsLoading(false);
-  //       } else {
-  //         throw new Error("Failed to check existing test cases");
-  //       }
-  //     }
-
-  //   } catch (error) {
-  //     console.error("Error checking test case name:", error);
-  //     alert("Error checking test case name. Please try again.");
-  //     setIsLoading(false);
-  //   }
-  // };
-
   const getNextRoute = () => {
     if (
       selectedProject.project_type === "Web Application" &&
@@ -163,22 +111,33 @@ const CreateTestCases = () => {
           }
         }
         
-        // Navigate directly to TestSenario page
-        navigate(getNextRoute(), {
-          state: {
-            testCaseInfo: {
-              testcase_name: testcase_name.trim(),
-              testcase_type: testCaseType,
-              testcase_priority: testCasePriority,
-              projectId: selectedProject.project_name,
-              project_type: selectedProject.project_type,
-              platform: selectedProject.platform
-            }
-          }
-        });
-        
       } else {
-        if (response.status === 404) {
+          if (response.status === 404) {
+
+            // 2️⃣ Create new testcase (POST)
+          const postBody = {
+            user_id: userId,
+            project_name: selectedProject.project_name,
+            testcase_name: testcase_name.trim(),
+            testcase_type: testCaseType,
+            testcase_priority: testCasePriority,
+          };
+          console.log("Creating Test Case with data:", postBody);
+
+          const postResponse = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(postBody),
+          });
+
+          if (!postResponse.ok) {
+            const errData = await postResponse.json();
+            throw new Error(errData.error || "Failed to create test case");
+          }
+
+          const postData = await postResponse.json();
+          console.log("Created Test Case:", postData);
+          
           // Navigate directly to TestSenario page
           navigate(getNextRoute(), {
             state: {
@@ -188,7 +147,8 @@ const CreateTestCases = () => {
                 testcase_priority: testCasePriority,
                 projectId: selectedProject.project_name,
                 project_type: selectedProject.project_type,
-                platform: selectedProject.platform
+                platform: selectedProject.platform,
+                testcase_dir: postData.Testcase_Data?.testcase_dir || "",
               }
             }
           });
