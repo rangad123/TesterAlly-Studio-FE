@@ -112,33 +112,33 @@ const CreateTestCases = () => {
         }
         
       } else {
-          if (response.status === 404) {
+          if (response.status === 404 ) {
 
-            // 2️⃣ Create new testcase (POST)
-          const postBody = {
-            user_id: userId,
-            project_name: selectedProject.project_name,
-            testcase_name: testcase_name.trim(),
-            testcase_type: testCaseType,
-            testcase_priority: testCasePriority,
-          };
-          console.log("Creating Test Case with data:", postBody);
+          // 2️⃣ Create new testcase (POST)
+          // const postBody = {
+          //   user_id: userId,
+          //   project_name: selectedProject.project_name,
+          //   testcase_name: testcase_name.trim(),
+          //   testcase_type: testCaseType,
+          //   testcase_priority: testCasePriority,
+          // };
+          // console.log("Creating Test Case with data:", postBody);
 
-          const postResponse = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(postBody),
-          });
+          // const postResponse = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
+          //   method: "POST",
+          //   headers: { "Content-Type": "application/json" },
+          //   body: JSON.stringify(postBody),
+          // });
 
-          if (!postResponse.ok) {
-            const errData = await postResponse.json();
-            throw new Error(errData.error || "Failed to create test case");
-          }
+          // if (!postResponse.ok) {
+          //   const errData = await postResponse.json();
+          //   throw new Error(errData.error || "Failed to create test case");
+          // }
 
-          const postData = await postResponse.json();
-          console.log("Created Test Case:", postData);
+          // const postData = await postResponse.json();
+          // console.log("Created Test Case:", postData);
           
-          // Navigate directly to TestSenario page
+          // Navigate directly to TestSenario page         
           navigate(getNextRoute(), {
             state: {
               testCaseInfo: {
@@ -147,8 +147,7 @@ const CreateTestCases = () => {
                 testcase_priority: testCasePriority,
                 projectId: selectedProject.project_name,
                 project_type: selectedProject.project_type,
-                platform: selectedProject.platform,
-                testcase_dir: postData.Testcase_Data?.testcase_dir || "",
+                platform: selectedProject.platform
               }
             }
           });

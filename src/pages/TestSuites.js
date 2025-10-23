@@ -321,7 +321,7 @@ const TestSuites = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {Array.isArray(testSuite.testcase) && testSuite.testcase.length > 0
-                            ? testSuite.testcase.join(', ')
+                            ? testSuite.testcase.map(tc => tc.testcase_name).join(', ')
                             : "No Test Cases"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

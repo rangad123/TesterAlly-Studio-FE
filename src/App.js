@@ -362,6 +362,7 @@ import TestSenario from "./pages/TestSenario";
 import MobilePrompt from "./Android/MobilePrompt";
 import AndroidPrompt from "./Android/AndroidPrompt";
 import AndroidSenario from "./Android/AndroidSenario";
+import TestScript from "./pages/TestScript";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -923,11 +924,11 @@ const App = () => {
                 }
               />
               <Route
-                path="/test-cases/:testCaseId/steps"
+                path="/test-cases/:testCaseId/script"
                 exact
                 element={
                   <PrivateRoute isLoggedIn={isLoggedIn}>
-                    <TestStepSelector />
+                    <TestScript />
                   </PrivateRoute>
                 }
               />

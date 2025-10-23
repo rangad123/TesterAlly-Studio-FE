@@ -93,17 +93,19 @@ const TestSuite = () => {
     try {
       const userId = localStorage.getItem("userId");
       const testCasesData = await Promise.all(
-        testSuite.testcase.map(async (testCaseName) => {
+        testSuite.testcase.map(async (testCaseObj) => {  
           const response = await fetch(
-            `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectId}&testcase_name=${testCaseName}`
+            `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectId}&testcase_name=${testCaseObj.testcase_name}`
           );
-          if (!response.ok) throw new Error(`Failed to fetch test case ${testCaseName}`);
+          if (!response.ok) throw new Error(`Failed to fetch test case ${testCaseObj.testcase_name}`);
           const data = await response.json();
           
           return {
-            name: data.testcase_name || testCaseName,
+            name: data.testcase_name || testCaseObj.testcase_name,
             testcase_type: data.testcase?.testcase_type,
             testcase_priority: data.testcase?.testcase_priority,
+            testfile_name: testCaseObj.testfile_name,      
+            testfile_path: testCaseObj.testfile_path,      
             steps: data.testcase?.steps || [],
             ...data
           };
@@ -685,8 +687,17 @@ const handleRunTestSuite = async () => {
                   </span>
                 )}
               </div>
-              <div className="text-sm text-gray-500 mt-1">
-                Type: {testCase.testcase_type} | Priority: {testCase.testcase_priority}
+              <div className="flex items-center justify-between text-sm text-gray-500 mt-1">
+                <div className="flex items-center gap-3">
+                  <span>Type: {testCase.testcase_type}</span>
+                  <span>|</span>
+                  <span>Priority: {testCase.testcase_priority}</span>
+                </div>
+                {testCase.testfile_name && (
+                  <span className="text-xs text-purple-600 font-medium">
+                    📄 {testCase.testfile_name}
+                  </span>
+                )}
               </div>
               
               {/* Execution Summary */}

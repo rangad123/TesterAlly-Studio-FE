@@ -253,7 +253,7 @@ const TestCases = () => {
 
 const handleRowClick = (testCase) => {
   
-  const targetPath = `/test-cases/${encodeURIComponent(testCase.testcase_name)}/steps`;
+  const targetPath = `/test-cases/${encodeURIComponent(testCase.testcase_name)}/script`;
   console.log("5. Target path:", targetPath);
   
   const stateData = {
@@ -261,7 +261,9 @@ const handleRowClick = (testCase) => {
     testCaseId: testCase.id || testCase.testcase_name,
     projectName: selectedProject.project_name,
     ProjectType: selectedProject.project_type,
-    Platform: selectedProject.platform
+    Platform: selectedProject.platform,
+    testFileName: testCase.testfile_name,  
+    testFilePath: testCase.testfile_path
   };
   console.log("6. State data:", stateData);
   

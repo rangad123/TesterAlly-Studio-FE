@@ -239,7 +239,7 @@ useEffect(() => {
         prompt: promptText,
         scenarios_name: scenarioName,
         run_mode: "auto",
-        test_path: testCaseInfo?.testcase_dir || "",
+        // test_path: testCaseInfo?.testcase_dir || "",
       });
 
       const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
@@ -252,8 +252,7 @@ useEffect(() => {
           user_id: userId,
           prompt: promptText,
           scenarios_name: scenarioName,
-          run_mode: "auto",
-          test_path: testCaseInfo?.testcase_dir || "", 
+          run_mode: "auto"
         })
       });
 
@@ -534,7 +533,7 @@ useEffect(() => {
   };
 
   const createTestScenarioFromResults = async () => {
-    if (!testResults || !testResults.action_history) {
+    if (!testResults || !testResults.actions_taken) {
       alert('No test results available to create scenario.');
       return;
     }
@@ -552,7 +551,9 @@ useEffect(() => {
         testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
         testcase_type: testCaseInfo.testcase_type || 'Functional',
         testcase_priority: testCaseInfo.testcase_priority || 'Medium',
-        test_scenarios_desc: promptText 
+        test_scenarios_desc: promptText,
+        testfile_name: generatedTestFile?.filename || "",
+        testfile_path: generatedTestFile?.test_file || "" 
       };
 
       console.log("Creating test case with payload:", testCasePayload);
@@ -571,80 +572,33 @@ useEffect(() => {
       const testCaseData = await testCaseResponse.json();
       console.log("Test case created:", testCaseData);
 
-      // Step 2: Prepare and add steps from automation results
-      const selectedSteps = testResults.action_history.map((actionItem, index) => {
-        const { action, request, result, screenshot } = actionItem;
-        
-        // Get step description from command or create from action
-        let stepDescription = request.command || `${action.action} ${action.element || ''}`;
-
-        // Determine test step result based on execution result
-        let teststep_result = "not_executed";
-        if (result === "executed" || result === "success") {
-          teststep_result = "passed";
-        } else if (result === "failed" || result === "error") {
-          teststep_result = "failed";
-        }
-
-        // Get coordinates from action or request
-        let coordinates = { click_x: 0, click_y: 0 };
-        if (action.coordinates) {
-          coordinates = {
-            click_x: action.coordinates.x || action.coordinates.click_x || 0,
-            click_y: action.coordinates.y || action.coordinates.click_y || 0
-          };
-        } else if (request.click_x !== undefined && request.click_y !== undefined) {
-          coordinates = {
-            click_x: request.click_x,
-            click_y: request.click_y
-          };
-        }
-
-        const stepData = {
-          step_number: index + 1,
-          step_description: stepDescription,
-          teststep_result: teststep_result,
-          step_coordinates: coordinates,
-          actual_result: result === "executed" ? "Step executed successfully" : result,
-          self_healing_required: true, 
-          scenarios_step_screenshot: screenshot || "",
-          step_reason: action.reasoning || `Reason for ${action.action} action on ${action.element || 'element'}`,
-          expected_result: action.expected_change || `Expected result for step ${index + 1}`,
-          // requires_otp: false,
-          // otp_type: null ,
+      // ✅ Step 2: Copy test file to clone path
+      if (generatedTestFile?.test_file) {
+        const importPayload = {
+          user_id: parseInt(userId),
+          project_name: testCaseInfo.projectId,
+          file_path: generatedTestFile.test_file
         };
 
-        return stepData;
-      });
+        console.log("Importing test file with payload:", importPayload);
 
-      // Create steps payload
-      const stepsPayload = {
-        user_id: parseInt(userId),
-        project_name: testCaseInfo.projectId,
-        testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
-        steps: selectedSteps
-      };
+        const importResponse = await fetch("http://127.0.0.1:8000/integrate/test_scripts/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(importPayload)
+        });
 
-      console.log("Adding steps with payload:", stepsPayload);
-
-      const stepsResponse = await fetch("http://127.0.0.1:8000/integrate/teststep/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(stepsPayload)
-      });
-
-      if (!stepsResponse.ok) {
-        const errorData = await stepsResponse.json().catch(() => ({}));
-        // If steps fail, show warning that test case was created but steps failed
-        console.warn("Steps creation failed:", errorData);
-        alert(`Test Case Created Successfully, but failed to add steps: ${errorData.message || "Unknown error"}`);
-        return;
+        if (!importResponse.ok) {
+          const errorData = await importResponse.json().catch(() => ({}));
+          console.warn("Test file import failed:", errorData);
+          alert(`Test Scenario Created Successfully, but failed to copy test file: ${errorData.error || "Unknown error"}`);
+        } else {
+          const importData = await importResponse.json();
+          console.log("Test file imported:", importData);
+        }
       }
 
-      const stepsData = await stepsResponse.json();
-      console.log("Steps added:", stepsData);
-
-      alert(`Test Scenario Created Successfully with ${selectedSteps.length} steps!`);
+      alert(`Test Scenario Created Successfully!`);
       
       navigate("/test-cases");
 

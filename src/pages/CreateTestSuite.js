@@ -166,7 +166,11 @@ const CreateTestSuite = () => {
         pre_requisite: preRequisite,
         labels: labels.split(",").map((label) => label.trim()).filter(Boolean),
         project_name: selectedProject.project_name,
-        testcase: selectedTestCases.map(tc => tc.testcase_name),
+        testcase: selectedTestCases.map(tc => ({
+          testcase_name: tc.testcase_name,
+          testfile_name: tc.testfile_name,      
+          testfile_path: tc.testfile_path     
+        })),
       };
 
       console.log("Payload:", payload);
@@ -359,6 +363,9 @@ const CreateTestSuite = () => {
                               onChange={() => handleTestCaseSelection(testCase)}
                             />
                             <span className="flex-1">{testCase.testcase_name}</span>
+                            {testCase.testfile_name && (
+                              <span className="text-xs text-gray-500">{testCase.testfile_name}</span>
+                            )}
                           </div>
                         ))}
                       </div>
