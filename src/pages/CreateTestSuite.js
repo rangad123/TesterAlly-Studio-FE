@@ -354,7 +354,6 @@ const CreateTestSuite = () => {
                               ${selectedTestCases.some(tc => tc.testcase_name === testCase.testcase_name)
                                 ? 'bg-blue-50 border border-blue-200'
                                 : 'hover:bg-gray-50 border border-gray-200'}`}
-                            onClick={() => handleTestCaseSelection(testCase)}
                           >
                             <input
                               type="checkbox"
@@ -362,7 +361,12 @@ const CreateTestSuite = () => {
                               checked={selectedTestCases.some(tc => tc.testcase_name === testCase.testcase_name)}
                               onChange={() => handleTestCaseSelection(testCase)}
                             />
-                            <span className="flex-1">{testCase.testcase_name}</span>
+                            <div 
+                              className="flex flex-col flex-1 cursor-pointer"
+                              onClick={() => handleTestCaseSelection(testCase)}
+                            >
+                              <span>{testCase.testcase_name}</span>
+                            </div>
                             {testCase.testfile_name && (
                               <span className="text-xs text-gray-500">{testCase.testfile_name}</span>
                             )}

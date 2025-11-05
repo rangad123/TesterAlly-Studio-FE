@@ -278,8 +278,8 @@ const handleRunTestSuite = async () => {
     return;
   }
   
-  const waitStepsMs = parseInt(waitBetweenSteps) || 1000;
-  const waitCasesMs = parseInt(waitBetweenCases) || 3000;
+  // const waitStepsMs = parseInt(waitBetweenSteps) || 1000;
+  // const waitCasesMs = parseInt(waitBetweenCases) || 3000;
   
   try {
     if (cancellationRequested) {
@@ -300,16 +300,25 @@ const handleRunTestSuite = async () => {
       }
     }
 
+    // ✅ Extract all test case names and paths 
+    const testcaseDetails = testCases.map(tc => ({
+      testcase_name: tc.name,
+      testfile_name: tc.testfile_name,
+      testfile_path: tc.testfile_path
+    }));
+
     const requestBody = {
       testsuite_title: testSuiteName,
       project_name: projectId,
       user_id: userId,
-      wait_between_steps: waitStepsMs,
-      wait_between_cases: waitCasesMs,
+      testcases: testcaseDetails,
+      // wait_between_steps: waitStepsMs,
+      // wait_between_cases: waitCasesMs,
     };
 
     console.log("Project Type:",ProjectType)
     console.log("Project Platform:",Platform)
+    console.log("Executing with payload:", requestBody);
 
     let apiUrl = "";
 
@@ -318,7 +327,7 @@ const handleRunTestSuite = async () => {
     } else if (ProjectType === "Web Application" && Platform === "Mobile") {
       apiUrl = "http://127.0.0.1:8000/android/web_run_testsuite/";
     } else if (ProjectType === "Web Application" && Platform === "Laptop/PC") {
-      apiUrl = "http://127.0.0.1:8000/integrate/run_testsuite/";
+      apiUrl = "http://127.0.0.1:8000/AI/test/run_testsuite/";
     } else {
       setError("Unsupported combination of project type and platform");
       setExecutionInProgress(false);
@@ -348,118 +357,107 @@ const handleRunTestSuite = async () => {
       return;
     }
 
-    const testcases = result.results?.testcases || [];
-    // const summary = result.results?.summary || {};
+    const testResults = result.results || [];
 
-    if (testcases.length > 0) {
+    if (testResults.length > 0) {
       const detailedResults = {};
 
-      testcases.forEach((testcase, index) => {
-        const testcaseName = testcase.testcase_name || testcase.name || `Test-${index + 1}`;
-        const stepSummary = testcase.summary || {};
-        const steps = testcase.steps || [];
+      testResults.forEach((testResult, index) => {
+        const testFileName = testResult.test_file || `Test-${index + 1}`;
+        const summary = testResult.summary || {};
+        const tests = testResult.tests || [];
 
-        detailedResults[testcaseName] = {
-          status: stepSummary.status || 'unknown',
+        detailedResults[testFileName] = {
+          status: testResult.status || 'unknown',
+          passed: testResult.passed,
+          message: testResult.message || '',
           summary: {
-            total_steps: stepSummary.total_steps || 0,
-            passed_steps: stepSummary.passed_steps || 0,
-            failed_steps: stepSummary.failed_steps || 0,
-            execution_time: stepSummary.execution_time || 0,
-            status: stepSummary.status || 'unknown'
+            total: summary.total || 0,
+            passed: summary.passed || 0,
+            failed: summary.failed || 0,
+            skipped: summary.skipped || 0,
+            duration: summary.duration || '0s'
           },
-          steps: steps
+          tests: tests.map(test => ({
+            title: test.title,
+            status: test.status,
+            duration: test.duration,
+            error: test.error || null
+          })),
+          screenshots: testResult.screenshots || [] 
         };
       });
 
       setExecutionResults(detailedResults);
 
       try {
-        const suiteReportResponse = await fetch("http://127.0.0.1:8000/integrate/suite_report/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            project_name: projectId, 
-            testsuite_name: testSuiteName,
-          }),
-        });
-
-        if (suiteReportResponse.ok) {
-          const suiteReportData = await suiteReportResponse.json();
-          console.log("Suite report response:", suiteReportData);
-        } else {
-          console.error("Failed to fetch test suite report.");
-        }
-      } catch (reportErr) {
-        console.error("Error sending test suite report:", reportErr);
-      }
-      
-      try {
-        const testcases = result.results?.testcases || [];
-        const summary = result.results?.summary || {};
+        // ✅ Save Test Suite Result from API response
+        const apiSummary = result.summary || {};
         
         const testSuiteResult = {
-          id: Date.now(), 
+          id: Date.now(),
           project_name: projectId,
           name: testSuite.title || testSuiteName,
-          status: summary.status || summary.overall_status || 'unknown', // ✅ Fixed
+          status: result.passed ? 'passed' : 'failed',
           execution_date: new Date().toISOString(),
-          total_testcases: summary.total_testcases || testcases.length, // ✅ Fixed
-          passed_testcases: summary.passed_testcases || 0,
-          failed_testcases: (summary.total_testcases || testcases.length) - (summary.passed_testcases || 0), // ✅ Fixed
-          execution_time: summary.execution_time || 0
+          total_testcases: apiSummary.total || 0,
+          passed_testcases: apiSummary.passed || 0,
+          failed_testcases: apiSummary.failed || 0,
+          execution_time: parseFloat(apiSummary.duration?.replace('s', '') || 0)
         };
         
         const testSuiteResults = JSON.parse(localStorage.getItem('testSuiteResults') || '[]');
         testSuiteResults.push(testSuiteResult);
-        localStorage.setItem('testSuiteResults', JSON.stringify(testSuiteResults.slice(-10)));
-
+        localStorage.setItem('testSuiteResults', JSON.stringify(testSuiteResults.slice(-50)));
+        
+        // ✅ Save Individual Test Case Results from API response
+        const testResults = result.results || [];
         const testCaseResults = JSON.parse(localStorage.getItem('testCaseResults') || '[]');
         
-        testcases.forEach((testcase, index) => {
-          const testcaseName = testcase.testcase_name || 
-                              testcase.name || 
-                              `Test-${index + 1}`;
-          
-          const testcaseSummary = testcase.summary || {};
+        testResults.forEach((testResult) => {
+          const testFileName = testResult.test_file || 'Unknown Test';
+          const testSummary = testResult.summary || {};
           
           const testCaseResult = {
             id: Date.now() + Math.random() * 1000,
             project_name: projectId,
-            name: testcaseName,
-            status: testcaseSummary.status === "passed" ? "PASS" : "FAIL",
+            name: testFileName.replace('.spec.js', ''),
+            status: testResult.passed ? 'PASS' : 'FAIL',
             execution_date: new Date().toISOString(),
-            total_steps: testcaseSummary.total_steps || 0,
-            passed_steps: testcaseSummary.passed_steps || 0,
-            failed_steps: (testcaseSummary.total_steps || 0) - (testcaseSummary.passed_steps || 0),
-            execution_time: testcaseSummary.execution_time || 0
+            total_steps: testSummary.total || 0,
+            passed_steps: testSummary.passed || 0,
+            failed_steps: testSummary.failed || 0,
+            execution_time: parseFloat(testSummary.duration?.replace('s', '') || 0)
           };
+          
           testCaseResults.push(testCaseResult);
+          console.log('Prepared test case result for storage:', testCaseResult);
         });
         
         localStorage.setItem('testCaseResults', JSON.stringify(testCaseResults.slice(-10)));
-        
+        console.log("Saved test suite and test case results to localStorage.");
+
       } catch (storageError) {
         console.error("Error storing results:", storageError);
       }
     }
     
-    const apiSummary = result.results?.summary || {};
-    console.log("API Summary received:", apiSummary); // Debug log
+    const apiSummary = result.summary || {};
+    console.log("API Summary received:", apiSummary);
 
-    const totalCases = apiSummary.total_testcases || result.results?.testcases?.length || 0;
-    const passedCases = apiSummary.passed_testcases || 0;
+    const totalCases = apiSummary.total || 0;
+    const passedCases = apiSummary.passed || 0;
+    const failedCases = apiSummary.failed || 0;
 
-    console.log("Parsed values:", { totalCases, passedCases }); // Debug log
+    console.log("Parsed values:", { totalCases, passedCases, failedCases });
 
     setTestSuiteSummary({
-      status: apiSummary.overall_status || 'unknown',
-      passed_cases: passedCases,
-      total_cases: totalCases,
-      execution_time: apiSummary.execution_time || 0
+      status: result.passed ? 'passed' : 'failed',
+      passed: passedCases,
+      failed: failedCases,
+      total: totalCases,
+      skipped: apiSummary.skipped || 0,
+      duration: apiSummary.duration || '0s'
     });
       
   } catch (err) {
@@ -865,6 +863,143 @@ const handleRunTestSuite = async () => {
       );
   };
 
+  const TestFileResultAccordion = ({ testFileName, result, setExpandedScreenshot }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const actualSummary = {
+      total: result.tests?.length || 0,
+      passed: result.tests?.filter(t => t.status === 'passed').length || 0,
+      failed: result.tests?.filter(t => t.status === 'failed').length || 0,
+      duration: result.tests?.reduce((sum, t) => {
+        const dur = parseFloat(t.duration?.replace('s', '') || 0);
+        return sum + dur;
+      }, 0).toFixed(1) + 's'
+    };
+
+    return (
+      <div className="border rounded-lg overflow-hidden bg-white">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 flex items-center justify-between transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-gray-900">📄 {testFileName}</span>
+            <span className={`px-2 py-1 rounded text-xs font-medium ${
+              actualSummary.failed === 0 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {actualSummary.failed === 0 ? '✅ PASSED' : '❌ FAILED'}
+            </span>
+            <span className="text-xs text-gray-600">
+              {actualSummary.passed}/{actualSummary.total} passed
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">{actualSummary.duration}</span>
+            <svg
+              className={`w-5 h-5 text-gray-600 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {isOpen && (
+          <div className="p-4 bg-white space-y-4 border-t">
+            {/* Test Results */}
+            {result.tests && result.tests.length > 0 && (
+              <div className="space-y-3">
+                {result.tests.map((test, testIndex) => (
+                  <div
+                    key={testIndex}
+                    className={`border-l-4 rounded-lg p-4 ${
+                      test.status === 'passed' 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-red-500 bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h5 className="font-medium text-gray-900 flex-1">{test.title}</h5>
+                      <span className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ml-2 ${
+                        test.status === 'passed' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {test.status === 'passed' ? '✅ PASSED' : '❌ FAILED'}
+                      </span>
+                    </div>
+
+                    <div className="text-sm text-gray-600 mb-3">
+                      ⏱️ Duration: {test.duration}
+                    </div>
+
+                    {test.error && (
+                      <div className="mt-3 bg-white border border-red-200 rounded p-3">
+                        <h6 className="text-sm font-semibold text-red-800 mb-2">❌ Error Details</h6>
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">Message:</span>
+                            <p className="text-red-700 mt-1 font-mono text-xs bg-red-50 p-2 rounded break-words">
+                              {test.error.message}
+                            </p>
+                          </div>
+                          
+                          {test.error.file && (
+                            <div>
+                              <span className="font-medium text-gray-700">Location:</span>
+                              <p className="text-gray-600 mt-1 font-mono text-xs break-all">
+                                {test.error.file}{test.error.line && ` (Line ${test.error.line})`}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {test.error.snippet && test.error.snippet.trim() && (
+                            <div>
+                              <span className="font-medium text-gray-700">Code Snippet:</span>
+                              <pre className="mt-1 bg-gray-900 text-gray-100 p-2 rounded text-xs overflow-x-auto">
+                                <code>{test.error.snippet}</code>
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ✅ Screenshots OUTSIDE the test loop - at test file level */}
+            {result.screenshots && result.screenshots.length > 0 && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h6 className="text-sm font-semibold text-blue-800 mb-3">📸 Test Screenshots ({result.screenshots.length})</h6>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {result.screenshots.map((screenshot, idx) => (
+                    <div key={idx} className="relative group">
+                      <img
+                        src={screenshot.data}
+                        alt={screenshot.filename}
+                        className="w-full h-32 object-cover border rounded cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setExpandedScreenshot(screenshot.data)}
+                      />
+                      <p className="text-xs text-gray-600 mt-1 truncate" title={screenshot.filename}>
+                        {screenshot.filename}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full ">
       <div className="p-6">
@@ -969,49 +1104,72 @@ const handleRunTestSuite = async () => {
         <div className="p-6">
           <div className="bg-white rounded-lg shadow-sm border w-full">
             <div className="p-4">
+              {/* Overall Summary Header */}
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Execution Summary</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Test Suite Execution Summary</h3>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   testSuiteSummary.status === "passed" 
                     ? "bg-green-100 text-green-800" 
                     : "bg-red-100 text-red-800"
                 }`}>
-                  {testSuiteSummary.status === "passed" ? "✅ Passed" : "❌ Failed"}
+                  {testSuiteSummary.status === "passed" ? "✅ All Passed" : "❌ Failed"}
                 </span>
               </div>
               
-              {/* Compact Row Layout */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-blue-50 p-3 rounded-lg text-center">
-                  <div className="text-xs text-blue-600 font-medium mb-1">Total Cases</div>
-                  <div className="text-xl font-bold text-blue-700">
-                    {testSuiteSummary.total_cases || 0}
+              {/* Summary Stats Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+                <div className="bg-purple-50 p-3 rounded-lg text-center border border-purple-200">
+                  <div className="text-xs text-purple-600 font-medium mb-1">Total Tests</div>
+                  <div className="text-2xl font-bold text-purple-700">
+                    {testSuiteSummary.total || 0}
                   </div>
                 </div>
                 
-                <div className="bg-green-50 p-3 rounded-lg text-center">
+                <div className="bg-green-50 p-3 rounded-lg text-center border border-green-200">
                   <div className="text-xs text-green-600 font-medium mb-1">Passed</div>
-                  <div className="text-xl font-bold text-green-700">
-                    {testSuiteSummary.passed_cases || 0}
+                  <div className="text-2xl font-bold text-green-700">
+                    {testSuiteSummary.passed || 0}
                   </div>
                 </div>
                 
-                <div className="bg-red-50 p-3 rounded-lg text-center">
+                <div className="bg-red-50 p-3 rounded-lg text-center border border-red-200">
                   <div className="text-xs text-red-600 font-medium mb-1">Failed</div>
-                  <div className="text-xl font-bold text-red-700">
-                    {(testSuiteSummary.total_cases || 0) - (testSuiteSummary.passed_cases || 0)}
+                  <div className="text-2xl font-bold text-red-700">
+                    {testSuiteSummary.failed || 0}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-200">
+                  <div className="text-xs text-gray-600 font-medium mb-1">Skipped</div>
+                  <div className="text-2xl font-bold text-gray-700">
+                    {testSuiteSummary.skipped || 0}
                   </div>
                 </div>
                 
-                <div className="bg-purple-50 p-3 rounded-lg text-center">
-                  <div className="text-xs text-purple-600 font-medium mb-1">Success Rate</div>
-                  <div className="text-xl font-bold text-purple-700">
-                    {testSuiteSummary.total_cases > 0 
-                      ? Math.round((testSuiteSummary.passed_cases / testSuiteSummary.total_cases) * 100)
-                      : 0}%
+                <div className="bg-blue-50 p-3 rounded-lg text-center border border-blue-200">
+                  <div className="text-xs text-blue-600 font-medium mb-1">Duration</div>
+                  <div className="text-xl font-bold text-blue-700">
+                    {testSuiteSummary.duration}
                   </div>
                 </div>
               </div>
+
+              {/* Detailed Test Results - Collapsible by File */}
+              {executionResults && Object.keys(executionResults).length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3">Test Results Details</h4>
+                  <div className="space-y-3">
+                    {Object.entries(executionResults).map(([testFileName, result]) => (
+                      <TestFileResultAccordion 
+                        key={testFileName} 
+                        testFileName={testFileName} 
+                        result={result}
+                        setExpandedScreenshot={setExpandedScreenshot}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

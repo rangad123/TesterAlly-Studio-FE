@@ -68,63 +68,39 @@ const fetchTestResults = React.useCallback(async () => {
       return;
     }
 
-    if (activeTab === "cases") {
-      const response = await fetch(`http://127.0.0.1:8000/integrate/case_report/?user_id=${userId}&project_name=${selectedProject.project_name}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+    // ✅ Both Test Suites and Test Cases use localStorage
+    const localStorageKey = activeTab === "suites" ? 'testSuiteResults' : 'testCaseResults';
+    const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
+    console.log(`📦 ${activeTab} localStorage data:`, localData);
+
+    const dateFilteredData = localData.filter(item => {
+      const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
+      return itemDate >= dateRange.from && itemDate <= dateRange.to;
+    });
+
+    let projectFilteredData = dateFilteredData;
+
+    if (selectedProject) {
+      projectFilteredData = dateFilteredData.filter(item => {
+        const selectedProjectName = selectedProject.project_name || selectedProject.folder_name;
+        const itemProjectName = item.project_name || item.name || item.project_id;
+        
+        if (selectedProjectName && itemProjectName) {
+          return selectedProjectName.toLowerCase() === itemProjectName.toLowerCase();
         }
+        return true;
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch reports');
-      }
-
-      const reportData = await response.json();
-      console.log("testcases report:", reportData)
-      const processedResults = reportData.reports || [];
-      
-      const dateFilteredData = processedResults.filter(item => {
-        const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
-        return itemDate >= dateRange.from && itemDate <= dateRange.to;
-      });
-      
-      setTestResults(dateFilteredData);
-      calculateStats(dateFilteredData);
-      
-    } else {
-      // For test suites tab, use localStorage (keep your existing logic)
-      const localStorageKey = 'testSuiteResults';
-      const localData = JSON.parse(localStorage.getItem(localStorageKey) || '[]');
-      
-      const dateFilteredData = localData.filter(item => {
-        const itemDate = new Date(item.execution_date).toISOString().split('T')[0];
-        const fromDate = dateRange.from;
-        const toDate = dateRange.to;
-        return itemDate >= fromDate && itemDate <= toDate;
-      });
-      
-      let projectFilteredData = dateFilteredData;
-      
-      if (selectedProject) {
-        projectFilteredData = dateFilteredData.filter(item => {
-          const selectedProjectName = selectedProject.project_name || selectedProject.folder_name;
-          const itemProjectName = item.project_name || item.name || item.project_id;
-          
-          if (selectedProjectName && itemProjectName) {
-            return selectedProjectName.toLowerCase() === itemProjectName.toLowerCase();
-          }
-          return true;
-        });
-      }
-      
-      const sortedData = projectFilteredData.sort((a, b) => 
-        new Date(b.execution_date) - new Date(a.execution_date)
-      );
-      
-      setTestResults(sortedData);
-      calculateStats(sortedData);
     }
+
+    const sortedData = projectFilteredData.sort((a, b) => 
+      new Date(b.execution_date) - new Date(a.execution_date)
+    );
+
+    console.log("🔍 Final sorted data for display:", sortedData); 
+    console.log("🔍 First item structure:", sortedData[0]);
+
+    setTestResults(sortedData);
+    calculateStats(sortedData);
     
   } catch (error) {
     console.error(`Error fetching ${activeTab} results:`, error);
@@ -478,9 +454,16 @@ const handleExportReport = async () => {
     }
   };
 
-  const filteredResults = testResults.filter(
-    result => result.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  console.log("🔍 testResults before filtering:", testResults);
+  console.log("🔍 First result:", testResults[0]);
+  console.log("🔍 First result name type:", typeof testResults[0]?.name);
+  console.log("🔍 First result name value:", testResults[0]?.name);
+
+  const filteredResults = testResults.filter(result => {
+    const resultName = String(result.name || result.title || '');
+    const searchTermLower = searchTerm.toLowerCase();
+    return resultName.toLowerCase().includes(searchTermLower);
+  });
 
   const renderSuiteResults = () => (
     <table className="min-w-full divide-y divide-gray-200">
@@ -587,17 +570,12 @@ const handleExportReport = async () => {
               </div>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              {/* FIXED: Handle missing fields gracefully */}
-              {result.total_steps || result.steps || 0}
+              {result.total_steps || 0}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-              <span className="text-green-600 font-medium">
-                {result.passed_steps || result.passed || 0}
-              </span>
+              <span className="text-green-600 font-medium">{result.passed_steps || 0}</span>
               {" / "}
-              <span className="text-red-600 font-medium">
-                {result.failed_steps || result.failed || 0}
-              </span>
+              <span className="text-red-600 font-medium">{result.failed_steps || 0}</span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
               {result.execution_time ? `${result.execution_time}s` : "N/A"}

@@ -293,6 +293,22 @@ useEffect(() => {
     }
   };
 
+  const stopTestExecution = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/AI/test/stop/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        console.log('🛑 Stop signal sent');
+          // Keep button disabled until backend responds
+      }
+    } catch (error) {
+      console.error('Error stopping:', error);
+    }
+  };
+
   const handleTestFound = (testData) => {
     setFoundTestData(testData);
     setTestFoundModalOpen(true);
@@ -553,7 +569,9 @@ useEffect(() => {
         testcase_priority: testCaseInfo.testcase_priority || 'Medium',
         test_scenarios_desc: promptText,
         testfile_name: generatedTestFile?.filename || "",
-        testfile_path: generatedTestFile?.test_file || "" 
+        testfile_path: generatedTestFile?.test_file || "",
+        generated_file_name: generatedTestFile?.metadata_file || "",
+        generated_file_path: generatedTestFile?.metadata_path || ""
       };
 
       console.log("Creating test case with payload:", testCasePayload);
@@ -768,23 +786,23 @@ useEffect(() => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
                 {/* Action Buttons at Top */}
                 <div className="flex justify-end gap-3 mb-4">
-                <button
-                    onClick={extractStepsFromPrompt}
-                    disabled={isExtracting || !promptText.trim()}
-                    className="px-6 py-2 bg-white text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-300 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm md:text-base font-medium"
-                >
-                    {isExtracting ? (
-                    <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Running...
-                    </span>
-                    ) : (
-                    'Start'
-                    )}
-                </button>
+                {!isExtracting ? (
+                    <button
+                        onClick={extractStepsFromPrompt}
+                        disabled={!promptText.trim()}
+                        className="px-6 py-2 bg-white text-purple-600 border border-purple-600 rounded-lg hover:bg-purple-300 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 text-sm md:text-base font-medium"
+                    >
+                        Start
+                    </button>
+                ) : (
+                    <button
+                        onClick={stopTestExecution}
+                        className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 text-sm md:text-base font-medium flex items-center gap-2"
+                    >
+                        <X className="w-4 h-4" />
+                        Stop
+                    </button>
+                )}
 
                 {/* Add Create Button - Only show after test results are available */}
                 {showTestResults && testResults && (
@@ -1267,18 +1285,18 @@ useEffect(() => {
                             {generatedTestFile.filename}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        {/* <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-gray-600">Path:</span>
                           <span className="text-xs text-gray-700 break-all">
                             {generatedTestFile.test_file}
                           </span>
-                        </div>
+                        </div> */}
                       </div>
 
                       {/* Run Command */}
-                      <div className="bg-white p-2 rounded border border-blue-300 font-mono text-xs text-gray-800">
+                      {/* <div className="bg-white p-2 rounded border border-blue-300 font-mono text-xs text-gray-800">
                         npx playwright test {generatedTestFile.filename}
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* Delete Button */}

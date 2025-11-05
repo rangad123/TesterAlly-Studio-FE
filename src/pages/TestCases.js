@@ -432,37 +432,60 @@ const handleRowClick = (testCase) => {
     }
   };
 
-  const handleDelete = async (testCaseName) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this test case?");
+  const handleDelete = async (testCase) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${testCase.testcase_name}" and its generated files?`
+    );
     if (!confirmDelete) return;
 
     setLoading(true);
-      const requestBody = {
-        user_id: localStorage.getItem("userId"),
-        project_name: selectedProject.project_name,
-        testcase_name: testCaseName
+    const userId = localStorage.getItem("userId");
+
+    try {
+      // ✅ Step 1: Delete the generated test script + metadata first
+      const fileDeletePayload = {
+        filename: testCase.testfile_name,               
+        metadata_file: testCase.generated_file_name
       };
 
-      console.log("Request Body:", requestBody);
+      console.log("Deleting generated files:", fileDeletePayload);
 
-      try {
-        const response = await fetch(`http://127.0.0.1:8000/integrate/testcase/`, {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
+      const fileDeleteResponse = await fetch("http://127.0.0.1:8000/AI/api/test-file/delete/", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fileDeletePayload),
+      });
 
+      const fileDeleteData = await fileDeleteResponse.json();
+      console.log("File delete response:", fileDeleteData);
 
-      if (!response.ok) {
-        throw new Error("Failed to delete test case");
-      }
+      // ✅ Step 2: Delete the main test case JSON
+      const testcasePayload = {
+        user_id: userId,
+        project_name: selectedProject.project_name,
+        testcase_name: testCase.testcase_name,
+      };
 
-      setTestCases((prevTestCases) => prevTestCases.filter((testCase) => testCase.testcase_name !== testCaseName));
+      console.log("Deleting main test case:", testcasePayload);
+
+      const testcaseResponse = await fetch("http://127.0.0.1:8000/integrate/testcase/", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(testcasePayload),
+      });
+
+      const testcaseData = await testcaseResponse.json();
+      console.log("Test case delete response:", testcaseData);
+
+      // ✅ Step 3: Remove from frontend list
+      setTestCases((prev) =>
+        prev.filter((t) => t.testcase_name !== testCase.testcase_name)
+      );
+
+      alert("Test case and generated files deleted successfully!");
     } catch (error) {
       console.error("Error deleting test case:", error);
-      setError("Failed to delete test case");
+      setError("Failed to delete test case or files");
     } finally {
       setLoading(false);
     }
@@ -756,7 +779,7 @@ const handleRowClick = (testCase) => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation(); 
-                              handleDelete(testCase.testcase_name);
+                              handleDelete(testCase);
                             }}
                             className="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors duration-200 ml-2"
                           >

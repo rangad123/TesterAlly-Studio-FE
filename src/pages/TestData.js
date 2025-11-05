@@ -22,6 +22,7 @@ const TestData = () => {
     "United States", 
      "India", "Japan", "Switzerland", "Austria", "Ireland", "Other"
   ];
+  const [moduleName, setModuleName] = useState("");
 
   const [selectedFile, setSelectedFile] = useState(null);
   
@@ -146,6 +147,11 @@ const TestData = () => {
       isValid = false;
     }
 
+    if (!moduleName.trim()) {
+      newErrors.moduleName = "Module name is required!";
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -195,7 +201,8 @@ const TestData = () => {
           email: email.trim() || null, 
           email_app_password: password.trim() || null, 
           phone_number: phone.trim() || null,  
-          region: country.trim() || null       
+          region: country.trim() || null,
+          // module_name: moduleName.trim() || null       
         };
         console.log("Payload of Data upload:", payload);
 
@@ -225,6 +232,7 @@ const TestData = () => {
       setPassword("");
       setCountry("");
       setSelectedFile(null);
+      setModuleName("");
       
     } catch (error) {
       console.error("Error during upload:", error);
@@ -522,6 +530,37 @@ const renderUploadedData = () => {
             )}
           </div>
 
+          {/* Module Name Display */}
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Module Name</label>
+            {uploadedData.module_name ? (
+              <div className="group relative p-2 bg-white rounded border border-green-200">
+                <span className="text-gray-700 text-sm pr-8">{uploadedData.module_name}</span>
+                <button 
+                  onClick={() => handleEditField('module', uploadedData.module_name)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
+                  title="Edit module name"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
+                <button 
+                  onClick={() => handleAddField('module')}
+                  className="w-full text-left text-gray-500 text-sm flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                  Click to add module name
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* File Display */}
           {uploadedData.filename && (
             <div className="mb-3">
@@ -735,7 +774,7 @@ const renderUploadedData = () => {
           </div>
 
           {/* Country/Region Field - NEW */}
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Country/Region
             </label>
@@ -771,6 +810,35 @@ const renderUploadedData = () => {
               )}
             </div>
           </div>
+
+          {/* Module Name Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Module Name
+            </label>
+            <input
+              type="text"
+              value={moduleName}
+              onChange={(e) => {
+                setModuleName(e.target.value);
+                setErrors((prev) => ({ ...prev, moduleName: "", general: "" }));
+              }}
+              placeholder="Enter module name (e.g., Login, Cart, Checkout)"
+              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
+                errors.moduleName ? "border-red-500 bg-red-50" : "border-gray-300"
+              }`}
+              disabled={isUploading}
+            />
+            {errors.moduleName && (
+              <p className="mt-2 text-sm text-red-600 flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors.moduleName}
+              </p>
+            )}
+          </div>
+
         </div>
 
           {/* File Upload Field */}
