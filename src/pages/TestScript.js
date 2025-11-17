@@ -227,7 +227,7 @@ const TestScript = () => {
         console.log("Response Data:", data);
         
         setTestResults(data);
-        await fetchTestScript();
+        // await fetchTestScript();
 
         // ✅ Save to localStorage for Reports page
         try {
@@ -478,13 +478,13 @@ const TestScript = () => {
                           <Play className="w-4 h-4 mr-2" />
                           Run
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => setIsEditingScript(true)}
                           className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100"
                         >
                           <Edit2 className="w-4 h-4 mr-2" />
                           Edit
-                        </button>
+                        </button> */}
                       </>
                     )}
                 </>

@@ -1,28 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Play, Plus, AlertCircle, CheckCircle, Clock, Target, Zap, Code, X } from 'lucide-react';
+import { Play, Plus, AlertCircle, CheckCircle, Clock, Target, Zap, Code, X, ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
 
 function TestSenario() {
   const [promptText, setPromptText] = useState('');
-  const [showExtractedSteps, setShowExtractedSteps] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [projectData, setProjectData] = useState(null);
 
   const [complexityLevel, setComplexityLevel] = useState("simple");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
-
-  const [testData, setTestData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
 
   const [scenarioName, setScenarioName] = useState('');
-  const [scenarioType, setScenarioType] = useState('');
-  const [scenarioPriority, setScenarioPriority] = useState('');
+  // const [scenarioType, setScenarioType] = useState('');
+  // const [scenarioPriority, setScenarioPriority] = useState('');
 
   const location = useLocation();
   const testCaseInfo = location.state?.testCaseInfo;
 
-const [promptHistory, setPromptHistory] = useState([]);
-const [showHistory, setShowHistory] = useState(false);
+const [promptDrafts, setPromptDrafts] = useState([]);
+const [showDrafts, setShowDrafts] = useState(false);
 
 const [testUrl, setTestUrl] = useState('');
 const [isEditingUrl, setIsEditingUrl] = useState(false);
@@ -39,6 +36,10 @@ const [testFoundModalOpen, setTestFoundModalOpen] = useState(false);
 const [foundTestData, setFoundTestData] = useState(null);
 const [loadingModal, setLoadingModal] = useState({ isOpen: false, title: '', message: '' });
 const [generatedTestFile, setGeneratedTestFile] = useState(null);
+
+const [showFeedback, setShowFeedback] = useState(false);
+const [feedbackGiven, setFeedbackGiven] = useState(null); 
+const [retryCount, setRetryCount] = useState(0);
 
 
 const saveTestUrl = async () => {
@@ -137,43 +138,10 @@ const enhancePrompt = async () => {
   useEffect(() => {
     if (testCaseInfo) {
       setScenarioName(testCaseInfo.testcase_name || '');
-      setScenarioType(testCaseInfo.testcase_type || '');
-      setScenarioPriority(testCaseInfo.testcase_priority || '');
+      // setScenarioType(testCaseInfo.testcase_type || '');
+      // setScenarioPriority(testCaseInfo.testcase_priority || '');
     }
   }, [testCaseInfo]);
-
-
-const loadPromptFromHistory = (historyItem) => {
-  setPromptText(historyItem.prompt);
-  // setExtractedSteps(historyItem.steps);
-  setShowExtractedSteps(true);
-  
-  // Also restore scenario details if they exist
-  if (historyItem.scenarioDetails) {
-    setScenarioName(historyItem.scenarioDetails.name || '');
-    setScenarioType(historyItem.scenarioDetails.type || '');
-    setScenarioPriority(historyItem.scenarioDetails.priority || '');
-  }
-  
-  setShowHistory(false);
-  console.log("📋 Prompt loaded from history:", historyItem);
-};
-
-const clearPromptHistory = () => {
-  sessionStorage.removeItem('promptHistory');
-  setPromptHistory([]);
-  setShowHistory(false);
-  console.log("🗑️ Prompt history cleared");
-};
-
-const loadHistoryFromStorage = () => {
-  const savedHistory = JSON.parse(sessionStorage.getItem('promptHistory') || '[]');
-  setPromptHistory(savedHistory);
-};
-
-useEffect(() => {
-  loadHistoryFromStorage();
-}, []);
 
   const navigate = useNavigate();
 
@@ -212,86 +180,14 @@ useEffect(() => {
         .then((res) => res.json())
         .then((data) => {
           console.log("✅ Test data loaded:", data);
-          setTestData(data);
           setTestUrl(data?.url || '');
         })
         .catch((err) => {
           console.warn("⚠️ Error fetching test data:", err.message);
-          setTestData(null);
         })
         .finally(() => setIsTestDataLoading(false));
     }
   }, [projectData?.id]);
-
-  const extractStepsFromPrompt = async () => {
-    const userId = localStorage.getItem("userId");
-
-    if (!promptText.trim()) {
-      alert("Please enter a prompt first.");
-      return;
-    }
-
-    setIsExtracting(true);
-    try {
-      console.log("📦 Sending Request Payload:", {
-        url: testUrl,
-        user_id: userId, 
-        prompt: promptText,
-        scenarios_name: scenarioName,
-        run_mode: "auto",
-        // test_path: testCaseInfo?.testcase_dir || "",
-      });
-
-      const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: testUrl,
-          user_id: userId,
-          prompt: promptText,
-          scenarios_name: scenarioName,
-          run_mode: "auto"
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to run automation');
-      }
-
-      const data = await response.json();
-      console.log("✅ API Response:", data);
-
-      // NEW LOGIC: Check if test file was found
-      if (data.status === "test_found") {
-        console.log("🔍 Test file found, asking user for choice...");
-        handleTestFound(data);
-        return;  
-      }
-
-      // If test created or already completed
-      if (data.status === "success") {
-        setTestResults(data);
-        setShowTestResults(true);
-        // Store test file info if it was generated
-        if (data.test_file_info) {
-          setGeneratedTestFile(data.test_file_info);
-        }
-        alert('Automation completed successfully!');
-      } else if (data.status === "incomplete") {
-        alert('Automation incomplete. Please try again.');
-      } else if (data.status === "error") {
-        alert(`Error: ${data.error}`);
-      }
-
-    } catch (error) {
-      console.error('Error running automation:', error);
-      alert('Failed to start automation. Please try again.');
-    } finally {
-      setIsExtracting(false);
-    }
-  };
 
   const stopTestExecution = async () => {
     try {
@@ -372,6 +268,12 @@ useEffect(() => {
       console.log("✅ API Response:", data);
       setTestResults(data);
       setShowTestResults(true);
+      setShowFeedback(true); 
+      setFeedbackGiven(null);
+
+      if (data.test_file_info) {
+        setGeneratedTestFile(data.test_file_info);
+      }
       alert('New automation completed successfully!');
       
     } catch (error) {
@@ -542,10 +444,222 @@ useEffect(() => {
     }
   };
 
-  const handleClearSteps = () => {
-    // setExtractedSteps([]);
-    // setShowExtractedSteps(false);
-    setPromptText('');
+  const loadDraftsFromBackend = useCallback(async () => {
+    if (!projectData?.project_name) {
+      console.log("⚠️ No project_name found in projectData:", projectData);
+      return;
+    }
+    
+    const userId = localStorage.getItem("userId");
+    
+    try {
+      const url = `http://127.0.0.1:8000/integrate/drafts/?user_id=${userId}&project_name=${projectData.project_name}`;
+      console.log("📡 Calling Draft API:", url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPromptDrafts(data.drafts || []);
+        console.log("✅ Drafts loaded from backend:", data.drafts);
+      } else {
+        console.error("❌ Draft API failed:", response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error loading drafts:', error);
+    }
+  }, [projectData]); 
+
+  const saveDraftToBackend = async (prompt) => {
+    if (!prompt.trim() || !projectData?.project_name) {
+      console.log("⚠️ Cannot save draft - missing prompt or project_name");
+      return;
+    }
+    
+    const userId = localStorage.getItem("userId");
+    
+    try {
+      console.log("💾 Saving draft to backend...");
+      const response = await fetch('http://127.0.0.1:8000/integrate/drafts/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          project_name: projectData.project_name, 
+          prompt: prompt
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("💾 Draft saved:", data);
+        
+        // Reload drafts to update UI
+        await loadDraftsFromBackend();
+      } else {
+        const errorData = await response.json();
+        console.log("⚠️", errorData.message || "Failed to save draft");
+      }
+    } catch (error) {
+      console.error('❌ Error saving draft:', error);
+    }
+  };
+
+  const removeDraftFromBackend = async (draftId) => {
+    if (!draftId || !projectData?.project_name) {
+      console.log("⚠️ Cannot remove draft - missing draftId or project_name");
+      return;
+    }
+    
+    const userId = localStorage.getItem("userId");
+    
+    try {
+      console.log("🗑️ Removing draft ID:", draftId);
+      const response = await fetch('http://127.0.0.1:8000/integrate/drafts/', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          project_name: projectData.project_name, 
+          draft_id: draftId  
+        })
+      });
+
+      if (response.ok) {
+        console.log("🗑️ Draft removed:", draftId);
+        // Reload drafts to update UI
+        await loadDraftsFromBackend();
+      }
+    } catch (error) {
+      console.error('❌ Error removing draft:', error);
+    }
+  };
+
+  const clearPromptDrafts = async () => {
+    if (!projectData?.project_name) {
+      console.log("⚠️ Cannot clear drafts - missing project_name");
+      return;
+    }
+    
+    const userId = localStorage.getItem("userId");
+    
+    try {
+      console.log("🗑️ Clearing all drafts...");
+      const response = await fetch('http://127.0.0.1:8000/integrate/drafts/', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          project_name: projectData.project_name,
+          // No draft_id means delete all
+        })
+      });
+
+      if (response.ok) {
+        setPromptDrafts([]);
+        setShowDrafts(false);
+        console.log("🗑️ All drafts cleared");
+      }
+    } catch (error) {
+      console.error('❌ Error clearing drafts:', error);
+    }
+  };
+
+  const loadPromptFromDraft = (draftItem) => {
+    setPromptText(draftItem.prompt);
+    setShowDrafts(false);
+    console.log("📋 Prompt loaded from draft:", draftItem);
+  };
+
+  useEffect(() => {
+    if (projectData?.project_name) {
+      console.log("🔄 Project changed, loading drafts for:", projectData.project_name);
+      loadDraftsFromBackend();
+    }
+  }, [projectData?.project_name, loadDraftsFromBackend]);
+
+  const extractStepsFromPrompt = async () => {
+    const userId = localStorage.getItem("userId");
+
+    if (!promptText.trim()) {
+      alert("Please enter a prompt first.");
+      return;
+    }
+
+    setIsExtracting(true);
+    
+    // ✅ Save to backend instead of localStorage
+    await saveDraftToBackend(promptText);
+    
+    try {
+      console.log("📦 Sending Request Payload:", {
+        url: testUrl,
+        user_id: userId, 
+        prompt: promptText,
+        scenarios_name: scenarioName,
+        run_mode: "auto",
+      });
+
+      const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: testUrl,
+          user_id: userId,
+          prompt: promptText,
+          scenarios_name: scenarioName,
+          run_mode: "auto"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to run automation');
+      }
+
+      const data = await response.json();
+      console.log("✅ API Response:", data);
+
+      if (data.status === "test_found") {
+        console.log("🔍 Test file found, asking user for choice...");
+        handleTestFound(data);
+        return;  
+      }
+
+      if (data.status === "success") {
+        setTestResults(data);
+        setShowTestResults(true);
+        setShowFeedback(true); 
+        setFeedbackGiven(null);
+
+        if (data.test_file_info) {
+          setGeneratedTestFile(data.test_file_info);
+        }
+        alert('Automation completed successfully!');
+      } else if (data.status === "incomplete") {
+        alert('Automation incomplete. Please try again.');
+      } else if (data.status === "error") {
+        alert(`Error: ${data.error}`);
+      }
+
+    } catch (error) {
+      console.error('Error running automation:', error);
+      alert('Failed to start automation. Please try again.');
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const createTestScenarioFromResults = async () => {
@@ -557,10 +671,8 @@ useEffect(() => {
     try {
       setIsCreatingTestCase(true);
       
-      // Get the user ID from localStorage
       const userId = localStorage.getItem("userId");
 
-      // Step 1: Create the test case first (with test scenario prompt)
       const testCasePayload = {
         user_id: parseInt(userId),
         project_name: testCaseInfo.projectId,
@@ -590,7 +702,6 @@ useEffect(() => {
       const testCaseData = await testCaseResponse.json();
       console.log("Test case created:", testCaseData);
 
-      // ✅ Step 2: Copy test file to clone path
       if (generatedTestFile?.test_file) {
         const importPayload = {
           user_id: parseInt(userId),
@@ -617,6 +728,13 @@ useEffect(() => {
       }
 
       alert(`Test Scenario Created Successfully!`);
+
+      // ✅ Find and remove the draft that matches this prompt
+      const matchingDraft = promptDrafts.find(d => d.prompt.trim() === promptText.trim());
+      if (matchingDraft?.id) {
+        console.log("🗑️ Removing draft after test case creation:", matchingDraft.id);
+        await removeDraftFromBackend(matchingDraft.id); 
+      }
       
       navigate("/test-cases");
 
@@ -625,6 +743,72 @@ useEffect(() => {
       alert(`Error: ${error.message}`);
     } finally {
       setIsCreatingTestCase(false);
+    }
+  };
+
+  const handleThumbsDown = async () => {
+    if (!testResults || !promptText.trim() || !testUrl) {
+      alert("Missing test data to retry.");
+      return;
+    }
+
+    const userId = localStorage.getItem("userId");
+    const newRetryCount = retryCount + 1;
+    
+    setFeedbackGiven('down');
+    setLoadingModal({ 
+      isOpen: true, 
+      title: 'Analyzing & Retrying', 
+      message: `Attempt ${newRetryCount}: Re-planning automation with improvements...` 
+    });
+    setIsExtracting(true);
+    
+    try {
+      const payload = {
+        url: testUrl,
+        user_id: userId,
+        prompt: promptText,
+        scenarios_name: scenarioName,
+        previous_test_results: testResults,
+        retry_count: newRetryCount,
+        run_mode: "replanner"
+      };
+
+      console.log("Compact payload:", payload);
+            
+      const response = await fetch('http://127.0.0.1:8000/AI/test/rerun/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to retry automation');
+      }
+
+      const data = await response.json();
+      console.log("✅ Replanner Response:", data);
+      
+      // Update test results with new data
+      setTestResults(data);
+      setRetryCount(newRetryCount);
+      setShowTestResults(true);
+      setShowFeedback(true);
+      setFeedbackGiven(null);  // Reset feedback for new results
+      
+      if (data.test_file_info) {
+        setGeneratedTestFile(data.test_file_info);
+      }
+      
+      alert(`Retry attempt ${newRetryCount} completed!`);
+      
+    } catch (error) {
+      console.error('Error retrying automation:', error);
+      alert('Failed to retry automation. Please try again.');
+      setFeedbackGiven(null);  // Reset on error
+    } finally {
+      setIsExtracting(false);
+      setLoadingModal({ isOpen: false, title: '', message: '' });
     }
   };
 
@@ -805,7 +989,7 @@ useEffect(() => {
                 )}
 
                 {/* Add Create Button - Only show after test results are available */}
-                {showTestResults && testResults && (
+                {/* {showTestResults && testResults && (
                   <button
                     onClick={createTestScenarioFromResults}
                     disabled={isCreatingTestCase}
@@ -823,16 +1007,8 @@ useEffect(() => {
                       'Create'
                     )}
                   </button>
-                )}
+                )} */}
 
-                {showExtractedSteps && (
-                    <button
-                    onClick={handleClearSteps}
-                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors duration-200 text-sm md:text-base font-medium"
-                    >
-                    Clear
-                    </button>
-                )}
                 </div>
 
                 <div className="mb-4">
@@ -944,69 +1120,84 @@ useEffect(() => {
                       {isEnhancing ? "Enhancing..." : "Enhance"}
                     </button>
 
-                    {/* ✅ ADD THIS HISTORY DROPDOWN RIGHT HERE */}
-                    <div className="relative ml-3">
-                      <button
-                        onClick={() => setShowHistory(!showHistory)}
-                        disabled={promptHistory.length === 0}
-                        className="text-blue-600 text-sm flex items-center hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        History ({promptHistory.length})
-                      </button>
+                    {/* ✅ ADD DRAFT TOGGLE BUTTON HERE */}
+                    <button
+                      onClick={() => setShowDrafts(!showDrafts)}
+                      disabled={promptDrafts.length === 0}
+                      className="text-purple-600 text-sm flex items-center hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      {showDrafts ? 'Hide Drafts' : `Drafts (${promptDrafts.length})`}
+                    </button>
 
-                      {/* History Dropdown */}
-                      {showHistory && promptHistory.length > 0 && (
-                        <div className="absolute top-full right-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
-                          {/* Header */}
-                          <div className="flex items-center justify-between p-3 border-b border-gray-100">
-                            <span className="font-medium text-gray-900 text-sm">Recent Prompts</span>
-                            <button
-                              onClick={clearPromptHistory}
-                              className="text-red-600 text-xs hover:underline"
-                            >
-                              Clear All
-                            </button>
-                          </div>
-
-                          {/* History Items */}
-                          <div className="py-2">
-                            {promptHistory.map((item, index) => (
-                              <div
-                                key={item.id}
-                                onClick={() => loadPromptFromHistory(item)}
-                                className="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-gray-500 mb-1">{item.timestamp}</div>
-                                    <div className="text-sm text-gray-900 truncate mb-1">
-                                      {item.prompt.substring(0, 60)}...
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full">
-                                        {item.steps.length} steps
-                                      </span>
-                                      {item.scenarioDetails?.name && (
-                                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                                          {item.scenarioDetails.name}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
             </div>
             </div>
+
+            {/* ✅ DRAFTS SECTION - Only show when showDrafts is true */}
+            {showDrafts && promptDrafts.length > 0 && (
+              <div className="mt-4 bg-white rounded-lg shadow-sm border border-purple-200 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Recent Drafts ({promptDrafts.length}/5)
+                  </h3>
+                  <button
+                    onClick={clearPromptDrafts}
+                    className="text-red-600 text-xs hover:underline flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    Clear All
+                  </button>
+                </div>
+
+                {/* Drafts Grid - Responsive */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+                  {promptDrafts.slice().reverse().map((draft, index) => (
+                    <div
+                      key={draft.id}
+                      onClick={() => loadPromptFromDraft(draft)}
+                      className="bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-3 cursor-pointer hover:shadow-lg hover:border-purple-400 transition-all duration-200 group"
+                    >
+                      {/* Draft Number Badge */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          Test Case #{promptDrafts.length - index}
+                        </span>
+                        <svg className="w-4 h-4 text-purple-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                      </div>
+
+                      {/* Timestamp */}
+                      <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        {draft.timestamp}
+                      </div>
+
+                      {/* Prompt Preview */}
+                      <div className="text-sm text-gray-700 line-clamp-3 leading-tight">
+                        {draft.prompt}
+                      </div>
+
+                      {/* Hover indicator */}
+                      <div className="mt-2 text-xs text-purple-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        Click to load →
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Helper Text */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1028,6 +1219,84 @@ useEffect(() => {
                 </div>
             </div>
             </div>
+
+            {/* ✅ create scenario section */}
+            {showFeedback && showTestResults && (
+              <div className="mt-6 p-6 bg-white border-2 border-gray-200 rounded-lg shadow-md">
+                <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
+                  How did the test execution perform?
+                </h3>
+                
+                {feedbackGiven === null ? (
+                  // Show feedback buttons
+                  <div className="flex items-center justify-center gap-4">
+                    {/* Thumbs Up */}
+                    <button
+                      onClick={() => {
+                        setFeedbackGiven('up');
+                        setTimeout(() => {
+                          createTestScenarioFromResults();
+                        }, 500);
+                      }}
+                      className="flex items-center gap-2 px-6 py-3 border-2 border-purple-300 rounded-lg hover:bg-purple-50 hover:border-purple-500 transition-all duration-200 group"
+                    >
+                      <ThumbsUp className="w-5 h-5 text-purple-600 group-hover:text-purple-700" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-gray-700">Test Passed</p>
+                        <p className="text-xs text-gray-500">Create test case</p>
+                      </div>
+                    </button>
+
+                    {/* Thumbs Down */}
+                    <button
+                      onClick={() => {
+                        setFeedbackGiven('down');
+                        handleThumbsDown(); 
+                      }}
+                      className="flex items-center gap-2 px-6 py-3 border-2 border-red-300 rounded-lg hover:bg-red-50 hover:border-red-500 transition-all duration-200 group"
+                    >
+                      <ThumbsDown className="w-5 h-5 text-red-600 group-hover:text-red-700" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-gray-700">Test Failed</p>
+                        <p className="text-xs text-gray-500">Retry with improvements</p>
+                      </div>
+                    </button>
+                  </div>
+                ) : feedbackGiven === 'up' ? (
+                  // Success feedback
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-3 px-6 py-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <CheckCircle className="w-6 h-6 text-purple-600" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-purple-800">Test execution was successful</p>
+                        <p className="text-xs text-purple-600 mt-0.5">Creating test case...</p>
+                      </div>
+                    </div>
+                    
+                    {isCreatingTestCase && (
+                      <div className="flex items-center justify-center gap-2 text-purple-600 mt-3">
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm">Creating test case...</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Failure feedback
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-3 px-6 py-3 bg-red-50 border border-red-200 rounded-lg">
+                      <XCircle className="w-6 h-6 text-red-600" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-red-800">We'll improve and retry</p>
+                        <p className="text-xs text-red-600 mt-0.5">Analyzing what went wrong...</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

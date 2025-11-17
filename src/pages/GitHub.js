@@ -22,34 +22,72 @@ function GitHub() {
   
   const userId = localStorage.getItem("userId");
 
+  const checkCloneStatusOnLoad = useCallback(async (repository) => {
+    try {
+      console.log('Checking clone status for:', repository);
+      const response = await fetch(`http://127.0.0.1:8000/integrate/clone_status/?user_id=${userId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Clone status response:', data);
+        
+        if (data.cloned && data.clone_path) {
+          setCloneStatus('success');
+          setCloneMessage(`Repository already cloned at: ${data.clone_path}`);
+          setSelectedPath(data.clone_path);
+          console.log('Repository is already cloned at:', data.clone_path);
+        } else {
+          setCloneStatus('');
+          setCloneMessage('');
+          setSelectedPath('');
+          console.log('Repository not cloned yet');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check clone status:', err);
+    }
+  }, [userId]); 
+  
   const checkConnectionStatus = useCallback(async () => {
     try {
       setConnectionStatus('checking');
       console.log('Checking connection status...');
       
-      const response = await fetch(`http://127.0.0.1:8000/integrate/github/repositories/?user_id=${userId}`);
+      const response = await fetch(`http://127.0.0.1:8000/integrate/git_status/?user_id=${userId}`);
       
       if (response.ok) {
         const data = await response.json();
         console.log('Connection check response:', data);
         
-        if (data.repositories && Array.isArray(data.repositories)) {
+        if (data.connected) {
           setConnectionStatus('connected');
-          setRepositories(data.repositories);
+          if (data.repository) {
+            setConnectedRepo(data.repository);
+            setRepoSelected(true);
+            
+            // Check clone status after confirming connection
+            checkCloneStatusOnLoad(data.repository);
+          }
+          
+          // Fetch repositories list
+          const repoResponse = await fetch(`http://127.0.0.1:8000/integrate/github/repositories/?user_id=${userId}`);
+          if (repoResponse.ok) {
+            const repoData = await repoResponse.json();
+            if (repoData.repositories && Array.isArray(repoData.repositories)) {
+              setRepositories(repoData.repositories);
+            }
+          }
         } else {
           setConnectionStatus('disconnected');
         }
-      } else if (response.status === 401 || response.status === 403) {
-        setConnectionStatus('disconnected');
       } else {
-        console.error('Failed to check connection:', response.status);
         setConnectionStatus('disconnected');
       }
     } catch (err) {
       console.error('Failed to check connection status:', err);
       setConnectionStatus('disconnected');
     }
-  }, [userId]);
+  }, [userId, checkCloneStatusOnLoad]);
 
   useEffect(() => {
     checkConnectionStatus();
@@ -244,15 +282,31 @@ function GitHub() {
   };
 
   const disconnectGitHub = async () => {
+    if (!window.confirm('Are you sure you want to disconnect GitHub? This will remove all GitHub integration data.')) {
+      return;
+    }
+
     setLoading(true);
+    setError('');
+    
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/github/disconnect/?user_id=${userId}`, {
+      const response = await fetch('http://127.0.0.1:8000/integrate/github/disconnect/', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId
+        }),
       });
       
       if (response.ok) {
+        const data = await response.json();
+        console.log('Disconnect response:', data);
+        
+        // Reset all states
         setConnectionStatus('disconnected');
-        setUserInfo(null);
+        setUserInfo({ name: 'GitHub User' });
         setRepositories([]);
         setSelectedRepo('');
         setConnectedRepo('');
@@ -263,10 +317,15 @@ function GitHub() {
         setCloneStatus('');
         setCloneMessage('');
         setShowPaths(false);
+        
+        // Show success message
+        alert('GitHub disconnected successfully!');
       } else {
-        setError('Failed to disconnect from GitHub');
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to disconnect from GitHub');
       }
     } catch (err) {
+      console.error('Failed to disconnect from GitHub:', err);
       setError('Failed to disconnect from GitHub');
     } finally {
       setLoading(false);
@@ -328,12 +387,6 @@ function GitHub() {
           <div className="text-green-700 space-y-1">
             <p className="font-medium">Welcome, {userInfo.name || userInfo.login || 'GitHub User'}!</p>
             {userInfo.email && <p className="text-sm opacity-90">Email: {userInfo.email}</p>}
-            {connectedRepo && (
-              <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
-                <p className="text-sm text-gray-600">Connected Repository:</p>
-                <p className="font-bold text-blue-600">{connectedRepo}</p>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -347,27 +400,6 @@ function GitHub() {
             <span className="text-gray-600 font-medium">Not connected to GitHub</span>
             <p className="text-sm text-gray-500 mt-2">Connect to access your repositories</p>
           </div>
-        </div>
-      )}
-
-      {/* Clone Status Messages */}
-      {cloneStatus === 'success' && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center space-x-3 mb-2">
-            <CheckCircle className="w-6 h-6 text-green-600" />
-            <span className="text-green-700 font-bold text-lg">Clone Successful!</span>
-          </div>
-          <p className="text-green-600 pl-9">{cloneMessage}</p>
-        </div>
-      )}
-
-      {cloneStatus === 'error' && (
-        <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center space-x-3 mb-2">
-            <AlertCircle className="w-6 h-6 text-red-600" />
-            <span className="text-red-700 font-bold text-lg">Clone Failed</span>
-          </div>
-          <p className="text-red-600 pl-9">{cloneMessage}</p>
         </div>
       )}
 
@@ -434,106 +466,136 @@ function GitHub() {
                   </button>
                 </div>
 
-                {/* Path Selection Card */}
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-purple-600 rounded-full w-10 h-10 flex items-center justify-center">
-                        <FolderOpen className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-800">Clone Location</h3>
-                        <p className="text-gray-500 text-sm">Select destination path</p>
+                {/* Clone Status Display - Show if already cloned */}
+                {cloneStatus === 'success' && selectedPath ? (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                      <span className="text-green-700 font-bold text-lg">Repository Cloned</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <p className="text-sm text-gray-600 mb-1">Clone Location:</p>
+                        <p className="font-mono text-sm text-gray-800 break-all">{selectedPath}</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (paths.length === 0) {
-                          fetchPaths();
-                        } else {
-                          setShowPaths(!showPaths);
-                        }
-                      }}
-                      disabled={loading}
-                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Loading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FolderOpen className="w-4 h-4" />
-                          <span>{showPaths ? 'Hide' : 'Browse'}</span>
-                        </>
-                      )}
-                    </button>
                   </div>
+                ) : (
+                  /* Show path selection only if not cloned */
+                  <>
+                    {/* Clone Error Message */}
+                    {cloneStatus === 'error' && (
+                      <div className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-xl p-6 shadow-sm">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <AlertCircle className="w-6 h-6 text-red-600" />
+                          <span className="text-red-700 font-bold text-lg">Clone Failed</span>
+                        </div>
+                        <p className="text-red-600 pl-9">{cloneMessage}</p>
+                      </div>
+                    )}
 
-                  {/* Path Selection */}
-                  {showPaths && paths.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-700 mb-3">Available Paths:</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                          {paths.map((pathItem, index) => (
-                            <div 
-                              key={index}
-                              onClick={() => setSelectedPath(pathItem.path)}
-                              className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                selectedPath === pathItem.path 
-                                  ? 'bg-purple-50 border-purple-500 shadow-md' 
-                                  : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-25'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <FolderOpen className="w-5 h-5 text-gray-600" />
-                                  <div>
-                                    <div className="font-medium text-gray-800">{pathItem.name}</div>
-                                    <div className="text-sm text-gray-600">{pathItem.path}</div>
+                    {/* Path Selection Card */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-purple-600 rounded-full w-10 h-10 flex items-center justify-center">
+                            <FolderOpen className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-800">Clone Location</h3>
+                            <p className="text-gray-500 text-sm">Select destination path</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (paths.length === 0) {
+                              fetchPaths();
+                            } else {
+                              setShowPaths(!showPaths);
+                            }
+                          }}
+                          disabled={loading}
+                          className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <FolderOpen className="w-4 h-4" />
+                              <span>{showPaths ? 'Hide' : 'Browse'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Path Selection */}
+                      {showPaths && paths.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <h4 className="font-medium text-gray-700 mb-3">Available Paths:</h4>
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {paths.map((pathItem, index) => (
+                                <div 
+                                  key={index}
+                                  onClick={() => setSelectedPath(pathItem.path)}
+                                  className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                    selectedPath === pathItem.path 
+                                      ? 'bg-purple-50 border-purple-500 shadow-md' 
+                                      : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-25'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                      <FolderOpen className="w-5 h-5 text-gray-600" />
+                                      <div>
+                                        <div className="font-medium text-gray-800">{pathItem.name}</div>
+                                        <div className="text-sm text-gray-600">{pathItem.path}</div>
+                                      </div>
+                                    </div>
+                                    {selectedPath === pathItem.path && (
+                                      <CheckCircle className="w-5 h-5 text-purple-600" />
+                                    )}
                                   </div>
                                 </div>
-                                {selectedPath === pathItem.path && (
-                                  <CheckCircle className="w-5 h-5 text-purple-600" />
-                                )}
-                              </div>
+                              ))}
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {selectedPath && (
-                    <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <p className="text-sm text-purple-700">
-                        <span className="font-medium">Selected Path:</span> {selectedPath}
-                      </p>
+                      {selectedPath && cloneStatus !== 'success' && (
+                        <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <p className="text-sm text-purple-700">
+                            <span className="font-medium">Selected Path:</span> {selectedPath}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Clone Button */}
-                {selectedPath && (
-                  <button
-                    onClick={cloneRepository}
-                    disabled={cloneLoading || !selectedPath}
-                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-green-400 disabled:to-emerald-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                  >
-                    {cloneLoading ? (
-                      <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <span>Cloning Repository...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Github className="w-6 h-6" />
-                        <span>Clone Repository</span>
-                      </>
+                    {/* Clone Button - Only show if not cloned */}
+                    {selectedPath && cloneStatus !== 'success' && (
+                      <button
+                        onClick={cloneRepository}
+                        disabled={cloneLoading || !selectedPath}
+                        className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-green-400 disabled:to-emerald-400 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                      >
+                        {cloneLoading ? (
+                          <>
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            <span>Cloning Repository...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Github className="w-6 h-6" />
+                            <span>Clone Repository</span>
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
             )}
