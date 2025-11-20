@@ -25,6 +25,11 @@ const TestScript = () => {
   const [expandedScreenshot, setExpandedScreenshot] = useState(null);
   const [isRunningTest, setIsRunningTest] = useState(false);
 
+  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  const [apiKey, setApiKey] = useState(null);  
+  const [gptVersion, setGptVersion] = useState(null);
+  const [projectData, setProjectData] = useState(null);
+
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
   const fetchTestCase = useCallback(async (testcaseName, projectName) => {
@@ -108,6 +113,51 @@ const TestScript = () => {
       fetchTestScript();
     }
   }, [activeTab, fetchTestScript]);
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      navigate("/dashboard-user");
+      return;
+    }
+
+    const savedProjectKey = `selectedProject_${userId}`;
+    const savedProject = localStorage.getItem(savedProjectKey);
+
+    if (savedProject) {
+        try {
+            const parsedProject = JSON.parse(savedProject);
+            setProjectData(parsedProject);
+        } catch (err) {
+            console.error("Error parsing saved project:", err);
+            localStorage.removeItem(savedProjectKey);
+        }
+    }
+
+    const handleProjectChange = () => {
+      navigate("/test-cases");
+    };
+
+    window.addEventListener("projectChanged", handleProjectChange);
+    return () => window.removeEventListener("projectChanged", handleProjectChange);
+  }, [navigate]);
+
+  useEffect(() => {
+    if (projectData?.id) {
+      setIsTestDataLoading(true);
+      fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Test data loaded:", data);
+          setApiKey(data?.openai_api_key || null); 
+          setGptVersion(data?.gpt_version || null);  
+        })
+        .catch((err) => {
+          console.warn("⚠️ Error fetching test data:", err.message);
+        })
+        .finally(() => setIsTestDataLoading(false));
+    }
+  }, [projectData?.id]);
 
   const handleEditTestCase = () => {
     setIsEditing(true);
@@ -212,7 +262,11 @@ const TestScript = () => {
 
     setIsRunningTest(true); 
     try {
-        const requestBody = { test_file: testFilePath };
+        const requestBody = { 
+          test_file: testFilePath,
+          api_key: apiKey,          
+          gpt_version: gptVersion  
+        };
         console.log("Request Body:", requestBody); 
 
         const response = await fetch('http://127.0.0.1:8000/AI/test/run-existing/', {
@@ -473,6 +527,7 @@ const TestScript = () => {
                       <>
                         <button
                           onClick={handleRunScript}
+                          disabled={isTestDataLoading || !testFilePath || !apiKey || !gptVersion}
                           className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-700"
                         >
                           <Play className="w-4 h-4 mr-2" />

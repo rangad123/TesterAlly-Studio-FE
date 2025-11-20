@@ -41,6 +41,9 @@ const [showFeedback, setShowFeedback] = useState(false);
 const [feedbackGiven, setFeedbackGiven] = useState(null); 
 const [retryCount, setRetryCount] = useState(0);
 
+const [apiKey, setApiKey] = useState(null);  
+const [gptVersion, setGptVersion] = useState(null);
+
 
 const saveTestUrl = async () => {
   if (!projectData?.id || !tempUrl.trim()) return;
@@ -181,6 +184,8 @@ const enhancePrompt = async () => {
         .then((data) => {
           console.log("✅ Test data loaded:", data);
           setTestUrl(data?.url || '');
+          setApiKey(data?.openai_api_key || null); 
+          setGptVersion(data?.gpt_version || null);  
         })
         .catch((err) => {
           console.warn("⚠️ Error fetching test data:", err.message);
@@ -258,7 +263,9 @@ const enhancePrompt = async () => {
           user_id: userId,
           prompt: promptText,
           scenarios_name: scenarioName,
-          run_mode: "new"  
+          run_mode: "new",
+          api_key: apiKey,         
+          gpt_version: gptVersion 
         })
       });
 
@@ -609,6 +616,8 @@ const enhancePrompt = async () => {
         prompt: promptText,
         scenarios_name: scenarioName,
         run_mode: "auto",
+        api_key: apiKey,          
+        gpt_version: gptVersion
       });
 
       const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
@@ -621,7 +630,9 @@ const enhancePrompt = async () => {
           user_id: userId,
           prompt: promptText,
           scenarios_name: scenarioName,
-          run_mode: "auto"
+          run_mode: "auto",
+          api_key: apiKey,          
+          gpt_version: gptVersion
         })
       });
 
@@ -702,6 +713,25 @@ const enhancePrompt = async () => {
       const testCaseData = await testCaseResponse.json();
       console.log("Test case created:", testCaseData);
 
+      //   🚀 NEW PART: SAVE CAG CACHE
+      // const saveCAGPayload = {
+      //   website: testResults.website,           
+      //   scenario_name: scenarioName,            
+      //   actions_taken: testResults.actions_taken 
+      // };
+
+      // console.log("Saving CAG Cache:", saveCAGPayload);
+
+      // const saveCAGResponse = await fetch("http://127.0.0.1:8000/AI/test/save_cag/", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(saveCAGPayload)
+      // });
+
+      // const saveCAGResult = await saveCAGResponse.json().catch(() => ({}));
+
+      // console.log("Save CAG API Response:", saveCAGResult);
+
       if (generatedTestFile?.test_file) {
         const importPayload = {
           user_id: parseInt(userId),
@@ -771,7 +801,9 @@ const enhancePrompt = async () => {
         scenarios_name: scenarioName,
         previous_test_results: testResults,
         retry_count: newRetryCount,
-        run_mode: "replanner"
+        run_mode: "replanner",
+        api_key: apiKey,         
+        gpt_version: gptVersion
       };
 
       console.log("Compact payload:", payload);

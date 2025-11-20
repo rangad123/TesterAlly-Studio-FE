@@ -2,6 +2,27 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateTestCases.css";
 import { Database, Info } from "lucide-react";
+import { 
+  Link, 
+  Mail, 
+  Phone, 
+  Globe, 
+  Edit2, 
+  Plus, 
+  Eye, 
+  EyeOff, 
+  Trash2, 
+  CheckCircle2, 
+  Upload, 
+  FileText, 
+  X, 
+  AlertCircle,
+  Calendar,
+  Loader2,
+  Folder,
+  Key,    
+  Cpu     
+} from "lucide-react";
 
 const TestData = () => {
   const [url, setUrl] = useState("");
@@ -22,7 +43,18 @@ const TestData = () => {
     "United States", 
      "India", "Japan", "Switzerland", "Austria", "Ireland", "Other"
   ];
-  const [moduleName, setModuleName] = useState("");
+  // const [moduleName, setModuleName] = useState("");
+
+  const [apiKey, setApiKey] = useState("");
+  const [gptVersion, setGptVersion] = useState("");
+  const [customGptVersion, setCustomGptVersion] = useState("");
+  const gptVersions = [
+    "gpt-4o-mini",
+    "gpt-4o", 
+    "gpt-4.1-mini",
+    "gpt-4.1",
+    "Custom"
+  ];
 
   const [selectedFile, setSelectedFile] = useState(null);
   
@@ -147,10 +179,10 @@ const TestData = () => {
       isValid = false;
     }
 
-    if (!moduleName.trim()) {
-      newErrors.moduleName = "Module name is required!";
-      isValid = false;
-    }
+    // if (!moduleName.trim()) {
+    //   newErrors.moduleName = "Module name is required!";
+    //   isValid = false;
+    // }
 
     setErrors(newErrors);
     return isValid;
@@ -202,7 +234,9 @@ const TestData = () => {
           email_app_password: password.trim() || null, 
           phone_number: phone.trim() || null,  
           region: country.trim() || null,
-          // module_name: moduleName.trim() || null       
+          // module_name: moduleName.trim() || null    
+          openai_api_key: apiKey.trim() || null,  
+          gpt_version: gptVersion === "Custom" ? customGptVersion.trim() : gptVersion.trim() || null,    
         };
         console.log("Payload of Data upload:", payload);
 
@@ -232,7 +266,10 @@ const TestData = () => {
       setPassword("");
       setCountry("");
       setSelectedFile(null);
-      setModuleName("");
+      // setModuleName("");
+      setApiKey("");           
+      setGptVersion("");     
+      setCustomGptVersion("");
       
     } catch (error) {
       console.error("Error during upload:", error);
@@ -280,346 +317,434 @@ const TestData = () => {
     navigate("/dashboard-user");
   };
 
-const renderUploadedData = () => {
-  if (!uploadedData) return null;
+  const renderUploadedData = () => {
+    if (!uploadedData) return null;
 
-  const handleEditField = (fieldType, currentValue) => {
-    // Preserve all existing saved data
-    if (uploadedData.url) setUrl(uploadedData.url);
-    if (uploadedData.email) setEmail(uploadedData.email);
-    if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
-    if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
-    if (uploadedData.region) setCountry(uploadedData.region);
-    
-    // Then focus on the specific field being edited
-    if (fieldType === 'url') {
-      setUrl(currentValue);
-    } else if (fieldType === 'email') {
-      setEmail(currentValue);
-    } else if (fieldType === 'password') { 
-      setPassword(currentValue);
-    } else if (fieldType === 'phone') {
-      setPhone(currentValue);
-    } else if (fieldType === 'country') {
-      setCountry(currentValue);
-    }
-    
-    setUploadedData(null); // Show the form for editing
-  };
+    const handleEditField = (fieldType, currentValue) => {
+      if (uploadedData.url) setUrl(uploadedData.url);
+      if (uploadedData.email) setEmail(uploadedData.email);
+      if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
+      if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
+      if (uploadedData.region) setCountry(uploadedData.region);
+      if (uploadedData.openai_api_key) setApiKey(uploadedData.openai_api_key); 
+      if (uploadedData.gpt_version) {  
+        if (gptVersions.includes(uploadedData.gpt_version)) {
+          setGptVersion(uploadedData.gpt_version);
+        } else {
+          setGptVersion("Custom");
+          setCustomGptVersion(uploadedData.gpt_version);
+        }
+      }
+      
+      if (fieldType === 'url') {
+        setUrl(currentValue);
+      } else if (fieldType === 'email') {
+        setEmail(currentValue);
+      } else if (fieldType === 'password') { 
+        setPassword(currentValue);
+      } else if (fieldType === 'phone') {
+        setPhone(currentValue);
+      } else if (fieldType === 'country') {
+        setCountry(currentValue);
+      } else if (fieldType === 'apiKey') {  
+        setApiKey(currentValue);
+      } else if (fieldType === 'gptVersion') {  
+        if (gptVersions.includes(currentValue)) {
+          setGptVersion(currentValue);
+        } else {
+          setGptVersion("Custom");
+          setCustomGptVersion(currentValue);
+        }
+      }
+      
+      setUploadedData(null);
+    };
 
-  const handleAddField = (fieldType) => {
-    // Preserve all existing saved data
-    if (uploadedData.url) setUrl(uploadedData.url);
-    if (uploadedData.email) setEmail(uploadedData.email);
-    if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
-    if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
-    if (uploadedData.region) setCountry(uploadedData.region);
-    
-    // Set empty value for the field being added
-    if (fieldType === 'url') {
-      setUrl('');
-    } else if (fieldType === 'email') {
-      setEmail('');
-    } else if (fieldType === 'password') {  
-      setPassword('');
-    } else if (fieldType === 'phone') {
-      setPhone('');
-    } else if (fieldType === 'country') {
-      setCountry('');
-    }
-    
-    setUploadedData(null); // Show the form for adding
-  };
+    const handleAddField = (fieldType) => {
+      if (uploadedData.url) setUrl(uploadedData.url);
+      if (uploadedData.email) setEmail(uploadedData.email);
+      if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password); 
+      if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
+      if (uploadedData.region) setCountry(uploadedData.region);
+      if (uploadedData.openai_api_key) setApiKey(uploadedData.openai_api_key);  
+      if (uploadedData.gpt_version) { 
+        if (gptVersions.includes(uploadedData.gpt_version)) {
+          setGptVersion(uploadedData.gpt_version);
+        } else {
+          setGptVersion("Custom");
+          setCustomGptVersion(uploadedData.gpt_version);
+        }
+      }
+      
+      if (fieldType === 'url') {
+        setUrl('');
+      } else if (fieldType === 'email') {
+        setEmail('');
+      } else if (fieldType === 'password') {  
+        setPassword('');
+      } else if (fieldType === 'phone') {
+        setPhone('');
+      } else if (fieldType === 'country') {
+        setCountry('');
+      } else if (fieldType === 'apiKey') { 
+        setApiKey('');
+      } else if (fieldType === 'gptVersion') {  
+        setGptVersion('');
+        setCustomGptVersion('');
+      }
+      
+      setUploadedData(null);
+    };
 
-  return (
-    <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-md">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-green-800 mb-4 flex items-center">
-            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            Test Data Successfully Uploaded
-          </h3>
-          
-          {/* Website URL Field */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
-            {uploadedData.url ? (
-              <div className="group relative p-2 bg-white rounded border border-green-200">
-                <a 
-                  href={uploadedData.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 break-all text-sm pr-8"
-                >
-                  {uploadedData.url}
-                </a>
-                <button 
-                  onClick={() => handleEditField('url', uploadedData.url)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                  title="Edit URL"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                <button 
-                  onClick={() => handleAddField('url')}
-                  className="w-full text-left text-gray-500 text-sm flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Click to add website URL
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-            {/* Email Field */}
+    return (
+      <div className="mt-6 bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-200 rounded-xl shadow-sm">
+        <div className="p-6">
+          {/* Success Header */}
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-emerald-200">
+            <div className="p-2 bg-emerald-100 rounded-lg">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              {uploadedData.email ? (
-                <div className="group relative p-2 bg-white rounded border border-green-200">
-                  <span className="text-gray-700 text-sm pr-8">{uploadedData.email}</span>
-                  <button 
-                    onClick={() => handleEditField('email', uploadedData.email)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                    title="Edit email"
+              <h3 className="text-lg font-semibold text-emerald-900">
+                Test Data Successfully Uploaded
+              </h3>
+              <p className="text-sm text-emerald-700 mt-0.5">
+                Your test data has been saved and is ready to use
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Website URL Field */}
+            <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Link className="w-4 h-4 text-purple-600" />
+                <label className="text-sm font-semibold text-gray-700">Website URL</label>
+              </div>
+              {uploadedData.url ? (
+                <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                  <a 
+                    href={uploadedData.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-purple-700 hover:text-purple-900 font-medium break-all text-sm pr-10 block"
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
+                    {uploadedData.url}
+                  </a>
+                  <button 
+                    onClick={() => handleEditField('url', uploadedData.url)}
+                    className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                    title="Edit URL"
+                  >
+                    <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
-                <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                  <button 
-                    onClick={() => handleAddField('email')}
-                    className="w-full text-left text-gray-500 text-sm flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    Click to add email
-                  </button>
-                </div>
+                <button 
+                  onClick={() => handleAddField('url')}
+                  className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-4 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-medium">Add Website URL</span>
+                  </div>
+                </button>
               )}
             </div>
 
-            {/* Password Field - NEW */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              {uploadedData.email_app_password ? (
-                <div className="group relative p-2 bg-white rounded border border-green-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-700 text-sm pr-8">
-                      {showPassword ? uploadedData.email_app_password : '•'.repeat(uploadedData.email_app_password.length)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Email Field */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">Email Address</label>
+                </div>
+                {uploadedData.email ? (
+                  <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.email}</span>
+                    <button 
+                      onClick={() => handleEditField('email', uploadedData.email)}
+                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                      title="Edit email"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleAddField('email')}
+                    className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-medium">Add Email</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Password Field */}
+              {uploadedData.email && (
+                <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="w-4 h-4 text-purple-600" />
+                    <label className="text-sm font-semibold text-gray-700">Password</label>
+                  </div>
+                  {uploadedData.email_app_password ? (
+                    <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-purple-700 font-medium text-sm flex-1">
+                          {showPassword ? uploadedData.email_app_password : '•'.repeat(uploadedData.email_app_password.length)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md transition-colors"
+                            title={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                          <button 
+                            onClick={() => handleEditField('password', uploadedData.email_app_password)}
+                            className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                            title="Edit password"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    uploadedData.email && (
+                      <button 
+                        onClick={() => handleAddField('password')}
+                        className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                      >
+                        <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                          <Plus className="w-4 h-4" />
+                          <span className="text-sm font-medium">Add Password</span>
+                        </div>
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* Phone Field */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">Phone Number</label>
+                </div>
+                {uploadedData.phone_number ? (
+                  <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.phone_number}</span>
+                    <button 
+                      onClick={() => handleEditField('phone', uploadedData.phone_number)}
+                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                      title="Edit phone"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleAddField('phone')}
+                    className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-medium">Add Phone</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Country/Region Field */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">Country/Region</label>
+                </div>
+                {uploadedData.region ? (
+                  <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.region}</span>
+                    <button 
+                      onClick={() => handleEditField('country', uploadedData.region)}
+                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                      title="Edit country"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleAddField('country')}
+                    className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-medium">Add Country</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Module Name */}
+            {/* {uploadedData.module_name && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">Module Name</label>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                  <span className="text-purple-700 font-medium text-sm">{uploadedData.module_name}</span>
+                </div>
+              </div>
+            )} */}
+
+            {/* OpenAI API Key Field */}
+            <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Key className="w-4 h-4 text-purple-600" />
+                <label className="text-sm font-semibold text-gray-700">OpenAI API Key</label>
+              </div>
+              {uploadedData.openai_api_key ? (
+                <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-purple-700 font-medium text-sm flex-1">
+                      {showPassword ? uploadedData.openai_api_key : '•'.repeat(Math.min(uploadedData.openai_api_key.length, 40))}
                     </span>
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <button 
                         onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-500 hover:text-gray-700 p-1"
-                        title={showPassword ? "Hide password" : "Show password"}
+                        className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-md transition-colors"
+                        title={showPassword ? "Hide API key" : "Show API key"}
                       >
-                        {showPassword ? (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button 
-                        onClick={() => handleEditField('password', uploadedData.email_app_password)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                        title="Edit password"
+                        onClick={() => handleEditField('apiKey', uploadedData.openai_api_key)}
+                        className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                        title="Edit API key"
                       >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
+                        <Edit2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                uploadedData.email && (
-                  <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                    <button 
-                      onClick={() => handleAddField('password')}
-                      className="w-full text-left text-gray-500 text-sm flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                      Click to add password
-                    </button>
+                <button 
+                  onClick={() => handleAddField('apiKey')}
+                  className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-medium">Add API Key</span>
                   </div>
-                )
+                </button>
               )}
             </div>
 
-            {/* Phone Field */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-              {uploadedData.phone_number ? (
-                <div className="group relative p-2 bg-white rounded border border-green-200">
-                  <span className="text-gray-700 text-sm pr-8">{uploadedData.phone_number}</span>
+            {/* GPT Version Field */}
+            <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Cpu className="w-4 h-4 text-purple-600" />
+                <label className="text-sm font-semibold text-gray-700">GPT Version</label>
+              </div>
+              {uploadedData.gpt_version ? (
+                <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                  <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.gpt_version}</span>
                   <button 
-                    onClick={() => handleEditField('phone', uploadedData.phone_number)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                    title="Edit phone"
+                    onClick={() => handleEditField('gptVersion', uploadedData.gpt_version)}
+                    className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                    title="Edit GPT version"
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
+                    <Edit2 className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
-                <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                  <button 
-                    onClick={() => handleAddField('phone')}
-                    className="w-full text-left text-gray-500 text-sm flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    Click to add phone
-                  </button>
-                </div>
+                <button 
+                  onClick={() => handleAddField('gptVersion')}
+                  className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                    <Plus className="w-4 h-4" />
+                    <span className="text-sm font-medium">Add GPT Version</span>
+                  </div>
+                </button>
               )}
             </div>
-          </div>
 
-          {/* Country/Region Field */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Country/Region</label>
-            {uploadedData.region ? (
-              <div className="group relative p-2 bg-white rounded border border-green-200">
-                <span className="text-gray-700 text-sm pr-8">{uploadedData.region}</span>
-                <button 
-                  onClick={() => handleEditField('country', uploadedData.region)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                  title="Edit country"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
+            {/* Uploaded File */}
+            {uploadedData.filename && (
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">Uploaded File</label>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-3 border border-purple-100 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-purple-600" />
+                  <span className="text-purple-700 font-medium text-sm flex-1">{uploadedData.filename}</span>
+                </div>
               </div>
-            ) : (
-              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                <button 
-                  onClick={() => handleAddField('country')}
-                  className="w-full text-left text-gray-500 text-sm flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Click to add country/region
-                </button>
+            )}
+            
+            {/* Timestamp */}
+            {uploadedData.created_at && (
+              <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+                <Calendar className="w-4 h-4" />
+                <span className="font-medium">Uploaded:</span>
+                <span>{new Date(uploadedData.created_at).toLocaleString()}</span>
               </div>
             )}
           </div>
-
-          {/* Module Name Display */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Module Name</label>
-            {uploadedData.module_name ? (
-              <div className="group relative p-2 bg-white rounded border border-green-200">
-                <span className="text-gray-700 text-sm pr-8">{uploadedData.module_name}</span>
-                <button 
-                  onClick={() => handleEditField('module', uploadedData.module_name)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800 p-1"
-                  title="Edit module name"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                  </svg>
-                </button>
-              </div>
+        </div>
+        
+        {/* Delete Button */}
+        <div className="px-6 pb-6">
+          <button 
+            onClick={() => handleDelete(selectedProject.id)}
+            className="w-full md:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 font-medium shadow-sm hover:shadow-md" 
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Deleting...
+              </>
             ) : (
-              <div className="group relative p-2 bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-400 transition-colors cursor-pointer">
-                <button 
-                  onClick={() => handleAddField('module')}
-                  className="w-full text-left text-gray-500 text-sm flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Click to add module name
-                </button>
-              </div>
+              <>
+                <Trash2 className="w-5 h-5" />
+                Delete All Data
+              </>
             )}
-          </div>
-
-          {/* File Display */}
-          {uploadedData.filename && (
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Uploaded File</label>
-              <div className="p-2 bg-white rounded border border-green-200 flex items-center">
-                <svg className="w-4 h-4 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700 text-sm">{uploadedData.filename}</span>
-              </div>
-            </div>
-          )}
-          
-          {/* Upload Timestamp */}
-          {uploadedData.created_at && (
-            <div className="text-xs text-gray-600 mt-3">
-              <span className="font-medium">Uploaded:</span> {new Date(uploadedData.created_at).toLocaleString()}
-            </div>
-          )}
+          </button>
         </div>
       </div>
-      
-      {/* Action Buttons */}
-      <div className="mt-4 flex space-x-2">
-        <button 
-          onClick={() => handleDelete(selectedProject.id)}
-          className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center text-sm" 
-          disabled={isDeleting}
-        >
-          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
-            <path fillRule="evenodd" d="M10 5a1 1 0 00-1 1v3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-          {isDeleting ? "Deleting..." : "Delete All Data"}
-        </button>
-      </div>
-    </div>
-  );
-};
+    );
+  };
 
   const renderInputForm = () => {
     return (
-      <div className="mt-4 bg-white rounded-md shadow-sm border border-gray-200 p-6">
-        <div className="space-y-6">
-        {errors.general && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-3">
-            <p className="text-sm text-red-600 flex items-center">
-              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              {errors.general}
-            </p>
-          </div>
-        )}
+      <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="p-6 space-y-6">
+          {/* General Error Message */}
+          {errors.general && (
+            <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-red-800 mb-1">Error</h4>
+                <p className="text-sm text-red-700">{errors.general}</p>
+              </div>
+            </div>
+          )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Website URL Field */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Link className="w-4 h-4 text-purple-600" />
               Website URL
             </label>
             <input
@@ -630,162 +755,174 @@ const renderUploadedData = () => {
                 setErrors((prev) => ({ ...prev, url: "", general: "" }));
               }}
               placeholder="Enter website URL (e.g., https://example.com)"
-              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                errors.url ? "border-red-500 bg-red-50" : "border-gray-300"
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                errors.url ? "border-red-500 bg-red-50" : "border-gray-300 hover:border-purple-300"
               }`}
               disabled={isUploading}
             />
             {errors.url && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                {errors.url}
-              </p>
-            )}
-          </div>
-
-          {/* Email Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors((prev) => ({ ...prev, email: "", general: "" }));
-              }}
-              placeholder="Enter email address"
-              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                errors.email ? "border-red-500 bg-red-50" : "border-gray-300"
-              }`}
-              disabled={isUploading}
-            />
-            {errors.email && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                {errors.email}
-              </p>
-            )}
-          </div>
-
-          {/* Password Field */}
-          {email.trim() && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                Password <span className="text-red-500 ml-1">*</span>
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordInfoModal(true)}
-                  className="ml-2 text-purple-600 hover:text-purple-800"
-                  title="More Info"
-                >
-                  <Info className="w-4 h-4" />
-                </button>
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setErrors((prev) => ({ ...prev, password: '', general: '' }));
-                  }}
-                  placeholder="Enter App Password"
-                  className={`w-full px-3 py-2.5 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                    errors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                  disabled={isUploading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {/* Eye Icon */}
-                </button>
+              <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle className="w-4 h-4" />
+                <span>{errors.url}</span>
               </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-600 flex items-center">
-                  {errors.password}
-                </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Email Field */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Mail className="w-4 h-4 text-purple-600" />
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors((prev) => ({ ...prev, email: "", general: "" }));
+                }}
+                placeholder="Enter email address"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  errors.email ? "border-red-500 bg-red-50" : "border-gray-300 hover:border-purple-300"
+                }`}
+                disabled={isUploading}
+              />
+              {errors.email && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{errors.email}</span>
+                </div>
               )}
             </div>
-          )}
 
-          {showPasswordInfoModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 border border-purple-200">
-                <h3 className="text-lg font-semibold text-purple-700 mb-4 text-center">App Password Info</h3>
-                <p className="text-sm text-gray-700 mb-4">
-                  This is not your usual email password. You must enter a{' '}
-                  <span className="font-semibold text-purple-700">Google App Password</span> — a 16-character code like{' '}
-                  <span className="font-mono">sjnc ejcj ebhc tigv</span>.
-                </p>
-                <a
-                  href="https://myaccount.google.com/apppasswords"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 rounded-md transition"
-                >
-                  Generate App Password
-                </a>
-                <button
-                  onClick={() => setShowPasswordInfoModal(false)}
-                  className="mt-4 w-full text-purple-600 text-sm hover:underline"
-                >
-                  Close
-                </button>
+            {/* Password Field */}
+            {email.trim() && (
+              <div>
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                  <Eye className="w-4 h-4 text-purple-600" />
+                  Password
+                  <span className="text-red-500">*</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordInfoModal(true)}
+                    className="ml-auto text-purple-600 hover:text-purple-800 transition-colors"
+                    title="More Info"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrors((prev) => ({ ...prev, password: '', general: '' }));
+                    }}
+                    placeholder="Enter App Password"
+                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                      errors.password ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-purple-300'
+                    }`}
+                    disabled={isUploading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-600 transition-colors"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{errors.password}</span>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-
-          {/* Phone Number Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setErrors((prev) => ({ ...prev, phone: "", general: "" }));
-              }}
-              placeholder="Enter phone number"
-              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                errors.phone ? "border-red-500 bg-red-50" : "border-gray-300"
-              }`}
-              disabled={isUploading}
-            />
-            {errors.phone && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                {errors.phone}
-              </p>
             )}
-          </div>
 
-          {/* Country/Region Field - NEW */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Country/Region
-            </label>
-            <div className="flex space-x-2">
+            {/* Password Info Modal */}
+            {showPasswordInfoModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-purple-200 animate-in fade-in zoom-in duration-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-purple-700 flex items-center gap-2">
+                      <Info className="w-5 h-5" />
+                      App Password Info
+                    </h3>
+                    <button
+                      onClick={() => setShowPasswordInfoModal(false)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                    This is not your usual email password. You must enter a{' '}
+                    <span className="font-semibold text-purple-700">Google App Password</span> — a 16-character code like{' '}
+                    <span className="font-mono bg-purple-50 px-2 py-1 rounded text-purple-700">sjnc ejcj ebhc tigv</span>.
+                  </p>
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 rounded-lg transition-colors mb-3"
+                  >
+                    Generate App Password
+                  </a>
+                  <button
+                    onClick={() => setShowPasswordInfoModal(false)}
+                    className="w-full text-purple-600 text-sm hover:underline font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Phone Number Field */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Phone className="w-4 h-4 text-purple-600" />
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setErrors((prev) => ({ ...prev, phone: "", general: "" }));
+                }}
+                placeholder="Enter phone number"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  errors.phone ? "border-red-500 bg-red-50" : "border-gray-300 hover:border-purple-300"
+                }`}
+                disabled={isUploading}
+              />
+              {errors.phone && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{errors.phone}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Country/Region Field */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Globe className="w-4 h-4 text-purple-600" />
+                Country/Region
+              </label>
               <select
                 value={country}
                 onChange={(e) => {
                   setCountry(e.target.value);
                   setErrors((prev) => ({ ...prev, general: "" }));
                 }}
-                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                 disabled={isUploading}
               >
                 <option value="">Select a country</option>
@@ -795,65 +932,112 @@ const renderUploadedData = () => {
                   </option>
                 ))}
               </select>
-              {country === "Other" && (
-                <input
-                  type="text"
-                  placeholder="Enter country name"
-                  value={country === "Other" ? "" : country}
+            </div>
+
+            {/* Module Name Field */}
+            {/* <div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <FileText className="w-4 h-4 text-purple-600" />
+                Module Name
+              </label>
+              <input
+                type="text"
+                value={moduleName}
+                onChange={(e) => {
+                  setModuleName(e.target.value);
+                  setErrors((prev) => ({ ...prev, moduleName: "", general: "" }));
+                }}
+                placeholder="e.g., Login, Cart, Checkout"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                  errors.moduleName ? "border-red-500 bg-red-50" : "border-gray-300 hover:border-purple-300"
+                }`}
+                disabled={isUploading}
+              />
+              {errors.moduleName && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{errors.moduleName}</span>
+                </div>
+              )}
+            </div> */}
+
+            {/* OpenAI API Key Field */}
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Key className="w-4 h-4 text-purple-600" />
+                OpenAI API Key
+              </label>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setErrors((prev) => ({ ...prev, general: "" }));
+                }}
+                placeholder="Enter your OpenAI API Key"
+                className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* GPT Version Field */}
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Cpu className="w-4 h-4 text-purple-600" />
+                GPT Version
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={gptVersion}
                   onChange={(e) => {
-                    setCountry(e.target.value);
+                    setGptVersion(e.target.value);
+                    if (e.target.value !== "Custom") {
+                      setCustomGptVersion("");
+                    }
                     setErrors((prev) => ({ ...prev, general: "" }));
                   }}
-                  className="flex-1 px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                  className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                   disabled={isUploading}
-                />
-              )}
+                >
+                  <option value="">Select GPT Version</option>
+                  {gptVersions.map((version, index) => (
+                    <option key={index} value={version}>
+                      {version}
+                    </option>
+                  ))}
+                </select>
+                
+                {gptVersion === "Custom" && (
+                  <input
+                    type="text"
+                    value={customGptVersion}
+                    onChange={(e) => {
+                      setCustomGptVersion(e.target.value);
+                      setErrors((prev) => ({ ...prev, general: "" }));
+                    }}
+                    placeholder="Enter custom GPT version"
+                    className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    disabled={isUploading}
+                  />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Module Name Field */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Module Name
-            </label>
-            <input
-              type="text"
-              value={moduleName}
-              onChange={(e) => {
-                setModuleName(e.target.value);
-                setErrors((prev) => ({ ...prev, moduleName: "", general: "" }));
-              }}
-              placeholder="Enter module name (e.g., Login, Cart, Checkout)"
-              className={`w-full px-3 py-2.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm ${
-                errors.moduleName ? "border-red-500 bg-red-50" : "border-gray-300"
-              }`}
-              disabled={isUploading}
-            />
-            {errors.moduleName && (
-              <p className="mt-2 text-sm text-red-600 flex items-center">
-                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                {errors.moduleName}
-              </p>
-            )}
-          </div>
-
-        </div>
-
           {/* File Upload Field */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Upload className="w-4 h-4 text-purple-600" />
               Upload Test File (Optional)
             </label>
-            <div className="border-2 border-gray-300 border-dashed rounded-md p-4 hover:border-purple-400 transition-colors duration-200">
+            <div className="border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-xl p-8 transition-all duration-200 bg-gradient-to-br from-gray-50 to-purple-50">
               <div className="text-center">
-                <svg className="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                  <Upload className="w-8 h-8 text-purple-600" />
+                </div>
                 <label htmlFor="file-upload" className="cursor-pointer">
-                  <span className="text-purple-600 hover:text-purple-500 font-medium">Upload a file</span>
-                  <span className="text-gray-500"> or drag and drop</span>
+                  <span className="text-purple-600 hover:text-purple-700 font-semibold">Upload a file</span>
+                  <span className="text-gray-600"> or drag and drop</span>
                   <input
                     id="file-upload"
                     type="file"
@@ -863,33 +1047,34 @@ const renderUploadedData = () => {
                     disabled={isUploading}
                   />
                 </label>
-                <p className="text-xs text-gray-500 mt-1">CSV, JSON, TXT, Excel files up to 10MB</p>
+                <p className="text-sm text-gray-500 mt-2">CSV, JSON, TXT, Excel files up to 10MB</p>
               </div>
             </div>
 
+            {/* Selected File Display */}
             {selectedFile && (
-              <div className="mt-3 bg-gray-50 border border-gray-200 rounded-md p-3">
+              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <svg className="w-4 h-4 text-gray-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700">{selectedFile.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      ({(selectedFile.size / 1024).toFixed(2)} KB)
-                    </span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <FileText className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {(selectedFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => {
                       setSelectedFile(null);
                       setErrors(prev => ({ ...prev, general: "" }));
                     }}
-                    className="text-red-500 hover:text-red-700 p-1"
+                    className="ml-3 p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
                     title="Remove file"
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -897,32 +1082,33 @@ const renderUploadedData = () => {
           </div>
 
           {/* Info Note */}
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Fill in any combination of the above fields. All fields are optional, but at least one must be provided to save test data.
-            </p>
+          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900 mb-1">Important Note</h4>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  Fill in any combination of the above fields. All fields are optional, but at least one must be provided to save test data.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}
-          <div className="pt-2">
+          <div className="flex justify-center pt-4">
             <button
               onClick={() => handleCreateTestCase(selectedProject.id)}
               disabled={isUploading}
-              className="bg-purple-600 text-white py-2.5 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center text-sm font-medium w-fit mx-auto"
+              className="px-8 py-3.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
             >
               {isUploading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <Loader2 className="w-5 h-5 animate-spin" />
                   Uploading...
                 </>
               ) : (
                 <>
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
+                  <Upload className="w-5 h-5" />
                   Save Test Data
                 </>
               )}
@@ -936,13 +1122,14 @@ const renderUploadedData = () => {
   const renderContent = () => {
     if (!hasCheckedInitialData || isLoading) {
       return (
-        <div className="flex items-center justify-center p-6">
+        <div className="flex items-center justify-center p-12">
           <div className="text-center">
-            <svg className="animate-spin h-6 w-6 text-purple-600 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="text-gray-600 text-sm">Loading test data...</p>
+            <div className="relative mx-auto w-16 h-16 mb-4">
+              <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Test Data</h3>
+            <p className="text-gray-600">Please wait while we fetch your test data...</p>
           </div>
         </div>
       );
@@ -950,12 +1137,14 @@ const renderUploadedData = () => {
 
     if (!selectedProject) {
       return (
-        <div className="text-center p-6">
-          <svg className="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="text-base font-medium text-gray-900 mb-2">No Project Selected</h3>
-          <p className="text-gray-600 text-sm">Please select a project from the dropdown to manage test data.</p>
+        <div className="text-center p-12 bg-gradient-to-br from-gray-50 to-purple-50 rounded-xl border-2 border-dashed border-gray-300">
+          <div className="mx-auto w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-6">
+            <Database className="w-10 h-10 text-purple-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No Project Selected</h3>
+          <p className="text-gray-600 max-w-md mx-auto">
+            Please select a project from the dropdown menu above to start managing your test data.
+          </p>
         </div>
       );
     }
@@ -971,52 +1160,52 @@ const renderUploadedData = () => {
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 lg:ml-[300px] transition-all duration-300 lg:max-w-[calc(100%-300px)] sm:ml-[60px] sm:max-w-full">
         <div className="lg:p-6 sm:p-4">
-          <div className="max-w-4xl mx-auto">
-            {/* Header */}
-            <div className="bg-white rounded-md shadow-sm border border-gray-200 mb-4">
-              <div className="px-4 py-3 border-b border-gray-200">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-5xl mx-auto">
+            {/* Header Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+              {/* Header Top */}
+              <div className="px-6 py-5 border-b border-gray-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex-1">
-                    <h1 className="text-lg font-semibold text-gray-800 flex items-center">
-                      {/* Correct Test Data Management Icon - Database/Storage icon */}
-                      <Database className="w-5 h-5 mr-2 text-purple-600" />
-                      Test Data Management
-                    </h1>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <Database className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <h1 className="text-2xl font-bold text-gray-900">
+                        Test Data Management
+                      </h1>
+                    </div>
                     {selectedProject && (
-                      <div className="mt-1 flex items-center text-sm text-gray-600">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                        </svg>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 ml-14">
+                        <Folder className="w-4 h-4 text-purple-600" />
                         <span className="font-medium">Project:</span>
-                        <span className="ml-1 px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold">
                           {selectedProject.name}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="mt-3 sm:mt-0">
-                    <button 
-                      onClick={handleCancel} 
-                      className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors duration-200 flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      Cancel
-                    </button>
-                  </div>
+                  <button 
+                    onClick={handleCancel} 
+                    className="px-5 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center gap-2 font-medium"
+                  >
+                    <X className="w-5 h-5" />
+                    Cancel
+                  </button>
                 </div>
               </div>
               
-              {/* Info Section */}
-              <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-blue-50">
-                <div className="flex items-start space-x-2">
-                  <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  <div>
-                    <h3 className="text-sm font-medium text-blue-900">Test Data Options</h3>
-                    <p className="text-xs text-blue-700 mt-0.5 leading-relaxed">
+              {/* Info Banner */}
+              <div className="px-6 py-4 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50">
+                <div className="flex items-start gap-3">
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <Info className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                      Test Data Options
+                    </h3>
+                    <p className="text-sm text-blue-800 leading-relaxed">
                       Upload test data by providing a website URL for automated analysis or by uploading test case files directly. 
                       Supported file formats include CSV, JSON, TXT, and Excel files.
                     </p>

@@ -33,11 +33,17 @@ const TestSuite = () => {
   const [showConnectionMessage, setShowConnectionMessage] = useState(false);
   const [connectionLoading, setConnectionLoading] = useState(false);
 
+  const [isTestDataLoading, setIsTestDataLoading] = useState(false);
+  const [apiKey, setApiKey] = useState(null);  
+  const [gptVersion, setGptVersion] = useState(null);
+  const [projectData, setProjectData] = useState(null);
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
       setError("User ID not found. Please log in again.");
       setLoading(false);
+      navigate("/dashboard-user");
       return;
     }
 
@@ -45,22 +51,39 @@ const TestSuite = () => {
     const savedProject = localStorage.getItem(savedProjectKey);
 
     if (savedProject) {
-      try {
-        JSON.parse(savedProject);
-      } catch (err) {
-        console.error("Error parsing saved project:", err);
-        localStorage.removeItem(savedProjectKey);
-      }
+        try {
+            const parsedProject = JSON.parse(savedProject);
+            setProjectData(parsedProject);
+        } catch (err) {
+            console.error("Error parsing saved project:", err);
+            localStorage.removeItem(savedProjectKey);
+        }
     }
 
     const handleProjectChange = () => {
-      
       navigate("/test-suites");
     };
 
     window.addEventListener("projectChanged", handleProjectChange);
     return () => window.removeEventListener("projectChanged", handleProjectChange);
-  }, [navigate]); 
+  }, [navigate]);
+
+  useEffect(() => {
+    if (projectData?.id) {
+      setIsTestDataLoading(true);
+      fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Test data loaded:", data);
+          setApiKey(data?.openai_api_key || null); 
+          setGptVersion(data?.gpt_version || null);  
+        })
+        .catch((err) => {
+          console.warn("⚠️ Error fetching test data:", err.message);
+        })
+        .finally(() => setIsTestDataLoading(false));
+    }
+  }, [projectData?.id]);
 
   const fetchTestSuite = useCallback(async () => {
     if (!testSuiteName || !projectId) return;
@@ -312,6 +335,8 @@ const handleRunTestSuite = async () => {
       project_name: projectId,
       user_id: userId,
       testcases: testcaseDetails,
+      api_key: apiKey,          
+      gpt_version: gptVersion 
       // wait_between_steps: waitStepsMs,
       // wait_between_cases: waitCasesMs,
     };
@@ -549,6 +574,7 @@ const handleRunTestSuite = async () => {
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleRunTestSuite}
+                disabled={isTestDataLoading || !apiKey || !gptVersion}
                 className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
                 <Play className="w-4 h-4 mr-2" />
