@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Save, X, Edit2, ArrowLeft, Play, RefreshCw, WifiOff } from "lucide-react";
 // CheckSquare
+import { useTestExecution } from '../pages/TestExecutionContext';
 
 const TestSuite = () => {
   const location = useLocation();
@@ -37,6 +38,44 @@ const TestSuite = () => {
   const [apiKey, setApiKey] = useState(null);  
   const [gptVersion, setGptVersion] = useState(null);
   const [projectData, setProjectData] = useState(null);
+
+  // ✅ ADD TEST EXECUTION CONTEXT
+  const { 
+    currentExecution, 
+    startExecution, 
+    completeExecution, 
+    clearExecution 
+  } = useTestExecution();
+
+  // ✅ Restore execution data when component mounts
+  useEffect(() => {
+    if (currentExecution && currentExecution.executionType === 'test_suite') {
+      console.log('📦 Restoring test suite execution:', currentExecution);
+      
+      // If test suite execution is completed, show results
+      if (currentExecution.status === 'completed' && currentExecution.testResults) {
+        setExecutionResults(currentExecution.testResults.results || {});
+        setTestSuiteSummary(currentExecution.testResults.summary || null);
+        setIsExecuting(false);
+        setExecutionInProgress(false);
+      }
+      
+      // If test suite is running, show running state
+      if (currentExecution.status === 'running') {
+        setIsExecuting(true);
+        setExecutionInProgress(true);
+      }
+      
+      // If test suite failed or cancelled
+      if (currentExecution.status === 'error' || currentExecution.status === 'cancelled') {
+        setIsExecuting(false);
+        setExecutionInProgress(false);
+        if (currentExecution.error) {
+          setError(currentExecution.error);
+        }
+      }
+    }
+  }, [currentExecution]);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -90,9 +129,12 @@ const TestSuite = () => {
     const userId = localStorage.getItem("userId");
     
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/integrate/testsuite/?user_id=${userId}&project_name=${projectId}&title=${testSuiteName}`,
-      );
+      const requestsuiteUrl = `http://127.0.0.1:8000/integrate/testsuite/?user_id=${userId}&project_name=${projectId}&title=${testSuiteName}`;
+
+      // 🔥 Print full request URL before calling fetch
+      console.log("📌 Fetch Request Suite URL:", requestsuiteUrl);
+
+      const response = await fetch(requestsuiteUrl);
 
       if (!response.ok) throw new Error("Failed to fetch test suite");
       const data = await response.json();
@@ -117,9 +159,12 @@ const TestSuite = () => {
       const userId = localStorage.getItem("userId");
       const testCasesData = await Promise.all(
         testSuite.testcase.map(async (testCaseObj) => {  
-          const response = await fetch(
-            `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectId}&testcase_name=${testCaseObj.testcase_name}`
-          );
+          const requestUrl = `http://127.0.0.1:8000/integrate/testcase/?user_id=${userId}&project_name=${projectId}&testcase_name=${testCaseObj.testcase_name}`;
+
+          // 🔥 Print exactly what you are sending
+          console.log("📌 Fetch Request URL:", requestUrl);
+
+          const response = await fetch(requestUrl);
           if (!response.ok) throw new Error(`Failed to fetch test case ${testCaseObj.testcase_name}`);
           const data = await response.json();
           
@@ -280,9 +325,36 @@ const checkConnectionOnly = async () => {
     setShowExecutionModal(false);
   };
 
-  const cancelExecution = () => {
+  const cancelExecution = async () => {
+    try {
+      // 🔥 CALL STOP API FIRST
+      const response = await fetch('http://127.0.0.1:8000/AI/test/run-stop/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await response.json();
+      console.log("🛑 Cancel API Response:", data);
+
+      if (!response.ok) {
+        alert("Failed to send cancel request");
+        console.error("Cancel API error:", data);
+      }
+
+    } catch (error) {
+      console.error("Cancel API request failed:", error);
+    }
+    
     setCancellationRequested(true);
     setExecutionInProgress(false);
+
+    // Mark as cancelled
+    completeExecution(null, "Test suite cancelled by user");
+
+    // Clear UI after 2 sec
+    setTimeout(() => {
+      clearExecution();
+    }, 2000);
   };
 
 const handleRunTestSuite = async () => {
@@ -303,7 +375,21 @@ const handleRunTestSuite = async () => {
   
   // const waitStepsMs = parseInt(waitBetweenSteps) || 1000;
   // const waitCasesMs = parseInt(waitBetweenCases) || 3000;
-  
+
+  // ✅ START EXECUTION SESSION
+  const executionId = startExecution({
+    executionType: 'test_suite',
+    testSuiteName: testSuiteName,
+    projectName: projectId,
+    projectId: projectId,
+    totalTests: testCases.length,
+    ProjectType: ProjectType,           
+    Platform: Platform,                
+    passedTestSuite: passedTestSuite
+  });
+
+  console.log('🚀 Started test suite execution:', executionId);
+
   try {
     if (cancellationRequested) {
       setError("Test execution was cancelled");
@@ -383,9 +469,9 @@ const handleRunTestSuite = async () => {
     }
 
     const testResults = result.results || [];
+    const detailedResults = {};
 
     if (testResults.length > 0) {
-      const detailedResults = {};
 
       testResults.forEach((testResult, index) => {
         const testFileName = testResult.test_file || `Test-${index + 1}`;
@@ -484,10 +570,25 @@ const handleRunTestSuite = async () => {
       skipped: apiSummary.skipped || 0,
       duration: apiSummary.duration || '0s'
     });
+
+    // ✅ COMPLETE EXECUTION
+    completeExecution({
+      results: detailedResults,
+      summary: {
+        status: result.passed ? 'passed' : 'failed',
+        passed: passedCases,
+        failed: failedCases,
+        total: totalCases,
+        skipped: apiSummary.skipped || 0,
+        duration: apiSummary.duration || '0s'
+      }
+    });
       
   } catch (err) {
     console.error("Error executing test suite:", err);
     setError(`Failed to execute test suite: ${err.message || "Unknown error"}`);
+    // ✅ COMPLETE WITH ERROR
+    completeExecution(null, err.message || "Unknown error");
   } finally {
     setIsExecuting(false);
     setExecutionInProgress(false);  
@@ -574,12 +675,40 @@ const handleRunTestSuite = async () => {
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleRunTestSuite}
-                disabled={isTestDataLoading || !apiKey || !gptVersion}
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                className={`inline-flex items-center px-4 py-2 rounded-md text-white ${
+                  isTestDataLoading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-purple-600 hover:bg-purple-700"
+                }`}
+                disabled={isTestDataLoading}
               >
-                <Play className="w-4 h-4 mr-2" />
-                Execute Tests
+                {isTestDataLoading ? (
+                  <svg
+                    className="animate-spin h-4 w-4 mr-2 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+                    ></path>
+                  </svg>
+                ) : (
+                  <Play className="w-4 h-4 mr-2" />
+                )}
+                {isTestDataLoading ? "Loading..." : "Execute Tests"}
               </button>
+
             </div>
           </div>
         </div>

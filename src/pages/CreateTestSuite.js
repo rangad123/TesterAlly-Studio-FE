@@ -330,7 +330,7 @@ const CreateTestSuite = () => {
                     className="add-test-case-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
                     disabled={!selectedProject || isLoadingTestCases}
                   >
-                    {isLoadingTestCases ? "Loading Test Cases..." : "Add Test Cases (Optional)"}
+                    {isLoadingTestCases ? "Loading Test Cases..." : "Add Test Cases"}
                   </button>
                   {selectedTestCases.length > 0 && (
                     <span className="text-sm text-gray-600">

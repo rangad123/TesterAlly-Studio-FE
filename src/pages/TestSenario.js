@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAutomation } from '../pages/AutomationContext';
 import { Play, Plus, AlertCircle, CheckCircle, Clock, Target, Zap, Code, X, ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
 
 function TestSenario() {
@@ -12,8 +13,8 @@ function TestSenario() {
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
 
   const [scenarioName, setScenarioName] = useState('');
-  // const [scenarioType, setScenarioType] = useState('');
-  // const [scenarioPriority, setScenarioPriority] = useState('');
+  const [scenarioType, setScenarioType] = useState('');
+  const [scenarioPriority, setScenarioPriority] = useState('');
 
   const location = useLocation();
   const testCaseInfo = location.state?.testCaseInfo;
@@ -44,6 +45,80 @@ const [retryCount, setRetryCount] = useState(0);
 const [apiKey, setApiKey] = useState(null);  
 const [gptVersion, setGptVersion] = useState(null);
 
+  const { 
+    currentSession, 
+    startAutomation, 
+    completeAutomation, 
+    clearSession,
+  } = useAutomation();
+
+  // ✅ UPDATED - Restore session data when component mounts
+  useEffect(() => {
+    if (currentSession && projectData) {
+      console.log('📦 Restoring session data:', currentSession);
+      
+      // ✅ Restore prompt and test case info
+      if (currentSession.prompt) {
+        setPromptText(currentSession.prompt);
+      }
+      if (currentSession.testUrl) {
+        setTestUrl(currentSession.testUrl);
+      }
+
+      if (currentSession.testCaseInfo?.testcase_name) {
+        setScenarioName(currentSession.testCaseInfo.testcase_name);
+      }
+      if (currentSession.testCaseInfo?.testcase_type) {
+        setScenarioType(currentSession.testCaseInfo.testcase_type);
+      }
+      if (currentSession.testCaseInfo?.testcase_priority) {
+        setScenarioPriority(currentSession.testCaseInfo.testcase_priority);
+      }
+      
+      // ✅ CRITICAL: Restore projectData if missing
+      if (currentSession.projectData && !projectData) {
+        console.log('🔄 Restoring projectData from session:', currentSession.projectData);
+        setProjectData(currentSession.projectData);
+      }
+      
+      // If automation is completed, show results
+      if (currentSession.status === 'completed' && currentSession.testResults) {
+        setTestResults(currentSession.testResults);
+        setShowTestResults(true);
+        setShowFeedback(true);
+        setIsExtracting(false);
+        
+        if (currentSession.testResults.test_file_info) {
+          setGeneratedTestFile(currentSession.testResults.test_file_info);
+        }
+      }
+      
+      // If automation is running, show loading state
+      if (currentSession.status === 'running') {
+        setIsExtracting(true);
+      }
+      
+      // If automation failed, show error
+      if (currentSession.status === 'error') {
+        setIsExtracting(false);
+        if (currentSession.error) {
+          alert(`Automation failed: ${currentSession.error}`);
+        }
+      }
+    }
+  }, [currentSession, projectData]); 
+
+  // ✅ DEBUG: Monitor session changes
+  useEffect(() => {
+    console.log('🔍 Session State Changed:', {
+      hasSession: !!currentSession,
+      status: currentSession?.status,
+      hasTestCaseInfo: !!currentSession?.testCaseInfo,
+      hasProjectData: !!currentSession?.projectData,
+      projectId: currentSession?.testCaseInfo?.projectId,
+      projectName: currentSession?.projectData?.project_name
+    });
+  }, [currentSession]);
 
 const saveTestUrl = async () => {
   if (!projectData?.id || !tempUrl.trim()) return;
@@ -141,8 +216,8 @@ const enhancePrompt = async () => {
   useEffect(() => {
     if (testCaseInfo) {
       setScenarioName(testCaseInfo.testcase_name || '');
-      // setScenarioType(testCaseInfo.testcase_type || '');
-      // setScenarioPriority(testCaseInfo.testcase_priority || '');
+      setScenarioType(testCaseInfo.testcase_type || '');
+      setScenarioPriority(testCaseInfo.testcase_priority || '');
     }
   }, [testCaseInfo]);
 
@@ -202,9 +277,27 @@ const enhancePrompt = async () => {
       });
       
       if (response.ok) {
-        console.log('🛑 Stop signal sent');
-          // Keep button disabled until backend responds
+        console.log('✅ Stop signal sent successfully');
+        
+        // ✅ Update session state to cancelled
+        completeAutomation(null, 'Automation cancelled by user');
+        
+        // ✅ Update local UI state
+        setIsExtracting(false);
+        setShowTestResults(false);
+        setTestResults(null);
+        
+        // ✅ Clear session after 2 seconds
+        setTimeout(() => {
+          clearSession();
+          alert('Automation stopped successfully');
+        }, 2000);
+        
+      } else {
+        console.error('❌ Failed to stop automation');
+        alert('Failed to stop automation');
       }
+
     } catch (error) {
       console.error('Error stopping:', error);
     }
@@ -254,6 +347,17 @@ const enhancePrompt = async () => {
     setLoadingModal({ isOpen: true, title: 'Creating Automation', message: 'Recording new automation steps...' });
     setIsExtracting(true);
     
+    // ✅ START SESSION
+    const sessionId = startAutomation({
+      prompt: promptText,
+      testCaseInfo: testCaseInfo,
+      projectData: projectData,
+      testUrl: testUrl,
+      scenarioName: scenarioName
+    });
+
+    console.log('🚀 Started automation session:', sessionId);
+    
     try {
       const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
         method: 'POST',
@@ -264,8 +368,8 @@ const enhancePrompt = async () => {
           prompt: promptText,
           scenarios_name: scenarioName,
           run_mode: "new",
-          api_key: apiKey,         
-          gpt_version: gptVersion 
+          api_key: apiKey,
+          gpt_version: gptVersion
         })
       });
 
@@ -273,18 +377,24 @@ const enhancePrompt = async () => {
 
       const data = await response.json();
       console.log("✅ API Response:", data);
+      
       setTestResults(data);
       setShowTestResults(true);
-      setShowFeedback(true); 
+      setShowFeedback(true);
       setFeedbackGiven(null);
 
       if (data.test_file_info) {
         setGeneratedTestFile(data.test_file_info);
       }
+      
+      // ✅ COMPLETE SESSION
+      completeAutomation(data);
       alert('New automation completed successfully!');
       
     } catch (error) {
       console.error('Error running new automation:', error);
+      // ✅ COMPLETE WITH ERROR
+      completeAutomation(null, error.message);
       alert('Failed to start automation. Please try again.');
     } finally {
       setIsExtracting(false);
@@ -605,7 +715,19 @@ const enhancePrompt = async () => {
     }
 
     setIsExtracting(true);
+
+    // ✅ START SESSION IN CONTEXT
+    const sessionId = startAutomation({
+      prompt: promptText,
+      testCaseInfo: testCaseInfo,
+      projectData: projectData,
+      testUrl: testUrl,
+      scenarioName: scenarioName
+    });
     
+    console.log('🚀 Started automation session:', sessionId);
+    console.log('📦 projectData:', projectData);
+      
     // ✅ Save to backend instead of localStorage
     await saveDraftToBackend(promptText);
     
@@ -646,6 +768,8 @@ const enhancePrompt = async () => {
       if (data.status === "test_found") {
         console.log("🔍 Test file found, asking user for choice...");
         handleTestFound(data);
+        // ✅ UPDATE SESSION
+        completeAutomation(data);
         return;  
       }
 
@@ -658,15 +782,23 @@ const enhancePrompt = async () => {
         if (data.test_file_info) {
           setGeneratedTestFile(data.test_file_info);
         }
+        // ✅ COMPLETE SESSION
+        completeAutomation(data);
         alert('Automation completed successfully!');
       } else if (data.status === "incomplete") {
+        // ✅ COMPLETE WITH ERROR
+        completeAutomation(null, 'Automation incomplete');
         alert('Automation incomplete. Please try again.');
       } else if (data.status === "error") {
+        // ✅ COMPLETE WITH ERROR
+        completeAutomation(null, data.error);
         alert(`Error: ${data.error}`);
       }
 
     } catch (error) {
       console.error('Error running automation:', error);
+      // ✅ COMPLETE WITH ERROR
+      completeAutomation(null, error.message);
       alert('Failed to start automation. Please try again.');
     } finally {
       setIsExtracting(false);
@@ -684,13 +816,46 @@ const enhancePrompt = async () => {
       
       const userId = localStorage.getItem("userId");
 
+      // ✅ FIX: Use session data as fallback if testCaseInfo is missing
+      const sessionTestCaseInfo = currentSession?.testCaseInfo || {};
+      const sessionProjectData = currentSession?.projectData || {};
+      
+      // ✅ Determine projectId from multiple sources
+      const projectId = testCaseInfo?.projectId 
+                    || sessionTestCaseInfo?.projectId 
+                    || sessionProjectData?.project_name 
+                    || projectData?.project_name;
+                    
+      // ✅ Determine scenario name from multiple sources
+      const finalScenarioName = scenarioName 
+                            || currentSession?.scenarioName 
+                            || sessionTestCaseInfo?.testcase_name 
+                            || `Test Scenario - ${Date.now()}`;
+
+      // ✅ Debug logs
+      console.log('🔍 Creating test case with data:');
+      console.log('  - testCaseInfo:', testCaseInfo);
+      console.log('  - sessionTestCaseInfo:', sessionTestCaseInfo);
+      console.log('  - projectData:', projectData);
+      console.log('  - sessionProjectData:', sessionProjectData);
+      console.log('  - Final projectId:', projectId);
+
+      if (!projectId) {
+        alert('Error: Project information is missing. Please refresh and try again.');
+        return;
+      }
+
       const testCasePayload = {
         user_id: parseInt(userId),
-        project_name: testCaseInfo.projectId,
-        testcase_name: scenarioName || `Test Scenario - ${Date.now()}`,
-        testcase_type: testCaseInfo.testcase_type || 'Functional',
-        testcase_priority: testCaseInfo.testcase_priority || 'Medium',
-        test_scenarios_desc: promptText,
+        project_name: projectId,
+        testcase_name: finalScenarioName,
+        testcase_type: testCaseInfo?.testcase_type 
+                    || sessionTestCaseInfo?.testcase_type 
+                    || 'Functional',
+        testcase_priority: testCaseInfo?.testcase_priority 
+                        || sessionTestCaseInfo?.testcase_priority 
+                        || 'Medium',
+        test_scenarios_desc: promptText || currentSession?.prompt || '',
         testfile_name: generatedTestFile?.filename || "",
         testfile_path: generatedTestFile?.test_file || "",
         generated_file_name: generatedTestFile?.metadata_file || "",
@@ -735,7 +900,7 @@ const enhancePrompt = async () => {
       if (generatedTestFile?.test_file) {
         const importPayload = {
           user_id: parseInt(userId),
-          project_name: testCaseInfo.projectId,
+          project_name: projectId,
           file_path: generatedTestFile.test_file
         };
 
@@ -765,7 +930,9 @@ const enhancePrompt = async () => {
         console.log("🗑️ Removing draft after test case creation:", matchingDraft.id);
         await removeDraftFromBackend(matchingDraft.id); 
       }
-      
+      // ✅ CLEAR SESSION AFTER SUCCESSFUL CREATION
+      clearSession();
+
       navigate("/test-cases");
 
     } catch (error) {
@@ -792,7 +959,16 @@ const enhancePrompt = async () => {
       message: `Attempt ${newRetryCount}: Re-planning automation with improvements...` 
     });
     setIsExtracting(true);
-    
+
+    // ✅ START NEW RETRY SESSION
+    startAutomation({
+      prompt: promptText,
+      testCaseInfo: testCaseInfo,      
+      projectData: projectData,     
+      testUrl: testUrl,
+      scenarioName: scenarioName
+    });
+
     try {
       const payload = {
         url: testUrl,
@@ -889,7 +1065,7 @@ const enhancePrompt = async () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                       <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
-                        {testCaseInfo?.testcase_name || 'Not specified'}
+                        {scenarioName || testCaseInfo?.testcase_name || 'Not specified'}
                       </div>
                     </div>
                     
@@ -897,7 +1073,7 @@ const enhancePrompt = async () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
                       <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
-                        {testCaseInfo?.testcase_type || 'Not specified'}
+                        {scenarioType || testCaseInfo?.testcase_type || 'Not specified'}
                       </div>
                     </div>
 
@@ -905,7 +1081,7 @@ const enhancePrompt = async () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                       <div className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 h-11 flex items-center">
-                        {testCaseInfo?.testcase_priority || 'Not specified'}
+                        {scenarioPriority || testCaseInfo?.testcase_priority || 'Not specified'}
                       </div>
                     </div>
                   </div>

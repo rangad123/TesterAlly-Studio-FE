@@ -589,6 +589,36 @@ const TestData = () => {
                   </button>
                 )}
               </div>
+
+              {/* GPT Version Field */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Cpu className="w-4 h-4 text-purple-600" />
+                  <label className="text-sm font-semibold text-gray-700">GPT Version</label>
+                </div>
+                {uploadedData.gpt_version ? (
+                  <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.gpt_version}</span>
+                    <button 
+                      onClick={() => handleEditField('gptVersion', uploadedData.gpt_version)}
+                      className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                      title="Edit GPT version"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleAddField('gptVersion')}
+                    className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
+                      <Plus className="w-4 h-4" />
+                      <span className="text-sm font-medium">Add GPT Version</span>
+                    </div>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Module Name */}
@@ -642,36 +672,6 @@ const TestData = () => {
                   <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
                     <Plus className="w-4 h-4" />
                     <span className="text-sm font-medium">Add API Key</span>
-                  </div>
-                </button>
-              )}
-            </div>
-
-            {/* GPT Version Field */}
-            <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Cpu className="w-4 h-4 text-purple-600" />
-                <label className="text-sm font-semibold text-gray-700">GPT Version</label>
-              </div>
-              {uploadedData.gpt_version ? (
-                <div className="group relative bg-purple-50 rounded-lg p-3 border border-purple-100">
-                  <span className="text-purple-700 font-medium text-sm pr-10 block">{uploadedData.gpt_version}</span>
-                  <button 
-                    onClick={() => handleEditField('gptVersion', uploadedData.gpt_version)}
-                    className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-all duration-200 p-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
-                    title="Edit GPT version"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => handleAddField('gptVersion')}
-                  className="w-full group bg-gray-50 hover:bg-purple-50 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg p-3 transition-all duration-200"
-                >
-                  <div className="flex items-center justify-center gap-2 text-gray-500 group-hover:text-purple-600">
-                    <Plus className="w-4 h-4" />
-                    <span className="text-sm font-medium">Add GPT Version</span>
                   </div>
                 </button>
               )}
@@ -934,6 +934,49 @@ const TestData = () => {
               </select>
             </div>
 
+            {/* GPT Version Field */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                <Cpu className="w-4 h-4 text-purple-600" />
+                GPT Version
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select
+                  value={gptVersion}
+                  onChange={(e) => {
+                    setGptVersion(e.target.value);
+                    if (e.target.value !== "Custom") {
+                      setCustomGptVersion("");
+                    }
+                    setErrors((prev) => ({ ...prev, general: "" }));
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  disabled={isUploading}
+                >
+                  <option value="">Select GPT Version</option>
+                  {gptVersions.map((version, index) => (
+                    <option key={index} value={version}>
+                      {version}
+                    </option>
+                  ))}
+                </select>
+                
+                {gptVersion === "Custom" && (
+                  <input
+                    type="text"
+                    value={customGptVersion}
+                    onChange={(e) => {
+                      setCustomGptVersion(e.target.value);
+                      setErrors((prev) => ({ ...prev, general: "" }));
+                    }}
+                    placeholder="Enter custom GPT version"
+                    className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    disabled={isUploading}
+                  />
+                )}
+              </div>
+            </div>
+
             {/* Module Name Field */}
             {/* <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
@@ -978,49 +1021,6 @@ const TestData = () => {
                 className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                 disabled={isUploading}
               />
-            </div>
-
-            {/* GPT Version Field */}
-            <div className="md:col-span-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <Cpu className="w-4 h-4 text-purple-600" />
-                GPT Version
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <select
-                  value={gptVersion}
-                  onChange={(e) => {
-                    setGptVersion(e.target.value);
-                    if (e.target.value !== "Custom") {
-                      setCustomGptVersion("");
-                    }
-                    setErrors((prev) => ({ ...prev, general: "" }));
-                  }}
-                  className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  disabled={isUploading}
-                >
-                  <option value="">Select GPT Version</option>
-                  {gptVersions.map((version, index) => (
-                    <option key={index} value={version}>
-                      {version}
-                    </option>
-                  ))}
-                </select>
-                
-                {gptVersion === "Custom" && (
-                  <input
-                    type="text"
-                    value={customGptVersion}
-                    onChange={(e) => {
-                      setCustomGptVersion(e.target.value);
-                      setErrors((prev) => ({ ...prev, general: "" }));
-                    }}
-                    placeholder="Enter custom GPT version"
-                    className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                    disabled={isUploading}
-                  />
-                )}
-              </div>
             </div>
           </div>
 

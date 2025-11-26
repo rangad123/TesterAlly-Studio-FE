@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Save, X, Edit2, ArrowLeft, Code, FileCode, Play } from "lucide-react";
+import { useTestExecution } from '../pages/TestExecutionContext';
 
 const TestScript = () => {
   const location = useLocation();
@@ -29,6 +30,13 @@ const TestScript = () => {
   const [apiKey, setApiKey] = useState(null);  
   const [gptVersion, setGptVersion] = useState(null);
   const [projectData, setProjectData] = useState(null);
+
+  const { 
+    currentExecution, 
+    startExecution, 
+    completeExecution, 
+    clearExecution 
+  } = useTestExecution();
 
   const apiBaseUrl = "http://127.0.0.1:8000/api";
 
@@ -159,6 +167,37 @@ const TestScript = () => {
     }
   }, [projectData?.id]);
 
+  // ✅ Restore execution data when component mounts
+  useEffect(() => {
+    if (currentExecution) {
+      console.log('📦 Restoring test execution data:', currentExecution);
+      
+      // If test is completed, show results
+      if (currentExecution.status === 'completed' && currentExecution.testResults) {
+        setTestResults(currentExecution.testResults);
+        setIsRunningTest(false);
+      }
+      
+      // If test is running, show running state
+      if (currentExecution.status === 'running') {
+        setIsRunningTest(true);
+      }
+      
+      // If test failed, show error
+      if (currentExecution.status === 'error') {
+        setIsRunningTest(false);
+        if (currentExecution.error) {
+          alert(`Test failed: ${currentExecution.error}`);
+        }
+      }
+
+      // If test cancelled
+      if (currentExecution.status === 'cancelled') {
+        setIsRunningTest(false);
+      }
+    }
+  }, [currentExecution]);
+
   const handleEditTestCase = () => {
     setIsEditing(true);
     setEditingTestCase({
@@ -261,6 +300,15 @@ const TestScript = () => {
     }
 
     setIsRunningTest(true); 
+    // ✅ START EXECUTION SESSION
+    const executionId = startExecution({
+      testCaseName: testCaseName,
+      projectName: projectName,
+      testFileName: testFileName,
+      testFilePath: testFilePath
+    });
+    console.log('🚀 Started test execution:', executionId);
+
     try {
         const requestBody = { 
           test_file: testFilePath,
@@ -282,6 +330,9 @@ const TestScript = () => {
         
         setTestResults(data);
         // await fetchTestScript();
+
+        // ✅ COMPLETE EXECUTION
+        completeExecution(data);
 
         // ✅ Save to localStorage for Reports page
         try {
@@ -310,6 +361,8 @@ const TestScript = () => {
       } catch (error) {
         // ✅ Handle cancellation gracefully
         console.error('Error running test:', error);
+        // ✅ COMPLETE WITH ERROR
+        completeExecution(null, error.message);
         alert('Failed to run test. Please try again.');
     } finally {
         setIsRunningTest(false);
@@ -326,8 +379,21 @@ const TestScript = () => {
       const data = await response.json();
       
       if (response.ok) {
-        console.log('Stop signal sent:', data.message);
-        // Don't reset state immediately, let the running test API handle it
+        console.log('✅ Stop signal sent:', data.message);
+        
+        // ✅ UPDATE EXECUTION TO CANCELLED
+        completeExecution(null, 'Test cancelled by user');
+        
+        // ✅ UPDATE LOCAL UI STATE
+        setIsRunningTest(false);
+        setTestResults(null);
+        
+        // ✅ CLEAR EXECUTION AFTER 2 SECONDS
+        setTimeout(() => {
+          clearExecution();
+          alert('Test execution stopped successfully');
+        }, 2000);
+        
       } else {
         console.error('Failed to stop test:', data);
         alert('Failed to stop test execution');
@@ -527,12 +593,40 @@ const TestScript = () => {
                       <>
                         <button
                           onClick={handleRunScript}
-                          disabled={isTestDataLoading || !testFilePath || !apiKey || !gptVersion}
-                          className="inline-flex items-center px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-700"
+                          className={`inline-flex items-center px-4 py-2 rounded-md text-white ${
+                            isTestDataLoading 
+                              ? "bg-gray-400 cursor-not-allowed" 
+                              : "bg-purple-500 hover:bg-purple-700"
+                          }`}
+                          disabled={isTestDataLoading}
                         >
-                          <Play className="w-4 h-4 mr-2" />
-                          Run
+                          {isTestDataLoading ? (
+                            <svg
+                              className="animate-spin h-4 w-4 mr-2 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
+                              ></path>
+                            </svg>
+                          ) : (
+                            <Play className="w-4 h-4 mr-2" />
+                          )}
+                          {isTestDataLoading ? "Loading..." : "Run"}
                         </button>
+
                         {/* <button
                           onClick={() => setIsEditingScript(true)}
                           className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100"

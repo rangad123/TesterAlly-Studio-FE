@@ -356,13 +356,18 @@ import MemberSuiteDetails from "./Members/MemberSuiteDetails";
 import MemberCreateSuite from "./Members/MemberCreateSuite";
 import RecordSelector from "./Android/RecordSelector";
 import ManuallySelector from "./Android/ManuallySelector";
-import TestStepSelector from "./Android/TestStepSelector";
 import DesktopPrompt from "./pages/DesktopPrompt";
 import TestSenario from "./pages/TestSenario";
 import MobilePrompt from "./Android/MobilePrompt";
 import AndroidPrompt from "./Android/AndroidPrompt";
 import AndroidSenario from "./Android/AndroidSenario";
 import TestScript from "./pages/TestScript";
+
+import { AutomationProvider } from './pages/AutomationContext';
+import FloatingAutomationWidget from './pages/FloatingAutomationWidget';
+import { TestExecutionProvider } from './pages/TestExecutionContext';
+import FloatingTestExecutionWidget from './pages/FloatingTestExecutionWidget';
+import FloatingTestSuiteWidget from "./pages/FloatingTestSuiteWidget";
 
 // import { MdDashboard } from "react-icons/md";
 // import { FaUserCircle } from "react-icons/fa";
@@ -1085,18 +1090,27 @@ const App = () => {
 return (
   <div className="bg-purple-100">
     <BrowserRouter>
-      <ToastContainer />
-      <div className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
-        <AppNavBar
-          isLoggedIn={isLoggedIn}
-          setIsLoggedIn={setIsLoggedIn}
-          name={name}
-          setName={setName}
-          email={email}
-          setEmail={setEmail}
-        />
-      </div>
-      <MainContent />
+    {/* ✅ WRAP EVERYTHING WITH AutomationProvider */}
+      <AutomationProvider>
+        <TestExecutionProvider>
+          <ToastContainer />
+          <div className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
+            <AppNavBar
+              isLoggedIn={isLoggedIn}
+              setIsLoggedIn={setIsLoggedIn}
+              name={name}
+              setName={setName}
+              email={email}
+              setEmail={setEmail}
+            />
+          </div>
+          <MainContent />
+          {/* ✅ BOTH WIDGETS - They don't conflict */}
+          <FloatingAutomationWidget />
+          <FloatingTestExecutionWidget />
+          <FloatingTestSuiteWidget />
+        </TestExecutionProvider>
+      </AutomationProvider>
     </BrowserRouter>
   </div>
 );
