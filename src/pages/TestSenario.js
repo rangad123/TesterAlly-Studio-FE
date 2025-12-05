@@ -403,7 +403,35 @@ const enhancePrompt = async () => {
     }
   };
 
-  const parseAction = (action, input) => {
+  const parseAction = (action, input, source) => {
+
+    if (source === 'saved_recording') {
+      switch(action) {
+        case 'navigate':
+          return { 
+            type: 'navigate', 
+            details: input.url || 'Unknown URL'
+          };
+        case 'click':
+          return { 
+            type: 'click', 
+            details: input.text || input.xpath || 'Click action'
+          };
+        case 'fill':
+          return { 
+            type: 'fill', 
+            details: `Fill "${input.placeholder_text || 'field'}" with "${input.input_text || ''}"`,
+            placeholder: input.placeholder_text,
+            inputText: input.input_text
+          };
+        default:
+          return { 
+            type: action, 
+            details: JSON.stringify(input)
+          };
+      }
+    }
+
     if (typeof action === "string" && input === undefined) {
       // old string parsing
       const match = action.match(/(\w+)\((.*)\)/);
@@ -773,7 +801,7 @@ const enhancePrompt = async () => {
         return;  
       }
 
-      if (data.status === "success") {
+      if (data.status === "success" || data.status === "incomplete") {
         setTestResults(data);
         setShowTestResults(true);
         setShowFeedback(true); 
@@ -1616,18 +1644,42 @@ const enhancePrompt = async () => {
                   <h3 className="font-semibold text-gray-900 mb-4">Actions Performed</h3>
                   <div className="space-y-3">
                     {testResults.actions_taken.map((action, index) => {
-                      const { type, details } = parseAction(action.action, action.input);
+                      const isSavedStep = action.source === 'saved_recording';
+                      const { type, details} = parseAction(
+                        action.action, 
+                        action.input, 
+                        action.source
+                      );
                       const elementInfo = action.element_info;
                       const { icon: Icon, label, color } = getActionInfo(type, details, elementInfo);
 
                       return (
-                        <div key={index} className="flex gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div key={index} className={`flex gap-4 p-4 rounded-lg border ${
+                          isSavedStep 
+                            ? 'bg-blue-50 border-blue-300' 
+                            : 'bg-gray-50 border-gray-200'
+                        }`}>
                           <div className="flex-shrink-0 pt-1">
-                            <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                              isSavedStep ? 'bg-blue-600' : 'bg-purple-600'
+                            }`}>
                               {index + 1}
                             </div>
                           </div>
+                          
                           <div className="flex-1 min-w-0">
+                            {/* Saved Step Badge */}
+                            {isSavedStep && (
+                              <div className="mb-2">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/>
+                                  </svg>
+                                  Saved Step (Cache)
+                                </span>
+                              </div>
+                            )}
+                            
                             <div className="flex items-start gap-2 mb-3">
                               <div className={`flex-shrink-0 p-2 rounded ${color}`}>
                                 <Icon className="w-4 h-4" />
@@ -1639,11 +1691,84 @@ const enhancePrompt = async () => {
                                 <p className="text-xs text-gray-500 mt-0.5 font-mono">
                                   {action.action}
                                 </p>
+                                
+                                {/* Status indicator */}
+                                {/* <div className="flex items-center gap-2 mt-1">
+                                  {action.success ? (
+                                    <span className="text-xs text-green-600 flex items-center gap-1">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                                      </svg>
+                                      Success
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-red-600 flex items-center gap-1">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                      </svg>
+                                      Failed
+                                    </span>
+                                  )}
+                                </div> */}
                               </div>
                             </div>
                             
-                            {/* Element Full Context */}
-                            {elementInfo && (
+                            {/* Element Details for Saved Steps */}
+                            {isSavedStep && (
+                              <div className="bg-white p-3 rounded border border-blue-200 space-y-2">
+                                {action.input.text && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">Text:</span>
+                                    <span className="text-xs bg-green-100 text-green-900 px-2 py-1 rounded">
+                                      "{action.input.text}"
+                                    </span>
+                                  </div>
+                                )}
+                                {action.input.placeholder_text && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">Field:</span>
+                                    <span className="text-xs bg-purple-100 text-purple-900 px-2 py-1 rounded">
+                                      {action.input.placeholder_text}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.input.input_text && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">Input:</span>
+                                    <span className="text-xs bg-yellow-100 text-yellow-900 px-2 py-1 rounded">
+                                      {action.input.input_text}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.input.url && (
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">URL:</span>
+                                    <span className="text-xs bg-cyan-100 text-cyan-900 px-2 py-1 rounded break-all">
+                                      {action.input.url}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.input.xpath && (
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-xs font-semibold text-gray-600">XPath:</span>
+                                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono break-all">
+                                      {action.input.xpath}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.error && (
+                                  <div className="flex items-start gap-2 mt-2 p-2 bg-red-50 rounded">
+                                    <span className="text-xs font-semibold text-red-600">Error:</span>
+                                    <span className="text-xs text-red-800 break-words">
+                                      {action.error}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Element Full Context for Live Steps */}
+                            {!isSavedStep && elementInfo && (
                               <div className="bg-white p-3 rounded border border-gray-200 space-y-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-gray-600">Ref ID:</span>
