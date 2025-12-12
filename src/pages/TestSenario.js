@@ -44,6 +44,7 @@ const [retryCount, setRetryCount] = useState(0);
 
 const [apiKey, setApiKey] = useState(null);  
 const [gptVersion, setGptVersion] = useState(null);
+const [useClaude, setUseClaude] = useState(false);
 
   const { 
     currentSession, 
@@ -260,7 +261,10 @@ const enhancePrompt = async () => {
           console.log("✅ Test data loaded:", data);
           setTestUrl(data?.url || '');
           setApiKey(data?.openai_api_key || null); 
-          setGptVersion(data?.gpt_version || null);  
+          setGptVersion(data?.gpt_version || null); 
+          
+          const isClaude = detectProvider(data?.openai_api_key, data?.gpt_version);
+          setUseClaude(isClaude); 
         })
         .catch((err) => {
           console.warn("⚠️ Error fetching test data:", err.message);
@@ -268,6 +272,29 @@ const enhancePrompt = async () => {
         .finally(() => setIsTestDataLoading(false));
     }
   }, [projectData?.id]);
+
+  const detectProvider = (apiKey, gptVersion) => {
+    // Default: OpenAI
+    let isClaude = false;
+
+    // 1️⃣ Detect from API key prefix
+    if (apiKey?.startsWith("sk-ant-")) {
+      isClaude = true;   // Claude
+    } else if (apiKey?.startsWith("sk-")) {
+      isClaude = false;  // OpenAI
+    }
+
+    // 2️⃣ Detect from model/version (backup detection)
+    if (gptVersion?.toLowerCase().includes("claude")) isClaude = true;
+    if (gptVersion?.toLowerCase().includes("sonnet")) isClaude = true;
+    if (gptVersion?.toLowerCase().includes("opus")) isClaude = true;
+    if (gptVersion?.toLowerCase().includes("haiku")) isClaude = true;
+
+    if (gptVersion?.toLowerCase().includes("gpt")) isClaude = false;
+    if (gptVersion?.toLowerCase().includes("o1")) isClaude = false;
+
+    return isClaude;  
+  };
 
   const stopTestExecution = async () => {
     try {
@@ -369,7 +396,8 @@ const enhancePrompt = async () => {
           scenarios_name: scenarioName,
           run_mode: "new",
           api_key: apiKey,
-          gpt_version: gptVersion
+          gpt_version: gptVersion,
+          use_claude: useClaude
         })
       });
 
@@ -767,7 +795,8 @@ const enhancePrompt = async () => {
         scenarios_name: scenarioName,
         run_mode: "auto",
         api_key: apiKey,          
-        gpt_version: gptVersion
+        gpt_version: gptVersion,
+        use_claude: useClaude
       });
 
       const response = await fetch('http://127.0.0.1:8000/AI/test/run/', {
@@ -782,7 +811,8 @@ const enhancePrompt = async () => {
           scenarios_name: scenarioName,
           run_mode: "auto",
           api_key: apiKey,          
-          gpt_version: gptVersion
+          gpt_version: gptVersion,
+          use_claude: useClaude
         })
       });
 
@@ -841,6 +871,32 @@ const enhancePrompt = async () => {
 
     try {
       setIsCreatingTestCase(true);
+
+      // ✅ Save cache before creating test case
+      console.log("💾 Saving automation cache...");
+      try {
+        const saveCacheResponse = await fetch("http://127.0.0.1:8000/AI/test/save_cache/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            website: testResults.website,
+            actions_taken: testResults.actions_taken,
+            prompt: promptText,
+            scenario_name: scenarioName
+          })
+        });
+
+        const saveCacheResult = await saveCacheResponse.json();
+        
+        if (saveCacheResult.status === 'success') {
+          console.log("✅ Cache saved successfully");
+        } else {
+          console.warn("⚠️ Cache save:", saveCacheResult.message);
+        }
+      } catch (cacheError) {
+        console.error("❌ Failed to save cache:", cacheError);
+        // Don't block test case creation if cache save fails
+      }
       
       const userId = localStorage.getItem("userId");
 
@@ -1779,7 +1835,8 @@ const enhancePrompt = async () => {
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-semibold text-gray-600">Element:</span>
                                   <span className="text-xs bg-purple-100 text-purple-900 px-2 py-1 rounded">
-                                    &lt;{elementInfo.tag}&gt; {elementInfo.role}
+                                    &lt;{elementInfo.type}&gt; 
+                                    {/* {elementInfo.type} */}
                                   </span>
                                 </div>
                                 <div className="flex items-start gap-2">

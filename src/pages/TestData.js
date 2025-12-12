@@ -50,9 +50,15 @@ const TestData = () => {
   const [customGptVersion, setCustomGptVersion] = useState("");
   const gptVersions = [
     "gpt-4o-mini",
-    "gpt-4o", 
     "gpt-4.1-mini",
+    "gpt-4o",
     "gpt-4.1",
+
+    "claude-3.5-haiku-latest",
+    "claude-3.5-sonnet-latest",
+    "claude-4.5-haiku",
+    "claude-4.5-sonnet",
+
     "Custom"
   ];
 
@@ -944,21 +950,54 @@ const TestData = () => {
                 <select
                   value={gptVersion}
                   onChange={(e) => {
-                    setGptVersion(e.target.value);
-                    if (e.target.value !== "Custom") {
+                    const value = e.target.value;
+                    if (value === "Custom") {
+                      setGptVersion("Custom");
                       setCustomGptVersion("");
+                    } else {
+                      setGptVersion(value);
                     }
-                    setErrors((prev) => ({ ...prev, general: "" }));
                   }}
-                  className="w-full px-4 py-3 border border-gray-300 hover:border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  disabled={isUploading}
+                  className="w-full p-3 border rounded-lg border-purple-600 focus:ring-purple-600 focus:border-purple-600"
                 >
-                  <option value="">Select GPT Version</option>
-                  {gptVersions.map((version, index) => (
-                    <option key={index} value={version}>
-                      {version}
+
+                  {/* OpenAI Models */}
+                  <optgroup label="OpenAI">
+                    <option value="gpt-4o-mini">
+                      GPT-4o Mini — Fast & Low cost
                     </option>
-                  ))}
+                    <option value="gpt-4o">
+                      GPT-4o — Best OpenAI Model
+                    </option>
+                    <option value="gpt-4.1">
+                      GPT-4.1 — High Accuracy
+                    </option>
+                    <option value="gpt-4.1-mini">
+                      GPT-4.1 Mini — Lightweight & Fast
+                    </option>
+                  </optgroup>
+
+                  {/* Anthropic Models */}
+                  <optgroup label="Anthropic (Claude)">
+                    <option value="claude-3.5-haiku-latest">
+                      Claude 3.5 Haiku — Fast & Low cost
+                    </option>
+                    <option value="claude-3.5-sonnet-latest">
+                      Claude 3.5 Sonnet — Newest flagship
+                    </option>
+                    <option value="claude-4.5-haiku">
+                      Claude 4.5 Haiku — Fastest Claude
+                    </option>
+                    <option value="claude-4.5-sonnet">
+                      Claude 4.5 Sonnet — Balanced & Smart
+                    </option>
+                  </optgroup>
+
+                  {/* Custom */}
+                  <optgroup label="Custom">
+                    <option value="Custom">Custom Model ID</option>
+                  </optgroup>
+
                 </select>
                 
                 {gptVersion === "Custom" && (
