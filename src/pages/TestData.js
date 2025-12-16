@@ -54,10 +54,10 @@ const TestData = () => {
     "gpt-4o",
     "gpt-4.1",
 
-    "claude-3.5-haiku-latest",
-    "claude-3.5-sonnet-latest",
-    "claude-4.5-haiku",
-    "claude-4.5-sonnet",
+    "claude-3-5-haiku-20241022",
+    "claude-3-5-sonnet-20241022",
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-5-20250929",
 
     "Custom"
   ];
@@ -979,16 +979,16 @@ const TestData = () => {
 
                   {/* Anthropic Models */}
                   <optgroup label="Anthropic (Claude)">
-                    <option value="claude-3.5-haiku-latest">
+                    <option value="claude-3-5-haiku-20241022">
                       Claude 3.5 Haiku — Fast & Low cost
                     </option>
-                    <option value="claude-3.5-sonnet-latest">
+                    <option value="claude-3-5-sonnet-20241022">
                       Claude 3.5 Sonnet — Newest flagship
                     </option>
-                    <option value="claude-4.5-haiku">
+                    <option value="claude-haiku-4-5-20251001">
                       Claude 4.5 Haiku — Fastest Claude
                     </option>
-                    <option value="claude-4.5-sonnet">
+                    <option value="claude-sonnet-4-5-20250929">
                       Claude 4.5 Sonnet — Balanced & Smart
                     </option>
                   </optgroup>
