@@ -12,7 +12,7 @@ import {
   FaPlusCircle,
   FaServer,
   FaChartBar,
-  FaProjectDiagram,
+  FaRobot,
   FaCheckSquare,
   FaDatabase,  
 } from "react-icons/fa";
@@ -208,6 +208,11 @@ const ProjectSidebar = ({ isL1Expanded, isVisible, isMobileView, onOptionSelect 
     //   label: "Test Scenario",
     //   path: "/test-scenario",  
     // },
+    {
+      icon: FaRobot,
+      label: "AI Chat",
+      path: "/ai-chat",
+    },
     {
       icon: FaCog,
       label: "Project Settings",
