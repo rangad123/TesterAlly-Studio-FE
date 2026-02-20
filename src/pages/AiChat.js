@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Send, Loader2, Plus, Trash2, Sparkles, History, X } from "lucide-react";
+import { useAiChat } from '../pages/AiChatContext';
 
 function AiChat() {
   const location = useLocation();
   const testCaseInfo = location.state?.testCaseInfo;
+  const resumeSession = location.state?.resumeSession;
+  const {
+    currentSession,
+    initChatSession,
+    saveSessionSnapshot,
+    updateChatSession,
+    dispatchTestRequest,
+    hideFloatingWidget,
+  } = useAiChat();
 
   const [projectData, setProjectData] = useState(null);
   const [isTestDataLoading, setIsTestDataLoading] = useState(false);
@@ -29,6 +39,17 @@ function AiChat() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
+  const isRestoredSession = useRef(false);
+  const responseHandledByCallback = useRef(false);
+  const [wasInterrupted, setWasInterrupted] = useState(false);
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const navigate = useNavigate();
 
@@ -136,6 +157,131 @@ function AiChat() {
     }
   }, [testCaseInfo]);
 
+  // Handle resuming previous session
+  useEffect(() => {
+    let sessionToRestore = null;
+
+    if (resumeSession && location.state?.sessionData) {
+      // Floating widget click — use the snapshot passed via location state.
+      // But prefer currentSession if it is newer (fetch may have completed
+      // between when the snapshot was saved and when the user clicked).
+      const snapshotFromWidget = location.state.sessionData;
+      const contextIsNewer =
+        currentSession &&
+        currentSession.updatedAt > (snapshotFromWidget.savedAt || snapshotFromWidget.updatedAt || '');
+      sessionToRestore = contextIsNewer ? currentSession : snapshotFromWidget;
+    } else if (currentSession && !resumeSession) {
+      // Sidebar navigation — restore directly from live context session
+      sessionToRestore = currentSession;
+    }
+
+    if (sessionToRestore) {
+      setMessages(sessionToRestore.messages || []);
+      setInputMessage(sessionToRestore.inputMessage || '');
+      setChatHistory(sessionToRestore.chatHistory || []);
+      setCurrentChatId(sessionToRestore.currentChatId || null);
+      setProjectData(sessionToRestore.projectData || null);
+      setScenarioName(sessionToRestore.scenarioName || '');
+      setScenarioType(sessionToRestore.scenarioType || '');
+      setScenarioPriority(sessionToRestore.scenarioPriority || '');
+      setTestUrl(sessionToRestore.testUrl || '');
+      setApiKey(sessionToRestore.apiKey || null);
+      setGptVersion(sessionToRestore.gptVersion || null);
+      setUseClaude(sessionToRestore.useClaude || false);
+
+      // Mirror the live loading state from context — fetch may still be running
+      setIsLoading(sessionToRestore.isLoading || false);
+
+      // Only show interrupted banner if the fetch has now finished but the
+      // component was unmounted when it completed. Detection: session was saved
+      // with isLoading true, but current context shows isLoading false with a
+      // new assistant message at the end of messages.
+      const savedWhileLoading = sessionToRestore.isLoading === true;
+      const fetchNowDone = currentSession && !currentSession.isLoading;
+      const hasNewResult =
+        currentSession &&
+        currentSession.messages?.length > (sessionToRestore.messages?.length || 0);
+
+      if (savedWhileLoading && fetchNowDone && hasNewResult) {
+        // Fetch completed while away — update messages to include the result
+        setMessages(currentSession.messages || []);
+        setChatHistory(currentSession.chatHistory || []);
+        setCurrentChatId(currentSession.currentChatId || null);
+        setIsLoading(false);
+        // No banner needed — the result is right there in the messages list
+      } else if (savedWhileLoading && !fetchNowDone) {
+        // Fetch is still running — spinner will show via isLoading: true above
+        setWasInterrupted(false);
+      }
+
+      isRestoredSession.current = true;
+    }
+
+    hideFloatingWidget();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!currentSession) return;
+
+    // Only sync if we are currently showing a loading state but context says done
+    if (isLoading && !currentSession.isLoading) {
+      setMessages(currentSession.messages || []);
+      setChatHistory(currentSession.chatHistory || []);
+      setCurrentChatId(currentSession.currentChatId || null);
+      setIsLoading(false);
+    }
+  }, [currentSession?.isLoading, currentSession?.messages, currentSession?.updatedAt]);
+
+  useEffect(() => {
+    if (!messages.length && !inputMessage) return;
+
+    updateChatSession({
+      messages,
+      inputMessage,
+      isLoading,
+      chatHistory,
+      currentChatId,
+      projectData,
+      scenarioName,
+      scenarioType,
+      scenarioPriority,
+      testUrl,
+      apiKey,
+      gptVersion,
+      useClaude,
+    });
+  }, [
+    messages, inputMessage, isLoading, chatHistory, currentChatId,
+    projectData, scenarioName, scenarioType, scenarioPriority,
+    testUrl, apiKey, gptVersion, useClaude, updateChatSession,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      saveSessionSnapshot({
+        messages,
+        inputMessage,
+        isLoading,
+        chatHistory,
+        currentChatId,
+        projectData,
+        scenarioName,
+        scenarioType,
+        scenarioPriority,
+        testUrl,
+        apiKey,
+        gptVersion,
+        useClaude,
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    messages, inputMessage, isLoading, chatHistory, currentChatId,
+    projectData, scenarioName, scenarioType, scenarioPriority,
+    testUrl, apiKey, gptVersion, useClaude, saveSessionSnapshot,
+  ]);
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     if (!userId) {
@@ -166,6 +312,11 @@ function AiChat() {
 
   useEffect(() => {
     if (projectData?.id) {
+
+      // If we restored from a session, the API values are already correct.
+      // Skip the fetch to avoid overwriting the restored state.
+      if (isRestoredSession.current) return;
+      
       setIsTestDataLoading(true);
       fetch(`http://127.0.0.1:8000/api/testdata/${projectData.id}/`)
         .then((res) => res.json())
@@ -186,81 +337,145 @@ function AiChat() {
   }, [projectData?.id]);
 
   // Call Planner Agent API
+  // const sendMessage = async () => {
+  //   if (!inputMessage.trim() || isLoading) return;
+
+  //   const userMessage = {
+  //     id: Date.now(),
+  //     role: 'user',
+  //     content: inputMessage,
+  //     timestamp: new Date().toISOString()
+  //   };
+
+  //   setMessages(prev => [...prev, userMessage]);
+  //   const currentPrompt = inputMessage;
+  //   setInputMessage('');
+  //   resetTextareaHeight();
+  //   setIsLoading(true);
+
+  //   // Start chat session if not already started
+  //   if (!currentChatId) {
+  //     startChatSession({
+  //       scenarioName: scenarioName || 'AI Test Chat',
+  //       projectData,
+  //       messages: [userMessage]
+  //     });
+  //   }
+
+  //   try {
+  //     const requestBody = {
+  //       prompt: currentPrompt,
+  //       system_url: testUrl,
+  //       project_id: projectData?.id, 
+  //     };
+
+  //     // Only add optional fields if they have valid values
+  //     if (apiKey) {
+  //       requestBody.api_key = apiKey;
+  //     }
+      
+  //     if (gptVersion) {
+  //       requestBody.gpt_version = gptVersion;
+  //     }
+      
+  //     // Only add use_claude if it's explicitly true
+  //     if (useClaude === true) {
+  //       requestBody.use_claude = true;
+  //     }
+
+  //     console.log('Sending request:', requestBody); 
+
+  //     const response = await fetch('http://127.0.0.1:8000/agentic/test/', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(requestBody)
+  //     });
+
+  //     const data = await response.json();
+
+  //     console.log('Response of Testing:', data);
+
+  //     if (response.ok) {
+  //       const assistantMessage = {
+  //         id: Date.now() + 1,
+  //         role: 'assistant',
+  //         content: data,
+  //         timestamp: new Date().toISOString()
+  //       };
+  //       setMessages(prev => [...prev, assistantMessage]);
+  //       updateChatHistory(userMessage, assistantMessage);
+  //     } else {
+  //       throw new Error(data.message || 'Failed to get response');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error calling planner API:', error);
+  //     const errorMessage = {
+  //       id: Date.now() + 1,
+  //       role: 'assistant',
+  //       content: { error: true, message: error.message },
+  //       timestamp: new Date().toISOString()
+  //     };
+  //     setMessages(prev => [...prev, errorMessage]);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
+
+    setWasInterrupted(false);
+    responseHandledByCallback.current = false; // reset for this new request
 
     const userMessage = {
       id: Date.now(),
       role: 'user',
       content: inputMessage,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     const currentPrompt = inputMessage;
     setInputMessage('');
     resetTextareaHeight();
     setIsLoading(true);
 
-    try {
-      const requestBody = {
-        prompt: currentPrompt,
-        system_url: testUrl,
-        project_id: projectData?.id, 
-      };
-
-      // Only add optional fields if they have valid values
-      if (apiKey) {
-        requestBody.api_key = apiKey;
-      }
-      
-      if (gptVersion) {
-        requestBody.gpt_version = gptVersion;
-      }
-      
-      // Only add use_claude if it's explicitly true
-      if (useClaude === true) {
-        requestBody.use_claude = true;
-      }
-
-      console.log('Sending request:', requestBody); 
-
-      const response = await fetch('http://127.0.0.1:8000/agentic/test/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+    // Init brand-new context session only on the very first ever message
+    if (!currentSession) {
+      initChatSession({
+        scenarioName: scenarioName || 'AI Test Chat',
+        projectData,
+        messages: [userMessage],
       });
-
-      const data = await response.json();
-
-      console.log('Response of Testing:', data);
-
-      if (response.ok) {
-        const assistantMessage = {
-          id: Date.now() + 1,
-          role: 'assistant',
-          content: data,
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        updateChatHistory(userMessage, assistantMessage);
-      } else {
-        throw new Error(data.message || 'Failed to get response');
-      }
-    } catch (error) {
-      console.error('Error calling planner API:', error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: { error: true, message: error.message },
-        timestamp: new Date().toISOString()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
+
+    const requestBody = {
+      prompt: currentPrompt,
+      system_url: testUrl,
+      project_id: projectData?.id,
+    };
+    if (apiKey) requestBody.api_key = apiKey;
+    if (gptVersion) requestBody.gpt_version = gptVersion;
+    if (useClaude === true) requestBody.use_claude = true;
+
+    // Hand off to context — fetch runs there and survives any navigation.
+    // Do NOT await — isLoading clears via onSuccess (mounted) or effect #4 (remount).
+    dispatchTestRequest({
+      userMessage,
+      requestBody,
+      currentChatId,
+      onSuccess: (assistantMessage, updatedChatHistory, updatedChatId) => {
+        // Fires only when this component instance is still mounted.
+        // Append assistant reply and sync chat history.
+        responseHandledByCallback.current = true; // tell effect #4 not to re-sync
+        setMessages((prev) => [...prev, assistantMessage]);
+        setChatHistory(updatedChatHistory);
+        setCurrentChatId(updatedChatId);
+        setIsLoading(false);
+      },
+    });
   };
 
   // Update chat history

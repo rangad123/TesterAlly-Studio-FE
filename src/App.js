@@ -83,6 +83,8 @@ import FloatingAutomationWidget from './pages/FloatingAutomationWidget';
 import { TestExecutionProvider } from './pages/TestExecutionContext';
 import FloatingTestExecutionWidget from './pages/FloatingTestExecutionWidget';
 import FloatingTestSuiteWidget from "./pages/FloatingTestSuiteWidget";
+import { AiChatProvider } from './pages/AiChatContext';
+import FloatingAiChatWidget from './pages/FloatingAiChatWidget';
 import AiChat from "./pages/AiChat";
 
 // import { MdDashboard } from "react-icons/md";
@@ -816,25 +818,28 @@ const App = () => {
 return (
   <div className="bg-purple-100">
     <BrowserRouter>
-    {/* ✅ WRAP EVERYTHING WITH AutomationProvider */}
+    {/* ✅ WRAP EVERYTHING WITH AutomationProvider & AiChatProvider */}
       <AutomationProvider>
         <TestExecutionProvider>
-          <ToastContainer />
-          <div className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
-            <AppNavBar
-              isLoggedIn={isLoggedIn}
-              setIsLoggedIn={setIsLoggedIn}
-              name={name}
-              setName={setName}
-              email={email}
-              setEmail={setEmail}
-            />
-          </div>
-          <MainContent />
-          {/* ✅ BOTH WIDGETS - They don't conflict */}
-          <FloatingAutomationWidget />
-          <FloatingTestExecutionWidget />
-          <FloatingTestSuiteWidget />
+          <AiChatProvider>
+            <ToastContainer />
+            <div className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
+              <AppNavBar
+                isLoggedIn={isLoggedIn}
+                setIsLoggedIn={setIsLoggedIn}
+                name={name}
+                setName={setName}
+                email={email}
+                setEmail={setEmail}
+              />
+            </div>
+            <MainContent />
+            {/* ✅ FLOATING WIDGETS - They don't conflict */}
+            <FloatingAutomationWidget />
+            <FloatingTestExecutionWidget />
+            <FloatingTestSuiteWidget />
+            <FloatingAiChatWidget />
+          </AiChatProvider>
         </TestExecutionProvider>
       </AutomationProvider>
     </BrowserRouter>
