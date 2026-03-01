@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateTestCases.css";
@@ -63,7 +64,15 @@ const TestData = () => {
   ];
 
   const [selectedFile, setSelectedFile] = useState(null);
-  
+  const [isEditing, setIsEditing] = useState(false);
+  const [removeFile, setRemoveFile] = useState(false); // flag to tell backend to delete stored file
+
+  // helper to pick filename from backend response
+  const getFileName = (data) => {
+    if (!data) return null;
+    return data.filename || data.file || data.test_data_file || data.name || null;
+  };
+
   const navigate = useNavigate();
 
   const fetchTestData = async (projectId) => {
@@ -179,8 +188,9 @@ const TestData = () => {
       }
     }
 
-    // Check if at least one field is filled
-    if (!url.trim() && !email.trim() && !phone.trim() && !country.trim() && !selectedFile) {
+    // Check if at least one field is filled or a file already exists
+    const existingFile = getFileName(uploadedData);
+    if (!url.trim() && !email.trim() && !phone.trim() && !country.trim() && !selectedFile && !existingFile) {
       newErrors.general = "Please fill at least one field or upload a file!";
       isValid = false;
     }
@@ -199,6 +209,7 @@ const TestData = () => {
     if (file) {
       setSelectedFile(file);
       setErrors(prev => ({ ...prev, file: "", general: "" }));
+      setRemoveFile(false); // new file cancels removal request
     }
   };
 
@@ -219,16 +230,16 @@ const TestData = () => {
       }
       
       if (selectedFile) {
-        // File upload logic
+        // File upload logic (backend expects test_data_file field)
         const formData = new FormData();
-        formData.append('file', selectedFile);
+        formData.append('test_data_file', selectedFile);
         formData.append('type', 'file');
-        console.log("Payload of formData upload:", formData);
+        console.log('Uploading file', selectedFile.name, 'to project', projectId);
 
         response = await fetch(
           `http://127.0.0.1:8000/api/testdata/${projectId}/`,
           {
-            method: "POST",
+            method: 'POST',
             body: formData,
           }
         );
@@ -243,6 +254,7 @@ const TestData = () => {
           // module_name: moduleName.trim() || null    
           openai_api_key: apiKey.trim() || null,  
           gpt_version: gptVersion === "Custom" ? customGptVersion.trim() : gptVersion.trim() || null,    
+          remove_file: removeFile,
         };
         console.log("Payload of Data upload:", payload);
 
@@ -264,8 +276,10 @@ const TestData = () => {
       console.log("response of Data:", data);
       setUploadedData(data);
       alert("Test Data Uploaded Successfully");
+      setIsEditing(false);
+      setRemoveFile(false);
       
-      // Reset form
+      // Reset form inputs (not existing file preview)
       setUrl("");
       setEmail("");
       setPhone("");
@@ -302,6 +316,7 @@ const TestData = () => {
 
       if (response.ok || response.status === 404) {
         setUploadedData(null);
+        setIsEditing(false);
         setUrl("");
         setEmail("");
         setPassword("");  
@@ -320,11 +335,33 @@ const TestData = () => {
   };
 
   const handleCancel = () => {
+    setIsEditing(false);
+    setRemoveFile(false);
     navigate("/dashboard-user");
+  };
+
+  const handleEditAll = () => {
+    if (!uploadedData) return;
+    if (uploadedData.url) setUrl(uploadedData.url);
+    if (uploadedData.email) setEmail(uploadedData.email);
+    if (uploadedData.email_app_password) setPassword(uploadedData.email_app_password);
+    if (uploadedData.phone_number) setPhone(uploadedData.phone_number);
+    if (uploadedData.region) setCountry(uploadedData.region);
+    if (uploadedData.openai_api_key) setApiKey(uploadedData.openai_api_key);
+    if (uploadedData.gpt_version) {
+      if (gptVersions.includes(uploadedData.gpt_version)) {
+        setGptVersion(uploadedData.gpt_version);
+      } else {
+        setGptVersion("Custom");
+        setCustomGptVersion(uploadedData.gpt_version);
+      }
+    }
+    setIsEditing(true);
   };
 
   const renderUploadedData = () => {
     if (!uploadedData) return null;
+    const fileName = getFileName(uploadedData);
 
     const handleEditField = (fieldType, currentValue) => {
       if (uploadedData.url) setUrl(uploadedData.url);
@@ -363,7 +400,8 @@ const TestData = () => {
         }
       }
       
-      setUploadedData(null);
+      // switch into editing mode but keep uploadedData around so file info is shown
+      setIsEditing(true);
     };
 
     const handleAddField = (fieldType) => {
@@ -399,7 +437,8 @@ const TestData = () => {
         setCustomGptVersion('');
       }
       
-      setUploadedData(null);
+      // go into editing mode without clearing the server data
+      setIsEditing(true);
     };
 
     return (
@@ -410,7 +449,7 @@ const TestData = () => {
             <div className="p-2 bg-emerald-100 rounded-lg">
               <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="text-lg font-semibold text-emerald-900">
                 Test Data Successfully Uploaded
               </h3>
@@ -418,6 +457,12 @@ const TestData = () => {
                 Your test data has been saved and is ready to use
               </p>
             </div>
+            <button
+              onClick={handleEditAll}
+              className="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+            >
+              Edit Data
+            </button>
           </div>
           
           <div className="space-y-4">
@@ -460,7 +505,7 @@ const TestData = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Email Field */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              {/* <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Mail className="w-4 h-4 text-purple-600" />
                   <label className="text-sm font-semibold text-gray-700">Email Address</label>
@@ -487,10 +532,10 @@ const TestData = () => {
                     </div>
                   </button>
                 )}
-              </div>
+              </div> */}
 
               {/* Password Field */}
-              {uploadedData.email && (
+              {/* {uploadedData.email && (
                 <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Eye className="w-4 h-4 text-purple-600" />
@@ -534,10 +579,10 @@ const TestData = () => {
                     )
                   )}
                 </div>
-              )}
+              )} */}
 
               {/* Phone Field */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              {/* <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Phone className="w-4 h-4 text-purple-600" />
                   <label className="text-sm font-semibold text-gray-700">Phone Number</label>
@@ -564,10 +609,10 @@ const TestData = () => {
                     </div>
                   </button>
                 )}
-              </div>
+              </div> */}
 
               {/* Country/Region Field */}
-              <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
+              {/* <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Globe className="w-4 h-4 text-purple-600" />
                   <label className="text-sm font-semibold text-gray-700">Country/Region</label>
@@ -594,7 +639,7 @@ const TestData = () => {
                     </div>
                   </button>
                 )}
-              </div>
+              </div> */}
 
               {/* GPT Version Field */}
               <div className="bg-white rounded-lg p-4 border border-gray-200 hover:border-purple-300 transition-all duration-200">
@@ -684,7 +729,7 @@ const TestData = () => {
             </div>
 
             {/* Uploaded File */}
-            {uploadedData.filename && (
+            {fileName && (
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="w-4 h-4 text-purple-600" />
@@ -692,11 +737,20 @@ const TestData = () => {
                 </div>
                 <div className="bg-purple-50 rounded-lg p-3 border border-purple-100 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-purple-600" />
-                  <span className="text-purple-700 font-medium text-sm flex-1">{uploadedData.filename}</span>
+                  <span className="text-purple-700 font-medium text-sm flex-1">{fileName}</span>
                 </div>
               </div>
             )}
-            
+            {!fileName && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={handleEditAll}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+                >
+                  Upload File
+                </button>
+              </div>
+            )}            
             {/* Timestamp */}
             {uploadedData.created_at && (
               <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3 border border-emerald-100">
@@ -776,7 +830,7 @@ const TestData = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Email Field */}
-            <div>
+            {/* <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                 <Mail className="w-4 h-4 text-purple-600" />
                 Email Address
@@ -800,10 +854,10 @@ const TestData = () => {
                   <span>{errors.email}</span>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Password Field */}
-            {email.trim() && (
+            {/* {email.trim() && (
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                   <Eye className="w-4 h-4 text-purple-600" />
@@ -848,10 +902,10 @@ const TestData = () => {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Password Info Modal */}
-            {showPasswordInfoModal && (
+            {/* {showPasswordInfoModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-purple-200 animate-in fade-in zoom-in duration-200">
                   <div className="flex items-center justify-between mb-4">
@@ -887,10 +941,10 @@ const TestData = () => {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Phone Number Field */}
-            <div>
+            {/* <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                 <Phone className="w-4 h-4 text-purple-600" />
                 Phone Number
@@ -914,10 +968,10 @@ const TestData = () => {
                   <span>{errors.phone}</span>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Country/Region Field */}
-            <div>
+            {/* <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                 <Globe className="w-4 h-4 text-purple-600" />
                 Country/Region
@@ -938,7 +992,7 @@ const TestData = () => {
                   </option>
                 ))}
               </select>
-            </div>
+            </div> */}
 
             {/* GPT Version Field */}
             <div>
@@ -1118,6 +1172,33 @@ const TestData = () => {
                 </div>
               </div>
             )}
+
+            {/* show previously uploaded file when editing */}
+            {!selectedFile && uploadedData && getFileName(uploadedData) && (
+              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <FileText className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{getFileName(uploadedData)}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // clear existing backend file reference so user can re-upload
+                      setUploadedData(prev => ({ ...prev, filename: null, file: null, test_data_file: null, name: null }));
+                      setRemoveFile(true);
+                    }}
+                    className="ml-3 p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Remove existing file"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Info Note */}
@@ -1190,7 +1271,7 @@ const TestData = () => {
 
     return (
       <div>
-        {uploadedData ? renderUploadedData() : renderInputForm()}
+        {isEditing ? renderInputForm() : uploadedData ? renderUploadedData() : renderInputForm()}
       </div>
     );
   };
